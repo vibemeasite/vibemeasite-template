@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { getMenu, getSiteSettings } from "../lib/queries";
 import { getContainerContent } from "../lib/cellpy-block";
 import { CellpyBlock } from "../components/CellpyBlock";
+import { StagingBanner } from "../components/StagingBanner";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -55,9 +56,24 @@ function sanitizeHeaderCss(css: unknown): string {
 }
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const [menu, settings, footerContent] = await Promise.all([
+  // Checked before fetching menu/footer content — a paused (Path B,
+  // non-payment past the billing grace period) site renders nothing else.
+  const settings = await getSiteSettings();
+
+  if (settings.paused) {
+    return (
+      <html lang="en">
+        <body>
+          <div className="paused-page">
+            <p>This site is temporarily unavailable. Please contact the site owner.</p>
+          </div>
+        </body>
+      </html>
+    );
+  }
+
+  const [menu, footerContent] = await Promise.all([
     getMenu(),
-    getSiteSettings(),
     getContainerContent(ACCOUNT_SLUG, FOOTER_CONTAINER_SLUG),
   ]);
   const isSideNav = settings.navPosition === "side";
@@ -74,6 +90,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html lang="en">
       <head>{headStyle ? <style>{headStyle}</style> : null}</head>
       <body>
+        {settings.stagingExpiresAt ? <StagingBanner expiresAt={settings.stagingExpiresAt.toISOString()} /> : null}
         <div className={isSideNav ? "layout-side" : "layout-top"}>
           <div className={isSideNav ? "nav-side" : "nav-top"}>
             <div className="nav-brand">

@@ -1,4 +1,4 @@
-import { pgTable, text, integer, jsonb, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, jsonb, boolean, timestamp } from "drizzle-orm/pg-core";
 
 // Per-site schema, matching vibemeasite/docs/bsa-documentation-vibemeasite-service.md's
 // US-VMAS-DEPLOY-03 Data model. This is the ONE canonical copy of a given
@@ -92,4 +92,14 @@ export const siteSettings = pgTable("site_settings", {
   // "support all CSS" is incompatible with a strict allowlist; rendered as
   // a plain JSX text child (React escapes it), never dangerouslySetInnerHTML.
   headerCss: text("header_css"),
+  // Staging-first claim flow (ADR-001) — null once the site is claimed via
+  // either path. Read in app/layout.tsx to render the countdown banner.
+  stagingExpiresAt: timestamp("staging_expires_at"),
+  // Path B (Cellpy-hosted) non-payment after the billing grace period sets
+  // this true — app/layout.tsx short-circuits to a static "temporarily
+  // unavailable" page instead of real content when set. A direct DB write
+  // from lib/teardown.ts's pauseCellpyHostedSite, not a Vercel API call, so
+  // it takes effect immediately with no redeploy (same zero-rebuild model
+  // as every other post-launch mutation here).
+  paused: boolean("paused").notNull().default(false),
 });

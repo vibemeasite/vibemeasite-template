@@ -35,6 +35,8 @@ export const getSiteSettings = unstable_cache(
         customLinks: null,
         colors: null,
         headerCss: null,
+        stagingExpiresAt: null,
+        paused: false,
       }
     );
   },
