@@ -36,7 +36,6 @@ export const getSiteSettings = unstable_cache(
         colors: null,
         headerCss: null,
         stagingExpiresAt: null,
-        paused: false,
       }
     );
   },

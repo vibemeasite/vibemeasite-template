@@ -74,12 +74,3 @@ a { color: var(--color-primary, inherit); }
   color: #664d03;
   border-bottom: 1px solid #ffe69c;
 }
-
-.paused-page {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  text-align: center;
-  padding: 24px;
-}

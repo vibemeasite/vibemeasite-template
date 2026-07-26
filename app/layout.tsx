@@ -56,24 +56,9 @@ function sanitizeHeaderCss(css: unknown): string {
 }
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  // Checked before fetching menu/footer content — a paused (Path B,
-  // non-payment past the billing grace period) site renders nothing else.
-  const settings = await getSiteSettings();
-
-  if (settings.paused) {
-    return (
-      <html lang="en">
-        <body>
-          <div className="paused-page">
-            <p>This site is temporarily unavailable. Please contact the site owner.</p>
-          </div>
-        </body>
-      </html>
-    );
-  }
-
-  const [menu, footerContent] = await Promise.all([
+  const [menu, settings, footerContent] = await Promise.all([
     getMenu(),
+    getSiteSettings(),
     getContainerContent(ACCOUNT_SLUG, FOOTER_CONTAINER_SLUG),
   ]);
   const isSideNav = settings.navPosition === "side";

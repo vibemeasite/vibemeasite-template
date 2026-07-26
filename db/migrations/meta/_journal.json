@@ -36,6 +36,13 @@
       "when": 1785088640531,
       "tag": "0004_staging_and_pause",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785094456816,
+      "tag": "0005_drop_paused_column",
+      "breakpoints": true
     }
   ]
 }
