@@ -12,14 +12,37 @@ interface CustomLink {
   url: string;
 }
 
+// Rendered raw into a <style> tag below — even though set_branding (the
+// only writer of this column) validates before storing, re-validate here
+// too rather than trust the database blindly, same defense-in-depth as
+// this repo's other dangerouslySetInnerHTML sink (the logoSvg column).
+const COLOR_KEY_RE = /^[a-z][a-z0-9-]{0,30}$/;
+const COLOR_VALUE_RE = /^[#a-zA-Z0-9(),.%\s-]{1,50}$/;
+
+function sanitizeColors(colors: unknown): Record<string, string> {
+  if (!colors || typeof colors !== "object") return {};
+  const safe: Record<string, string> = {};
+  for (const [key, value] of Object.entries(colors as Record<string, unknown>)) {
+    if (typeof value !== "string") continue;
+    if (!COLOR_KEY_RE.test(key) || !COLOR_VALUE_RE.test(value)) continue;
+    safe[key] = value;
+  }
+  return safe;
+}
+
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const [menu, settings] = await Promise.all([getMenu(), getSiteSettings()]);
   const isSideNav = settings.navPosition === "side";
   const isOnePage = settings.layoutMode === "one-page";
   const customLinks = (settings.customLinks as CustomLink[] | null) ?? [];
+  const colors = sanitizeColors(settings.colors);
+  const colorVars = Object.entries(colors)
+    .map(([key, value]) => `--color-${key}: ${value};`)
+    .join(" ");
 
   return (
     <html lang="en">
+      <head>{colorVars && <style>{`:root { ${colorVars} }`}</style>}</head>
       <body className={isSideNav ? "layout-side" : "layout-top"}>
         <div className={isSideNav ? "nav-side" : "nav-top"}>
           <div className="nav-brand">

@@ -74,4 +74,11 @@ export const siteSettings = pgTable("site_settings", {
   phone: text("phone"),
   email: text("email"),
   customLinks: jsonb("custom_links"), // Array<{ label: string, url: string }>
+  // Free-form key -> hex/CSS-color-value map (e.g. { primary: "#1a5f4a",
+  // text: "#222222" }), set via set_branding. Emitted as CSS custom
+  // properties (--color-{key}) on :root in app/layout.tsx — globals.css
+  // consumes them for the site's own chrome, and generate_block's tool
+  // description tells Claude to use the same var(--color-*) names in
+  // generated block CSS so blocks and chrome stay visually consistent.
+  colors: jsonb("colors"),
 });

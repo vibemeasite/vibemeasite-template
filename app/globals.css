@@ -1,6 +1,12 @@
 * , *::before, *::after { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
-body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--color-text, inherit);
+  background: var(--color-background, #ffffff);
+}
+a { color: var(--color-primary, inherit); }
 
 .nav-brand { display: flex; align-items: center; }
 /* .nav-logo (<img>) is a replaced element, so height/width apply directly.
@@ -27,7 +33,7 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sa
 }
 .layout-top .nav-links-top { display: flex; gap: 24px; flex: 1; }
 .layout-top .nav-extras { display: flex; gap: 16px; margin-left: auto; }
-.layout-top .nav-extras a { color: #1a5f4a; }
+.layout-top .nav-extras a { color: var(--color-primary, #1a5f4a); }
 
 /* Side nav (site_settings.nav_position = "side") */
 .layout-side { display: flex; min-height: 100vh; }
@@ -41,7 +47,7 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sa
   background: #f7f8f7;
   border-right: 1px solid #e5e7e5;
 }
-.layout-side .nav-extras a { color: #1a5f4a; }
+.layout-side .nav-extras a { color: var(--color-primary, #1a5f4a); }
 .layout-side .nav-links-side { display: flex; flex-direction: column; gap: 16px; }
 .layout-side .nav-extras { display: flex; flex-direction: column; gap: 8px; }
 .layout-side main { flex: 1; min-width: 0; }

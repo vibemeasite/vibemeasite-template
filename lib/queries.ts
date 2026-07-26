@@ -33,6 +33,7 @@ export const getSiteSettings = unstable_cache(
         phone: null,
         email: null,
         customLinks: null,
+        colors: null,
       }
     );
   },
