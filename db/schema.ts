@@ -1,4 +1,4 @@
-import { pgTable, text, integer, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, jsonb, boolean } from "drizzle-orm/pg-core";
 
 // Per-site schema, matching vibemeasite/docs/bsa-documentation-vibemeasite-service.md's
 // US-VMAS-DEPLOY-03 Data model. This is the ONE canonical copy of a given
@@ -11,6 +11,13 @@ export const pages = pgTable("pages", {
   title: text("title").notNull(),
   layoutTree: jsonb("layout_tree"),
   seoMeta: jsonb("seo_meta"),
+  // Only meaningful when site_settings.layout_mode = "one-page": true means
+  // this page's containers render inline (as an anchor-scrollable section on
+  // "/") instead of at their own "/{slug}" route. Defaults true so ordinary
+  // multi-page sites are unaffected; a Site Owner can flag specific pages
+  // (Privacy Policy, Terms) false to keep them as standalone routes even in
+  // one-page mode.
+  inScroll: boolean("in_scroll").notNull().default(true),
 });
 
 export const menuItems = pgTable("menu_items", {
@@ -49,4 +56,22 @@ export const siteSettings = pgTable("site_settings", {
   id: text("id").primaryKey(),
   navPosition: text("nav_position").notNull().default("top"), // "top" | "side"
   containerWidth: text("container_width").notNull().default("standard"), // "standard" | "wide"
+  // "multi-page": every menu item links to its own "/{slug}" route (default).
+  // "one-page": in-scroll pages (pages.in_scroll = true) render concatenated
+  // on "/", with menu items linking to "#{slug}" anchors instead; pages with
+  // in_scroll = false still get their own standalone route either way.
+  // Decided once at create_site time (US-VMAS header/layout discussion).
+  layoutMode: text("layout_mode").notNull().default("multi-page"),
+  // Header content — set via set_branding, mutually exclusive with logoSvg
+  // (whichever was set most recently wins; set_branding clears the other).
+  logoUrl: text("logo_url"),
+  // Raw inline SVG markup, validated (validateSvgLogo in block-validator)
+  // before storage — rendered directly via dangerouslySetInnerHTML rather
+  // than an <img src>, since it avoids a separate asset request and scales
+  // losslessly. Never trust this column's contents without validation at
+  // write time; nothing re-checks it at render time.
+  logoSvg: text("logo_svg"),
+  phone: text("phone"),
+  email: text("email"),
+  customLinks: jsonb("custom_links"), // Array<{ label: string, url: string }>
 });
