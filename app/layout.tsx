@@ -40,6 +40,20 @@ function sanitizeColors(colors: unknown): Record<string, string> {
   return safe;
 }
 
+// Blocklist, not an allowlist — "support all CSS instructions" (arbitrary
+// selectors/properties/media queries) is the point, so this only rejects
+// the handful of universally-dangerous constructs rather than restricting
+// syntax. Rendered as a plain JSX text child below (never
+// dangerouslySetInnerHTML), so React itself HTML-escapes it — no separate
+// "</style>" breakout check is needed the way it would be with raw string
+// concatenation outside JSX.
+const CSS_FORBIDDEN_RE = /@import|javascript:|expression\s*\(/i;
+
+function sanitizeHeaderCss(css: unknown): string {
+  if (typeof css !== "string" || CSS_FORBIDDEN_RE.test(css)) return "";
+  return css;
+}
+
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const [menu, settings, footerContent] = await Promise.all([
     getMenu(),
@@ -53,10 +67,12 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const colorVars = Object.entries(colors)
     .map(([key, value]) => `--color-${key}: ${value};`)
     .join(" ");
+  const headerCss = sanitizeHeaderCss(settings.headerCss);
+  const headStyle = [colorVars ? `:root { ${colorVars} }` : "", headerCss].filter(Boolean).join("\n");
 
   return (
     <html lang="en">
-      <head>{colorVars ? <style>{`:root { ${colorVars} }`}</style> : null}</head>
+      <head>{headStyle ? <style>{headStyle}</style> : null}</head>
       <body>
         <div className={isSideNav ? "layout-side" : "layout-top"}>
           <div className={isSideNav ? "nav-side" : "nav-top"}>

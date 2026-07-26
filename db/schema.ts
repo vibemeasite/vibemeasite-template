@@ -81,4 +81,15 @@ export const siteSettings = pgTable("site_settings", {
   // description tells Claude to use the same var(--color-*) names in
   // generated block CSS so blocks and chrome stay visually consistent.
   colors: jsonb("colors"),
+  // Raw CSS text targeting the header's own class names (.nav-top,
+  // .nav-side, .nav-brand, .nav-logo, .nav-logo-svg, .nav-links-top,
+  // .nav-links-side, .nav-extras) — set via set_branding, rendered into a
+  // <style> tag in <head> alongside the color vars. Deliberately not a
+  // fixed set of named properties (background/text color, etc.): the point
+  // is any CSS instruction (media queries, pseudo-classes, whatever) works
+  // without ever needing a template code change or redeploy. Blocklist-
+  // validated (@import, javascript:, expression() — see set_branding) since
+  // "support all CSS" is incompatible with a strict allowlist; rendered as
+  // a plain JSX text child (React escapes it), never dangerouslySetInnerHTML.
+  headerCss: text("header_css"),
 });
