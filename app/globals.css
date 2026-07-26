@@ -19,8 +19,15 @@ a { color: var(--color-primary, inherit); }
 .nav-logo-svg svg { height: 100%; width: auto; display: block; }
 .nav-top a, .nav-side a { text-decoration: none; color: inherit; font-weight: 500; }
 
-/* Top nav (default) */
-.layout-top .nav-top {
+/* Top nav (default) — .nav-top/.nav-links-top are unique to this layout
+   mode, deliberately NOT qualified by an ancestor .layout-top: a compound
+   selector here would out-specificity a plain ".nav-top { ... }" rule in
+   set_branding's header_css regardless of source order, silently defeating
+   the override. .nav-extras is the one exception — it genuinely needs
+   different flex-direction in each layout, so it stays ancestor-qualified;
+   header_css overriding it needs the full ".layout-top .nav-extras" /
+   ".layout-side .nav-extras" selector to win. */
+.nav-top {
   display: flex;
   align-items: center;
   gap: 24px;
@@ -31,13 +38,13 @@ a { color: var(--color-primary, inherit); }
   top: 0;
   z-index: 10;
 }
-.layout-top .nav-links-top { display: flex; gap: 24px; flex: 1; }
+.nav-links-top { display: flex; gap: 24px; flex: 1; }
 .layout-top .nav-extras { display: flex; gap: 16px; margin-left: auto; }
 .layout-top .nav-extras a { color: var(--color-primary, #1a5f4a); }
 
 /* Side nav (site_settings.nav_position = "side") */
 .layout-side { display: flex; min-height: 100vh; }
-.layout-side .nav-side {
+.nav-side {
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -48,7 +55,7 @@ a { color: var(--color-primary, inherit); }
   border-right: 1px solid #e5e7e5;
 }
 .layout-side .nav-extras a { color: var(--color-primary, #1a5f4a); }
-.layout-side .nav-links-side { display: flex; flex-direction: column; gap: 16px; }
+.nav-links-side { display: flex; flex-direction: column; gap: 16px; }
 .layout-side .nav-extras { display: flex; flex-direction: column; gap: 8px; }
 .layout-side main { flex: 1; min-width: 0; }
 
