@@ -1,4 +1,4 @@
-import { SitePage } from "../components/SitePage.js";
+import { SitePage } from "../components/SitePage";
 
 // The home page's slug is always "home" by convention — see
 // vibemeasite-mcp's create_site tool, which requires it as one of the

@@ -1,5 +1,5 @@
-import { scopeCss } from "../lib/css-scope.js";
-import type { CellpyBlockContent } from "../lib/cellpy-block.js";
+import { scopeCss } from "../lib/css-scope";
+import type { CellpyBlockContent } from "../lib/cellpy-block";
 
 interface CellpyBlockProps {
   containerSlug: string;

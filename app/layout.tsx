@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { getMenu, getSiteSettings } from "../lib/queries.js";
+import { getMenu, getSiteSettings } from "../lib/queries";
 import "./globals.css";
 
 export const metadata: Metadata = {

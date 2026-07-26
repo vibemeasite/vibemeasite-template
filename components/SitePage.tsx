@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
-import { getPageBySlug } from "../lib/queries.js";
-import { getContainerContent } from "../lib/cellpy-block.js";
-import { CellpyBlock } from "./CellpyBlock.js";
+import { getPageBySlug } from "../lib/queries";
+import { getContainerContent } from "../lib/cellpy-block";
+import { CellpyBlock } from "./CellpyBlock";
 
 // Set on the Vercel project at provisioning time (US-VMAS-DEPLOY-04) —
 // each site's own Cellpy service-account slug, needed to build its

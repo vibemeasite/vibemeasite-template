@@ -1,7 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { asc, eq } from "drizzle-orm";
-import { db } from "../db/index.js";
-import { pages, menuItems, containers, siteSettings } from "../db/schema.js";
+import { db } from "../db/index";
+import { pages, menuItems, containers, siteSettings } from "../db/schema";
 
 // Tag-based revalidation (US-VMAS-MUTATE-01) only works for cached
 // functions wrapped in unstable_cache (or fetch() calls with { next: { tags } }
