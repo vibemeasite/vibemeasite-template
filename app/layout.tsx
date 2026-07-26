@@ -28,7 +28,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               // URIs, <foreignObject>, etc. — see validateSvgLogo in
               // block-validator) before ever being written to this column;
               // never accept unvalidated SVG here.
-              <span className="nav-logo" dangerouslySetInnerHTML={{ __html: settings.logoSvg }} />
+              <span className="nav-logo-svg" dangerouslySetInnerHTML={{ __html: settings.logoSvg }} />
             ) : settings.logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img className="nav-logo" src={settings.logoUrl} alt="" />

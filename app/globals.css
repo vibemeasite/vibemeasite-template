@@ -3,7 +3,14 @@ html { scroll-behavior: smooth; }
 body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 
 .nav-brand { display: flex; align-items: center; }
-.nav-logo { height: 32px; width: auto; }
+/* .nav-logo (<img>) is a replaced element, so height/width apply directly.
+   .nav-logo-svg wraps a raw injected <svg> (dangerouslySetInnerHTML) — an
+   inline non-replaced <span>, so height on the wrapper alone would NOT
+   constrain the child <svg>; the svg's own box must be sized explicitly,
+   or an unsized viewBox SVG defaults to 300x150px. */
+.nav-logo { height: 32px; width: auto; display: block; }
+.nav-logo-svg { display: inline-flex; align-items: center; height: 32px; }
+.nav-logo-svg svg { height: 100%; width: auto; display: block; }
 .nav-top a, .nav-side a { text-decoration: none; color: inherit; font-weight: 500; }
 
 /* Top nav (default) */
@@ -12,10 +19,15 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sa
   align-items: center;
   gap: 24px;
   padding: 16px 24px;
-  border-bottom: 1px solid #eee;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 .layout-top .nav-links-top { display: flex; gap: 24px; flex: 1; }
 .layout-top .nav-extras { display: flex; gap: 16px; margin-left: auto; }
+.layout-top .nav-extras a { color: #1a5f4a; }
 
 /* Side nav (site_settings.nav_position = "side") */
 .layout-side { display: flex; min-height: 100vh; }
@@ -26,8 +38,10 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sa
   width: 220px;
   flex-shrink: 0;
   padding: 24px;
-  border-right: 1px solid #eee;
+  background: #f7f8f7;
+  border-right: 1px solid #e5e7e5;
 }
+.layout-side .nav-extras a { color: #1a5f4a; }
 .layout-side .nav-links-side { display: flex; flex-direction: column; gap: 16px; }
 .layout-side .nav-extras { display: flex; flex-direction: column; gap: 8px; }
 .layout-side main { flex: 1; min-width: 0; }
