@@ -42,7 +42,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
 
   return (
     <html lang="en">
-      <head>{colorVars && <style>{`:root { ${colorVars} }`}</style>}</head>
+      <head>{colorVars ? <style>{`:root { ${colorVars} }`}</style> : null}</head>
       <body className={isSideNav ? "layout-side" : "layout-top"}>
         <div className={isSideNav ? "nav-side" : "nav-top"}>
           <div className="nav-brand">
