@@ -7,11 +7,14 @@
  * app/[slug]/page.tsx.
  */
 ( function () {
-	// Must be www.cellpy.com, not the apex domain: cellpy.com 307-redirects to
-	// www.cellpy.com with no CORS headers on the redirect response, and a
-	// redirected CORS preflight is treated as a network error by browsers,
-	// breaking cross-origin submits from every site (all of them, by design).
-	var ENDPOINT_BASE = 'https://www.cellpy.com/api/forms/submit/';
+	// Same-origin — the site's own app/api/forms/submit/[slug]/route.ts
+	// handles delivery server-side (via the Site Owner's own Resend account
+	// if connect_resend was set up, else forwarding server-to-server to
+	// Cellpy's central relay). This is what actually removes the CORS
+	// dependency for good: a same-origin POST from the browser never
+	// preflights, and any downstream cross-origin call happens server-to-
+	// server where CORS doesn't apply at all.
+	var ENDPOINT_BASE = '/api/forms/submit/';
 	var DEFAULT_SUCCESS_MESSAGE = "Thanks! We'll be in touch soon.";
 	var GENERIC_ERROR_MESSAGE = 'Something went wrong. Please try again.';
 	var RATE_LIMIT_MESSAGE = 'Too many submissions. Please wait a moment and try again.';
