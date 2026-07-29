@@ -1,5 +1,10 @@
 * , *::before, *::after { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
+/* Safety net against sideways scroll on narrow phones — page content comes
+   from Cellpy blocks (arbitrary per-site authored HTML/CSS) and a logoSvg
+   we don't control the dimensions of, so this is defense-in-depth rather
+   than a substitute for fixing individual overflow sources. */
+html, body { overflow-x: hidden; }
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -8,14 +13,23 @@ body {
 }
 a { color: var(--color-primary, inherit); }
 
-.nav-brand { display: flex; align-items: center; }
+/* min-width: 0 lets the brand shrink below its content size inside the
+   nav-top/nav-side flex row — without it, a wide wordmark-style logoSvg
+   (some are 3-4x wider than tall) forces the whole header wider than the
+   viewport instead of scaling down, causing horizontal scroll on narrow
+   phones. overflow: hidden backstops any residual overflow during the
+   clamp() transition below. */
+.nav-brand { display: flex; align-items: center; min-width: 0; overflow: hidden; }
 /* .nav-logo (<img>) is a replaced element, so height/width apply directly.
    .nav-logo-svg wraps a raw injected <svg> (dangerouslySetInnerHTML) — an
    inline non-replaced <span>, so height on the wrapper alone would NOT
    constrain the child <svg>; the svg's own box must be sized explicitly,
-   or an unsized viewBox SVG defaults to 300x150px. */
-.nav-logo { height: 32px; width: auto; display: block; }
-.nav-logo-svg { display: inline-flex; align-items: center; height: 32px; }
+   or an unsized viewBox SVG defaults to 300x150px.
+   height uses clamp() instead of a fixed 32px so wide wordmark logos scale
+   down (width:auto follows proportionally) below ~640px instead of
+   overflowing — see the nav-brand comment above. */
+.nav-logo { height: clamp(20px, 5vw, 32px); width: auto; display: block; }
+.nav-logo-svg { display: inline-flex; align-items: center; height: clamp(20px, 5vw, 32px); }
 .nav-logo-svg svg { height: 100%; width: auto; display: block; }
 .nav-top a, .nav-side a { text-decoration: none; color: inherit; font-weight: 500; }
 
@@ -43,17 +57,20 @@ a { color: var(--color-primary, inherit); }
   margin-left: auto;
   border: none;
   background: transparent;
-  color: inherit;
   cursor: pointer;
   flex-shrink: 0;
 }
+/* Hardcoded white rather than currentColor/inherit — same "site header_css
+   overrides the unqualified selector" contract as the rest of this file
+   (see the .nav-top comment above), so a light-background site just adds
+   ".nav-toggle-bars { background: <dark color>; }" to its header_css. */
 .nav-toggle-bars,
 .nav-toggle-bars::before,
 .nav-toggle-bars::after {
   display: block;
   width: 22px;
   height: 2px;
-  background: currentColor;
+  background: #ffffff;
   transition: transform 0.2s ease, opacity 0.2s ease, top 0.2s ease;
 }
 .nav-toggle-bars { position: relative; }
@@ -133,10 +150,10 @@ a { color: var(--color-primary, inherit); }
   border-bottom: 1px solid #ffe69c;
 }
 
-/* Mobile nav — rollup into a hamburger below 769px. Kept as one breakpoint
+/* Mobile nav — rollup into a hamburger below 993px. Kept as one breakpoint
    (not split top/side) since both layouts collapse to the same pattern: a
    brand+toggle bar with a full-width dropdown panel underneath. */
-@media (max-width: 768px) {
+@media (max-width: 992px) {
   .nav-toggle { display: inline-flex; }
 
   .nav-top {

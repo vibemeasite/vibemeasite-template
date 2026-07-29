@@ -39,7 +39,7 @@ export function MobileNav({ isSideNav, isOnePage, menu, phone, email, customLink
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
-    const mql = window.matchMedia("(min-width: 769px)");
+    const mql = window.matchMedia("(min-width: 993px)");
     const onMediaChange = () => setOpen(false);
     document.addEventListener("keydown", onKeyDown);
     mql.addEventListener("change", onMediaChange);
