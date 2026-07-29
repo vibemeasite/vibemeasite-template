@@ -15,34 +15,123 @@ import { containers, pages } from "../../../../../db/schema";
 const CENTRAL_RELAY_BASE = "https://www.cellpy.com/api/forms/submit/";
 const CENTRAL_DESTINATION_BASE = "https://www.cellpy.com/api/forms/destination/";
 
+interface Attachment {
+  filename: string;
+  contentType: string;
+  content: string; // base64, no data: prefix — see public/forms.js's collectAttachments
+}
+
+// Images/PDF/Word docs only — matches what the "Get a Quote"-style forms
+// this is built for actually need. Total kept well under Vercel's Node
+// serverless function request-body ceiling (4.5MB): base64 inflates raw
+// bytes by ~1/3, and the JSON body carries the rest of the form on top of
+// this, so this leaves real headroom rather than sitting right at the edge.
+const ALLOWED_ATTACHMENT_EXTENSIONS = new Set([
+  "jpg", "jpeg", "png", "webp", "gif", "heic", "heif", "pdf", "doc", "docx",
+]);
+const MAX_ATTACHMENTS = 4;
+const MAX_TOTAL_ATTACHMENT_BYTES = 2 * 1024 * 1024;
+
+type AttachmentValidation =
+  | { ok: true; attachments: Attachment[] }
+  | { ok: false; message: string };
+
+function validateAttachments(raw: unknown): AttachmentValidation {
+  if (raw === undefined || raw === null) return { ok: true, attachments: [] };
+  if (!Array.isArray(raw)) return { ok: false, message: "Invalid attachment data." };
+  if (raw.length > MAX_ATTACHMENTS) {
+    return { ok: false, message: `You can attach up to ${MAX_ATTACHMENTS} files.` };
+  }
+
+  const attachments: Attachment[] = [];
+  let totalRawBytes = 0;
+
+  for (const item of raw) {
+    const filename = (item as { filename?: unknown })?.filename;
+    const content = (item as { content?: unknown })?.content;
+    const contentType = (item as { contentType?: unknown })?.contentType;
+    if (typeof filename !== "string" || typeof content !== "string") {
+      return { ok: false, message: "Invalid attachment data." };
+    }
+
+    const ext = filename.split(".").pop()?.toLowerCase() ?? "";
+    if (!ALLOWED_ATTACHMENT_EXTENSIONS.has(ext)) {
+      return { ok: false, message: `"${filename}" isn't an accepted file type — images, PDF, or Word docs only.` };
+    }
+
+    totalRawBytes += Math.floor((content.length * 3) / 4);
+    attachments.push({
+      filename,
+      content,
+      contentType: typeof contentType === "string" ? contentType : "application/octet-stream",
+    });
+  }
+
+  if (totalRawBytes > MAX_TOTAL_ATTACHMENT_BYTES) {
+    return {
+      ok: false,
+      message: `Attachments are too large (max ${(MAX_TOTAL_ATTACHMENT_BYTES / (1024 * 1024)).toFixed(0)}MB total) — try smaller files or fewer of them.`,
+    };
+  }
+
+  return { ok: true, attachments };
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params;
 
-  let body: Record<string, unknown>;
+  let rawBody: Record<string, unknown>;
   try {
-    body = await req.json();
+    rawBody = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
   // Honeypot: bots fill _hp, humans leave it empty — mirrors the central
   // relay's own check (platform/apps/web's forms/submit route).
-  if (body._hp) {
+  if (rawBody._hp) {
     return NextResponse.json({ ok: true });
   }
 
-  const localResult = await tryLocalDelivery(slug, body);
+  const { _hp: _ignoredHp, _attachments, ...fields } = rawBody;
+
+  const attachmentResult = validateAttachments(_attachments);
+  if (!attachmentResult.ok) {
+    return NextResponse.json(
+      { ok: false, error: "ATTACHMENT_INVALID", message: attachmentResult.message },
+      { status: 400 }
+    );
+  }
+
+  const localResult = await tryLocalDelivery(slug, fields, attachmentResult.attachments);
   if (localResult) return NextResponse.json(localResult.body, { status: localResult.status });
 
-  return forwardToCentralRelay(slug, body);
+  // Attachments only ever go out via the Site Owner's own Resend account
+  // (connect_resend) — the central relay's JSON contract has no attachment
+  // support, and silently forwarding text-only would mean the visitor's
+  // files just vanish with no error. Fail loudly instead so they know to
+  // retry rather than assume it worked.
+  if (attachmentResult.attachments.length > 0) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "ATTACHMENTS_UNAVAILABLE",
+        message: "Files couldn't be sent right now — please try again shortly, or resubmit without attachments.",
+      },
+      { status: 503 }
+    );
+  }
+
+  return forwardToCentralRelay(slug, fields);
 }
 
 async function tryLocalDelivery(
   slug: string,
-  fields: Record<string, unknown>
+  fields: Record<string, unknown>,
+  attachments: Attachment[]
 ): Promise<{ body: unknown; status: number } | null> {
   const resendApiKey = process.env.RESEND_API_KEY;
   const cellpyApiToken = process.env.CELLPY_API_TOKEN;
@@ -66,13 +155,22 @@ async function tryLocalDelivery(
     const pageTitle = row?.pageTitle ?? slug;
     const pageUrl = row?.pageSlug ? `https://${process.env.VERCEL_URL ?? ""}/${row.pageSlug}` : "";
 
+    // Listed as a regular field too (not just as real email attachments) so
+    // it's visible when scanning the email body without opening each file.
+    const emailFields = attachments.length > 0
+      ? { ...fields, Attachments: attachments.map((a) => a.filename).join(", ") }
+      : fields;
+
     const resend = new Resend(resendApiKey);
     const { error } = await resend.emails.send({
       from: process.env.EMAIL_FROM || "onboarding@resend.dev",
       to: email,
       subject: `New submission — ${pageTitle}`,
-      html: formatEmailHtml(pageTitle, pageUrl, fields),
-      text: formatEmailText(fields),
+      html: formatEmailHtml(pageTitle, pageUrl, emailFields),
+      text: formatEmailText(emailFields),
+      attachments: attachments.length > 0
+        ? attachments.map((a) => ({ filename: a.filename, content: a.content }))
+        : undefined,
     });
     if (error) return null;
 

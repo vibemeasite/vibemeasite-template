@@ -19,6 +19,14 @@
 	var GENERIC_ERROR_MESSAGE = 'Something went wrong. Please try again.';
 	var RATE_LIMIT_MESSAGE = 'Too many submissions. Please wait a moment and try again.';
 
+	// Mirrors app/api/forms/submit/[slug]/route.ts's own limits exactly —
+	// validating here too just means a visitor sees the "too large"/"wrong
+	// type" message immediately instead of after a round trip, not a
+	// security boundary (the server re-checks everything).
+	var ALLOWED_ATTACHMENT_EXTENSIONS = [ 'jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif', 'pdf', 'doc', 'docx' ];
+	var MAX_ATTACHMENTS = 4;
+	var MAX_TOTAL_ATTACHMENT_BYTES = 2 * 1024 * 1024;
+
 	// The block's authored HTML doesn't include the honeypot field itself —
 	// per the documented contract, rendering it is the client's job, done
 	// once at init so bots that don't run JS never see it while humans do.
@@ -43,12 +51,74 @@
 		var data = {};
 		form.querySelectorAll( '[name]' ).forEach( function ( el ) {
 			var name = el.getAttribute( 'name' );
-			if ( ! name || 'submit' === el.type || 'button' === el.type ) {
+			if ( ! name || 'submit' === el.type || 'button' === el.type || 'file' === el.type ) {
 				return;
 			}
 			data[ name ] = 'checkbox' === el.type ? el.checked : el.value;
 		} );
 		return data;
+	}
+
+	function readFileAsBase64( file ) {
+		return new Promise( function ( resolve, reject ) {
+			var reader = new FileReader();
+			reader.onload = function () {
+				var result = String( reader.result || '' );
+				var commaIndex = result.indexOf( ',' );
+				resolve( -1 === commaIndex ? result : result.slice( commaIndex + 1 ) );
+			};
+			reader.onerror = function () {
+				reject( new Error( 'Could not read file "' + file.name + '".' ) );
+			};
+			reader.readAsDataURL( file );
+		} );
+	}
+
+	// Resolves to { ok: true, attachments } or { ok: false, message } — never
+	// rejects, so callers can branch on .ok without a .catch of their own.
+	function collectAttachments( form ) {
+		var files = [];
+		form.querySelectorAll( 'input[type="file"]' ).forEach( function ( input ) {
+			Array.prototype.forEach.call( input.files || [], function ( file ) {
+				files.push( file );
+			} );
+		} );
+
+		if ( 0 === files.length ) {
+			return Promise.resolve( { ok: true, attachments: [] } );
+		}
+
+		if ( files.length > MAX_ATTACHMENTS ) {
+			return Promise.resolve( { ok: false, message: 'You can attach up to ' + MAX_ATTACHMENTS + ' files.' } );
+		}
+
+		var totalBytes = 0;
+		for ( var i = 0; i < files.length; i++ ) {
+			var ext = ( files[ i ].name.split( '.' ).pop() || '' ).toLowerCase();
+			if ( -1 === ALLOWED_ATTACHMENT_EXTENSIONS.indexOf( ext ) ) {
+				return Promise.resolve( { ok: false, message: '"' + files[ i ].name + '" isn\'t an accepted file type — images, PDF, or Word docs only.' } );
+			}
+			totalBytes += files[ i ].size;
+		}
+
+		if ( totalBytes > MAX_TOTAL_ATTACHMENT_BYTES ) {
+			return Promise.resolve( {
+				ok: false,
+				message: 'Attachments are too large (max ' + Math.floor( MAX_TOTAL_ATTACHMENT_BYTES / ( 1024 * 1024 ) ) + 'MB total) — try smaller files or fewer of them.',
+			} );
+		}
+
+		return Promise.all( files.map( function ( file ) {
+			return readFileAsBase64( file ).then( function ( content ) {
+				return { filename: file.name, contentType: file.type || 'application/octet-stream', content: content };
+			} );
+		} ) )
+			.then( function ( attachments ) {
+				return { ok: true, attachments: attachments };
+			} )
+			.catch( function ( err ) {
+				return { ok: false, message: ( err && err.message ) || 'Could not read the attached file(s).' };
+			} );
 	}
 
 	function setSubmitting( form, submitting ) {
@@ -111,42 +181,54 @@
 				existingError.remove();
 			}
 
-			setSubmitting( form, true );
+			collectAttachments( form ).then( function ( attachmentResult ) {
+				if ( ! attachmentResult.ok ) {
+					showError( form, attachmentResult.message );
+					return;
+				}
 
-			fetch( ENDPOINT_BASE + encodeURIComponent( slug ), {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify( collectFields( form ) ),
-			} )
-				.then( function ( res ) {
-					return res
-						.json()
-						.catch( function () {
-							return {};
-						} )
-						.then( function ( json ) {
-							return { status: res.status, json: json };
-						} );
+				setSubmitting( form, true );
+
+				var payload = collectFields( form );
+				if ( attachmentResult.attachments.length > 0 ) {
+					payload._attachments = attachmentResult.attachments;
+				}
+
+				fetch( ENDPOINT_BASE + encodeURIComponent( slug ), {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify( payload ),
 				} )
-				.then( function ( result ) {
-					setSubmitting( form, false );
+					.then( function ( res ) {
+						return res
+							.json()
+							.catch( function () {
+								return {};
+							} )
+							.then( function ( json ) {
+								return { status: res.status, json: json };
+							} );
+					} )
+					.then( function ( result ) {
+						setSubmitting( form, false );
 
-					if ( 429 === result.status ) {
-						showError( form, RATE_LIMIT_MESSAGE );
-						return;
-					}
+						if ( 429 === result.status ) {
+							showError( form, RATE_LIMIT_MESSAGE );
+							return;
+						}
 
-					if ( result.json && true === result.json.ok ) {
-						showSuccess( form, config );
-						return;
-					}
+						if ( result.json && true === result.json.ok ) {
+							showSuccess( form, config );
+							return;
+						}
 
-					showError( form, GENERIC_ERROR_MESSAGE );
-				} )
-				.catch( function () {
-					setSubmitting( form, false );
-					showError( form, GENERIC_ERROR_MESSAGE );
-				} );
+						showError( form, ( result.json && result.json.message ) || GENERIC_ERROR_MESSAGE );
+					} )
+					.catch( function () {
+						setSubmitting( form, false );
+						showError( form, GENERIC_ERROR_MESSAGE );
+					} );
+			} );
 		};
 	}
 
