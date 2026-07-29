@@ -28,9 +28,13 @@ export async function SitePage({ slug }: { slug: string }) {
 
   const blocks = await loadBlocks(result.containers);
 
-  // forms.js is only ~4KB, but there's no reason to ship it to pages with
-  // no form block at all — matches wp-cellpy's conditional-enqueue pattern.
+  // forms.js and lightbox.js are each only a few KB, but there's no reason
+  // to ship either to pages that don't need it — matches wp-cellpy's
+  // conditional-enqueue pattern. lightbox.js activates on any block whose
+  // authored HTML marks an <img> with class="cellpy-lightbox" (see
+  // vibemeasite/docs/bsa-documentation-vibemeasite-service.md, US-VMAS-CHAT-05).
   const hasForm = blocks.some((b) => b.content?.formConfig);
+  const hasLightbox = blocks.some((b) => b.content?.html.includes("cellpy-lightbox"));
 
   return (
     <>
@@ -38,6 +42,7 @@ export async function SitePage({ slug }: { slug: string }) {
         <CellpyBlock key={b.slug} containerSlug={b.slug} content={b.content} />
       ))}
       {hasForm && <script src="/forms.js" defer />}
+      {hasLightbox && <script src="/lightbox.js" defer />}
     </>
   );
 }
@@ -57,6 +62,9 @@ export async function ScrollPage({ sections }: { sections: ScrollSection[] }) {
     sections.map(async (s) => ({ slug: s.slug, blocks: await loadBlocks(s.containers) }))
   );
   const hasForm = rendered.some((s) => s.blocks.some((b) => b.content?.formConfig));
+  const hasLightbox = rendered.some((s) =>
+    s.blocks.some((b) => b.content?.html.includes("cellpy-lightbox"))
+  );
 
   return (
     <>
@@ -68,6 +76,7 @@ export async function ScrollPage({ sections }: { sections: ScrollSection[] }) {
         </section>
       ))}
       {hasForm && <script src="/forms.js" defer />}
+      {hasLightbox && <script src="/lightbox.js" defer />}
     </>
   );
 }
