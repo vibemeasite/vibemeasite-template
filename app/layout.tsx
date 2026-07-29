@@ -4,6 +4,7 @@ import { getMenu, getSiteSettings } from "../lib/queries";
 import { getContainerContent } from "../lib/cellpy-block";
 import { CellpyBlock } from "../components/CellpyBlock";
 import { StagingBanner } from "../components/StagingBanner";
+import { MobileNav } from "../components/MobileNav";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -90,32 +91,14 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 <img className="nav-logo" src={settings.logoUrl} alt="" />
               ) : null}
             </div>
-            <nav className={isSideNav ? "nav-links-side" : "nav-links-top"}>
-              {menu.map((item) => {
-                const href =
-                  isOnePage && item.inScroll
-                    ? `/#${item.pageSlug}`
-                    : item.pageSlug === "home"
-                    ? "/"
-                    : `/${item.pageSlug}`;
-                return (
-                  <a key={item.id} href={href}>
-                    {item.label}
-                  </a>
-                );
-              })}
-            </nav>
-            {(settings.phone || settings.email || customLinks.length > 0) && (
-              <div className="nav-extras">
-                {settings.phone && <a href={`tel:${settings.phone}`}>{settings.phone}</a>}
-                {settings.email && <a href={`mailto:${settings.email}`}>{settings.email}</a>}
-                {customLinks.map((link, i) => (
-                  <a key={i} href={link.url}>
-                    {link.label}
-                  </a>
-                ))}
-              </div>
-            )}
+            <MobileNav
+              isSideNav={isSideNav}
+              isOnePage={isOnePage}
+              menu={menu}
+              phone={settings.phone}
+              email={settings.email}
+              customLinks={customLinks}
+            />
           </div>
           <main>{children}</main>
         </div>
