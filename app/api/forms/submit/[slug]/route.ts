@@ -141,9 +141,15 @@ async function tryLocalDelivery(
     const destRes = await fetch(`${CENTRAL_DESTINATION_BASE}${encodeURIComponent(slug)}`, {
       headers: { Authorization: `Bearer ${cellpyApiToken}` },
     });
-    if (!destRes.ok) return null;
+    if (!destRes.ok) {
+      console.error(`[forms] destination lookup failed for "${slug}": ${destRes.status} ${await destRes.text().catch(() => "")}`);
+      return null;
+    }
     const { email } = (await destRes.json()) as { email: string | null };
-    if (!email) return null;
+    if (!email) {
+      console.error(`[forms] destination lookup for "${slug}" returned no email`);
+      return null;
+    }
 
     const [row] = await db
       .select({ pageTitle: pages.title, pageSlug: pages.slug })
@@ -172,10 +178,14 @@ async function tryLocalDelivery(
         ? attachments.map((a) => ({ filename: a.filename, content: a.content }))
         : undefined,
     });
-    if (error) return null;
+    if (error) {
+      console.error(`[forms] Resend send failed for "${slug}":`, JSON.stringify(error));
+      return null;
+    }
 
     return { body: { ok: true }, status: 200 };
-  } catch {
+  } catch (err) {
+    console.error(`[forms] local delivery threw for "${slug}":`, err instanceof Error ? err.message : String(err));
     return null;
   }
 }
