@@ -27,12 +27,20 @@ export async function POST(req: NextRequest) {
   }
 
   for (const tag of tags) {
-    // Next.js 16 requires a second "profile" argument — "max" is what
-    // Next's own deprecation message recommends as the equivalent of the
-    // old single-argument (immediate, on-demand) behavior. `updateTag()`
-    // is the newer alternative but only works inside Server Actions, not
+    // NOT revalidateTag(tag, "max") — "max" is a cacheLife *retention*
+    // profile (longest-lived), and Next's own revalidate() only marks the
+    // route's static/Full Route Cache entry as revalidated when the
+    // resolved profile's `expire` is 0 (see
+    // next/dist/server/web/spec-extension/revalidate.js). "max" doesn't
+    // satisfy that, so it updates the pending-tag list but never actually
+    // busts the previously rendered page — confirmed by calling this
+    // route directly against a live deployment and seeing stale content
+    // persist. `{ expire: 0 }` is an explicit CacheLifeConfig requesting
+    // immediate invalidation — the correct typed equivalent of the old
+    // single-argument (deprecated) call. `updateTag()` is the other
+    // official alternative but only works inside Server Actions, not
     // Route Handlers like this one.
-    revalidateTag(tag, "max");
+    revalidateTag(tag, { expire: 0 });
   }
 
   return NextResponse.json({ revalidated: true, tags });
