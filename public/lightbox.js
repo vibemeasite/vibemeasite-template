@@ -10,7 +10,13 @@
  */
 ( function () {
 	var OVERLAY_ID = 'cellpy-lightbox-overlay';
+	var NAV_BTN_STYLE =
+		'position:fixed;top:50%;transform:translateY(-50%);font-size:3rem;' +
+		'line-height:1;color:#fff;background:none;border:0;cursor:pointer;' +
+		'padding:8px 16px;';
 	var lastTrigger = null;
+	var gallery = [];
+	var galleryIndex = -1;
 
 	function buildOverlay() {
 		var overlay = document.createElement( 'div' );
@@ -39,6 +45,30 @@
 			'color:#fff;background:none;border:0;cursor:pointer;padding:8px;';
 		overlay.appendChild( closeBtn );
 
+		var prevBtn = document.createElement( 'button' );
+		prevBtn.type = 'button';
+		prevBtn.className = 'cellpy-lightbox-prev';
+		prevBtn.setAttribute( 'aria-label', 'Previous image' );
+		prevBtn.textContent = '‹';
+		prevBtn.style.cssText = NAV_BTN_STYLE + 'left:8px;';
+		prevBtn.addEventListener( 'click', function ( e ) {
+			e.stopPropagation();
+			step( -1 );
+		} );
+		overlay.appendChild( prevBtn );
+
+		var nextBtn = document.createElement( 'button' );
+		nextBtn.type = 'button';
+		nextBtn.className = 'cellpy-lightbox-next';
+		nextBtn.setAttribute( 'aria-label', 'Next image' );
+		nextBtn.textContent = '›';
+		nextBtn.style.cssText = NAV_BTN_STYLE + 'right:8px;';
+		nextBtn.addEventListener( 'click', function ( e ) {
+			e.stopPropagation();
+			step( 1 );
+		} );
+		overlay.appendChild( nextBtn );
+
 		overlay.addEventListener( 'click', function ( e ) {
 			if ( e.target === overlay || e.target === closeBtn ) {
 				close();
@@ -53,11 +83,43 @@
 		return document.getElementById( OVERLAY_ID ) || buildOverlay();
 	}
 
-	function open( img ) {
+	// Images authored within the same block share a wrapper div named
+	// cellpy-block-{slug} (components/CellpyBlock.tsx) — that's the natural
+	// gallery boundary, since unrelated images elsewhere on the page (e.g. a
+	// hero photo and a testimonial photo) live in different blocks and
+	// shouldn't be steppable into each other.
+	function findGallery( img ) {
+		var scope = img.closest( '[class*="cellpy-block-"]' ) || document;
+		return Array.prototype.slice.call(
+			scope.querySelectorAll( 'img.cellpy-lightbox' )
+		);
+	}
+
+	function showImage( index ) {
 		var overlay = getOverlay();
 		var full = overlay.querySelector( '.cellpy-lightbox-image' );
+		var img = gallery[ index ];
 		full.src = img.currentSrc || img.src;
 		full.alt = img.alt || '';
+		galleryIndex = index;
+
+		var showNav = gallery.length > 1;
+		overlay.querySelector( '.cellpy-lightbox-prev' ).style.display = showNav ? '' : 'none';
+		overlay.querySelector( '.cellpy-lightbox-next' ).style.display = showNav ? '' : 'none';
+	}
+
+	function step( delta ) {
+		if ( gallery.length < 2 ) {
+			return;
+		}
+		showImage( ( galleryIndex + delta + gallery.length ) % gallery.length );
+	}
+
+	function open( img ) {
+		var overlay = getOverlay();
+
+		gallery = findGallery( img );
+		showImage( gallery.indexOf( img ) );
 
 		lastTrigger = img;
 		document.body.style.overflow = 'hidden';
@@ -86,11 +148,17 @@
 			lastTrigger.focus();
 			lastTrigger = null;
 		}
+		gallery = [];
+		galleryIndex = -1;
 	}
 
 	function onKeydown( e ) {
 		if ( 'Escape' === e.key ) {
 			close();
+		} else if ( 'ArrowLeft' === e.key ) {
+			step( -1 );
+		} else if ( 'ArrowRight' === e.key ) {
+			step( 1 );
 		}
 	}
 
