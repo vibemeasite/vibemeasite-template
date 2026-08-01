@@ -4,9 +4,11 @@ import { timingSafeEqual } from "node:crypto";
 
 // Called by vibemeasite-mcp after a Postgres write (US-VMAS-MUTATE-01) — set
 // by vibemeasite-mcp on the Vercel project at provisioning time
-// (US-VMAS-DEPLOY-04). Only covers menu/page/settings tags; container/block
-// content uses time-based ISR instead (see lib/cellpy-block.ts) and needs
-// no revalidate call per edit.
+// (US-VMAS-DEPLOY-04). Also called after every block publish, tagged
+// `container-{slug}` (see lib/cellpy-block.ts) — the passive 30s ISR poll
+// alone was found to wedge indefinitely if a background revalidation fetch
+// ever errored, so publish now actively busts the specific container's tag
+// instead of only relying on it.
 export async function POST(req: NextRequest) {
   const expected = process.env.REVALIDATE_SECRET;
   const auth = req.headers.get("authorization");
