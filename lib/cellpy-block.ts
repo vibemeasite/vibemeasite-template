@@ -1,3 +1,5 @@
+import { unstable_cache } from "next/cache";
+
 const CELLPY_CDN_BASE = process.env.CELLPY_CDN_BASE_URL ?? "https://cdn.cellpy.com";
 
 export interface CellpyBlockContent {
@@ -6,23 +8,12 @@ export interface CellpyBlockContent {
   formConfig: unknown | null;
 }
 
-// Server-side fetch of a container's assigned content — the equivalent of
-// wp-cellpy's Cellpy_Render::fetch(). 30s revalidate matches Cellpy's own
-// CDN Cache-Control (s-maxage=30) on container JSON, as a fallback safety
-// net. The primary freshness signal is now the `container-{slug}` tag,
-// on-demand revalidated by vibemeasite-mcp right after every block publish
-// (see app/api/revalidate/route.ts) — the passive 30s poll alone was found
-// to silently wedge indefinitely if a single background-revalidation fetch
-// ever errored, leaving stale content served with no retry.
-export async function getContainerContent(
-  accountSlug: string,
-  containerSlug: string
-): Promise<CellpyBlockContent | null> {
+async function fetchContainerContent(accountSlug: string, containerSlug: string): Promise<CellpyBlockContent | null> {
   const url = `${CELLPY_CDN_BASE}/${accountSlug}/containers/${containerSlug}.json`;
 
   let res: Response;
   try {
-    res = await fetch(url, { next: { revalidate: 30, tags: [`container-${containerSlug}`] } });
+    res = await fetch(url, { cache: "no-store" });
   } catch {
     return null;
   }
@@ -36,4 +27,27 @@ export async function getContainerContent(
     css: typeof data.css === "string" ? data.css : "",
     formConfig: data.formConfig ?? null,
   };
+}
+
+// Server-side fetch of a container's assigned content — the equivalent of
+// wp-cellpy's Cellpy_Render::fetch(). Wrapped in unstable_cache (matching
+// lib/queries.ts's getSiteSettings/getMenu/getPageBySlug) rather than
+// fetch()'s own `next: { tags }` option — confirmed by direct testing
+// against a live deployment that plain fetch()-tagged entries do NOT
+// reliably get busted by revalidateTag() on this Next.js version, while
+// unstable_cache-tagged entries do (a known fetch-vs-unstable_cache
+// divergence, e.g. https://github.com/vercel/next.js/discussions/78501).
+// The inner fetch is `cache: "no-store"` since unstable_cache is now the
+// only caching layer — double-caching would just reintroduce the same
+// on-demand-revalidation gap this replaces. 30s revalidate matches
+// Cellpy's own CDN Cache-Control (s-maxage=30) on container JSON, as a
+// fallback safety net; the primary freshness signal is the
+// `container-{slug}` tag, on-demand revalidated by vibemeasite-mcp right
+// after every block publish (see app/api/revalidate/route.ts).
+export function getContainerContent(accountSlug: string, containerSlug: string): Promise<CellpyBlockContent | null> {
+  return unstable_cache(
+    () => fetchContainerContent(accountSlug, containerSlug),
+    ["container", accountSlug, containerSlug],
+    { revalidate: 30, tags: [`container-${containerSlug}`] }
+  )();
 }
