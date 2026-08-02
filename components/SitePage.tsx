@@ -35,6 +35,10 @@ export async function SitePage({ slug }: { slug: string }) {
   // vibemeasite/docs/bsa-documentation-vibemeasite-service.md, US-VMAS-CHAT-05).
   const hasForm = blocks.some((b) => b.content?.formConfig);
   const hasLightbox = blocks.some((b) => b.content?.html.includes("cellpy-lightbox"));
+  // BSA Phase 10 (US-VMAS-SCHED-04) — the booking widget block's fixed
+  // skeleton always carries this data attribute (lib/booking-widget-template.ts
+  // on the vibemeasite-mcp side), same conditional-enqueue pattern as forms/lightbox.
+  const hasBooking = blocks.some((b) => b.content?.html.includes("data-cellpy-booking-widget"));
 
   return (
     <>
@@ -43,6 +47,7 @@ export async function SitePage({ slug }: { slug: string }) {
       ))}
       {hasForm && <script src="/forms.js" defer />}
       {hasLightbox && <script src="/lightbox.js" defer />}
+      {hasBooking && <script src="/booking.js" defer />}
     </>
   );
 }
@@ -65,6 +70,9 @@ export async function ScrollPage({ sections }: { sections: ScrollSection[] }) {
   const hasLightbox = rendered.some((s) =>
     s.blocks.some((b) => b.content?.html.includes("cellpy-lightbox"))
   );
+  const hasBooking = rendered.some((s) =>
+    s.blocks.some((b) => b.content?.html.includes("data-cellpy-booking-widget"))
+  );
 
   return (
     <>
@@ -77,6 +85,7 @@ export async function ScrollPage({ sections }: { sections: ScrollSection[] }) {
       ))}
       {hasForm && <script src="/forms.js" defer />}
       {hasLightbox && <script src="/lightbox.js" defer />}
+      {hasBooking && <script src="/booking.js" defer />}
     </>
   );
 }
