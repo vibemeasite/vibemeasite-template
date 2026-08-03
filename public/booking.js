@@ -90,6 +90,7 @@
 		var state = {
 			services: [],
 			timezone: 'UTC',
+			customFields: [],
 			selectedService: null,
 			selectedDate: null,
 			selectedSlot: null,
@@ -109,6 +110,7 @@
 				}
 				state.services = result.json.services || [];
 				state.timezone = result.json.timezone || 'UTC';
+				state.customFields = result.json.custom_fields || [];
 				if ( 0 === state.services.length ) {
 					renderMessage( mount, 'Booking isn\'t available right now.' );
 					return;
@@ -245,6 +247,25 @@
 		emailInput.required = true;
 		form.appendChild( emailInput );
 
+		// Site-Owner-defined fields beyond name/email (e.g. phone, notes) —
+		// see CUSTOM_FIELDS_SCHEMA in vibemeasite-mcp's api/_server.ts. Each
+		// field's `type` maps directly to an <input type="..."> except
+		// 'textarea', which needs its own element.
+		var customFieldInputs = {};
+		state.customFields.forEach( function ( field ) {
+			var input = 'textarea' === field.type
+				? document.createElement( 'textarea' )
+				: document.createElement( 'input' );
+			if ( 'textarea' !== field.type ) {
+				input.type = field.type;
+			}
+			input.name = field.name;
+			input.placeholder = field.label;
+			input.required = !! field.required;
+			form.appendChild( input );
+			customFieldInputs[ field.name ] = input;
+		} );
+
 		var submitBtn = el( 'button', 'vms-booking-widget__submit', 'Request this time' );
 		submitBtn.type = 'submit';
 		form.appendChild( submitBtn );
@@ -252,6 +273,11 @@
 		form.addEventListener( 'submit', function ( e ) {
 			e.preventDefault();
 			submitBtn.disabled = true;
+
+			var customFieldValues = {};
+			Object.keys( customFieldInputs ).forEach( function ( name ) {
+				customFieldValues[ name ] = customFieldInputs[ name ].value;
+			} );
 
 			fetchJson( REQUEST_ENDPOINT, {
 				method: 'POST',
@@ -262,6 +288,7 @@
 					start_iso: state.selectedSlot.startIso,
 					visitor_name: nameInput.value,
 					visitor_email: emailInput.value,
+					custom_field_values: customFieldValues,
 				} ),
 			} )
 				.then( function ( result ) {
