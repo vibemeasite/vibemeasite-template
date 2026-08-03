@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { getMenu, getSiteSettings } from "../lib/queries";
 import { getContainerContent } from "../lib/cellpy-block";
-import { getCurrentLocale } from "../lib/locale";
+import { getCurrentLocale, resolveTranslation } from "../lib/locale";
 import { CellpyBlock } from "../components/CellpyBlock";
 import { StagingBanner } from "../components/StagingBanner";
 import { MobileNav } from "../components/MobileNav";
@@ -23,6 +23,9 @@ const ACCOUNT_SLUG = process.env.CELLPY_ACCOUNT_SLUG!;
 interface CustomLink {
   label: string;
   url: string;
+  // Header translation follow-up to Phase 24 — { [lang]: label }, set via
+  // vibemeasite-mcp's set_header_translations tool. url is never localized.
+  labelTranslations?: Record<string, string>;
 }
 
 // Rendered raw into a <style> tag below — even though set_branding (the
@@ -63,7 +66,14 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const footerContent = await getContainerContent(ACCOUNT_SLUG, FOOTER_CONTAINER_SLUG, locale);
   const isSideNav = settings.navPosition === "side";
   const isOnePage = settings.layoutMode === "one-page";
-  const customLinks = (settings.customLinks as CustomLink[] | null) ?? [];
+  const customLinks = ((settings.customLinks as CustomLink[] | null) ?? []).map((link) => ({
+    ...link,
+    label: resolveTranslation(link.label, link.labelTranslations, locale),
+  }));
+  const localizedMenu = menu.map((item) => ({
+    ...item,
+    label: resolveTranslation(item.label, item.labelTranslations, locale),
+  }));
   const colors = sanitizeColors(settings.colors);
   const colorVars = Object.entries(colors)
     .map(([key, value]) => `--color-${key}: ${value};`)
@@ -93,7 +103,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             <MobileNav
               isSideNav={isSideNav}
               isOnePage={isOnePage}
-              menu={menu}
+              menu={localizedMenu}
               phone={settings.phone}
               email={settings.email}
               customLinks={customLinks}

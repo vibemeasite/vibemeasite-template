@@ -18,6 +18,12 @@ export const pages = pgTable("pages", {
   // (Privacy Policy, Terms) false to keep them as standalone routes even in
   // one-page mode.
   inScroll: boolean("in_scroll").notNull().default(true),
+  // Header translation follow-up to Phase 24 — set via vibemeasite-mcp's
+  // set_header_translations tool. { [lang]: title }. Slug/URL stays single
+  // -language by design (see bsa-documentation.md § Phase 24 Scope) — only
+  // the displayed title text varies; title itself (this row's own column)
+  // remains the default-language/fallback value.
+  titleTranslations: jsonb("title_translations"),
 });
 
 export const menuItems = pgTable("menu_items", {
@@ -27,6 +33,9 @@ export const menuItems = pgTable("menu_items", {
     .notNull()
     .references(() => pages.id, { onDelete: "cascade" }),
   order: integer("order").notNull().default(0),
+  // Header translation follow-up to Phase 24 — { [lang]: label }, same
+  // pattern as pages.titleTranslations.
+  labelTranslations: jsonb("label_translations"),
 });
 
 export const templates = pgTable("templates", {
@@ -95,13 +104,14 @@ export const siteSettings = pgTable("site_settings", {
   // Staging-first claim flow (ADR-001) — null once the site is claimed.
   // Read in app/layout.tsx to render the countdown banner.
   stagingExpiresAt: timestamp("staging_expires_at"),
-  // Phase 24 (Cellpy platform) — Multi-language Blocks, block-content-only
-  // scope: nav labels/page titles/slugs stay single-language for now (see
-  // bsa-documentation.md § Phase 24 Scope). defaultLocale is the fallback
-  // language and the value used when no ?lang= / cellpy_lang cookie is
-  // present; availableLocales drives which options the header switcher
-  // offers — both are just labels here, not enforced against what a given
-  // container actually has translations for.
+  // Phase 24 (Cellpy platform) — Multi-language Blocks. Page slugs/URLs stay
+  // single-language by design (see bsa-documentation.md § Phase 24 Scope) —
+  // nav labels and page titles gained translation support as a follow-up
+  // (pages.titleTranslations / menuItems.labelTranslations). defaultLocale
+  // is the fallback language and the value used when no ?lang= /
+  // cellpy_lang cookie is present; availableLocales drives which options
+  // the header switcher offers — both are just labels here, not enforced
+  // against what a given container/page actually has translations for.
   defaultLocale: text("default_locale").notNull().default("en"),
   availableLocales: jsonb("available_locales").notNull().default([]),
 });

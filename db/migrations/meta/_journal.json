@@ -50,6 +50,13 @@
       "when": 1785727663074,
       "tag": "0006_chunky_shaman",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785738050899,
+      "tag": "0007_normal_hammerhead",
+      "breakpoints": true
     }
   ]
 }

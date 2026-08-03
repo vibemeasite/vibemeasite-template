@@ -8,10 +8,18 @@ import { pages, menuItems, containers, siteSettings } from "../db/schema";
 // options) — plain drizzle queries aren't automatically cache-tagged just
 // because @neondatabase/serverless happens to use fetch() internally.
 
+// labelTranslations is returned raw (not locale-resolved here) — the
+// underlying data is identical regardless of visitor language, so
+// resolving it per-locale doesn't need its own cache entry per language;
+// callers (app/layout.tsx) resolve it via resolveTranslation() after the
+// single cached fetch, the same way customLinks labels are resolved.
 export const getMenu = unstable_cache(
   async () => {
     return db
-      .select({ id: menuItems.id, label: menuItems.label, pageSlug: pages.slug, inScroll: pages.inScroll })
+      .select({
+        id: menuItems.id, label: menuItems.label, labelTranslations: menuItems.labelTranslations,
+        pageSlug: pages.slug, inScroll: pages.inScroll,
+      })
       .from(menuItems)
       .innerJoin(pages, eq(menuItems.pageId, pages.id))
       .orderBy(asc(menuItems.order));
