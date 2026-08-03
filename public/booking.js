@@ -20,7 +20,53 @@
 	var REQUEST_ENDPOINT = '/api/booking/request';
 	var CONFIRM_ENDPOINT = '/api/booking/confirm';
 	var DAYS_AHEAD = 14;
-	var GENERIC_ERROR = 'Something went wrong. Please try again.';
+
+	// Booking widget translation follow-up — same cellpy_lang cookie
+	// middleware.ts already sets for ordinary block content (non-httpOnly,
+	// readable here). No cookie means the site's default language, same
+	// fallback every other translated surface uses. This only affects
+	// widget-config's response (service/custom-field display text) and this
+	// script's own UI copy below — matching/availability/request always key
+	// off service.id, never the (possibly-translated) name, so language
+	// never affects which slots are actually available.
+	function currentLang() {
+		var match = document.cookie.match( /(?:^|; )cellpy_lang=([^;]+)/ );
+		return match ? decodeURIComponent( match[ 1 ] ) : '';
+	}
+
+	// This script is shared by every site (not Site-Owner-authored), so its
+	// own UI copy is translated here directly rather than fetched — add a
+	// language by adding a key. Falls back to 'en' for anything missing.
+	var UI_STRINGS = {
+		en: {
+			yourName: 'Your name',
+			yourEmail: 'Your email',
+			loadingTimes: 'Loading times…',
+			noAvailableTimes: 'No available times this day.',
+			requestThisTime: 'Request this time',
+			checkEmailForCode: 'Check your email for a 6-digit code and enter it below to confirm.',
+			sixDigitCode: '6-digit code',
+			confirm: 'Confirm',
+			appointmentConfirmed: 'Your appointment is confirmed! Check your email for details.',
+			genericError: 'Something went wrong. Please try again.',
+			bookingUnavailable: 'Booking isn\'t available right now.',
+		},
+		uk: {
+			yourName: 'Ваше ім\'я',
+			yourEmail: 'Ваша електронна пошта',
+			loadingTimes: 'Завантаження часу…',
+			noAvailableTimes: 'На цей день немає вільного часу.',
+			requestThisTime: 'Запросити цей час',
+			checkEmailForCode: 'Перевірте свою електронну пошту на наявність 6-значного коду та введіть його нижче для підтвердження.',
+			sixDigitCode: '6-значний код',
+			confirm: 'Підтвердити',
+			appointmentConfirmed: 'Вашу зустріч підтверджено! Перевірте електронну пошту для деталей.',
+			genericError: 'Щось пішло не так. Спробуйте ще раз.',
+			bookingUnavailable: 'Бронювання зараз недоступне.',
+		},
+	};
+	var T = UI_STRINGS[ currentLang() ] || UI_STRINGS.en;
+	var GENERIC_ERROR = T.genericError;
 
 	function el( tag, className, text ) {
 		var node = document.createElement( tag );
@@ -91,7 +137,11 @@
 			services: [],
 			timezone: 'UTC',
 			customFields: [],
-			selectedService: null,
+			// Booking widget translation follow-up — id, not name: the display
+			// name varies by visitor language, id doesn't. Used for every
+			// availability/request call; the name is only ever shown, never
+			// matched on.
+			selectedServiceId: null,
 			selectedDate: null,
 			selectedSlot: null,
 			requestId: null,
@@ -102,20 +152,22 @@
 			formContainer: null,
 		};
 
-		fetchJson( CONFIG_ENDPOINT + '?widget=' + encodeURIComponent( widgetId ) )
+		var langParam = currentLang() ? '&lang=' + encodeURIComponent( currentLang() ) : '';
+
+		fetchJson( CONFIG_ENDPOINT + '?widget=' + encodeURIComponent( widgetId ) + langParam )
 			.then( function ( result ) {
 				if ( 200 !== result.status || ! result.json.ok ) {
-					renderMessage( mount, ( result.json && result.json.message ) || 'Booking isn\'t available right now.' );
+					renderMessage( mount, ( result.json && result.json.message ) || T.bookingUnavailable );
 					return;
 				}
 				state.services = result.json.services || [];
 				state.timezone = result.json.timezone || 'UTC';
 				state.customFields = result.json.custom_fields || [];
 				if ( 0 === state.services.length ) {
-					renderMessage( mount, 'Booking isn\'t available right now.' );
+					renderMessage( mount, T.bookingUnavailable );
 					return;
 				}
-				state.selectedService = state.services[ 0 ].name;
+				state.selectedServiceId = state.services[ 0 ].id;
 				renderPicker( mount, widgetId, state );
 			} )
 			.catch( function () {
@@ -131,13 +183,13 @@
 			select.className = 'vms-booking-widget__services';
 			state.services.forEach( function ( s ) {
 				var opt = document.createElement( 'option' );
-				opt.value = s.name;
+				opt.value = s.id;
 				opt.textContent = s.name;
 				select.appendChild( opt );
 			} );
-			select.value = state.selectedService;
+			select.value = state.selectedServiceId;
 			select.addEventListener( 'change', function () {
-				state.selectedService = select.value;
+				state.selectedServiceId = select.value;
 				state.selectedSlot = null;
 				renderSlotsForSelectedDate( widgetId, state );
 			} );
@@ -181,16 +233,16 @@
 	function renderSlotsForSelectedDate( widgetId, state ) {
 		var slotsContainer = state.slotsContainer;
 		state.formContainer.innerHTML = '';
-		if ( ! state.selectedDate || ! state.selectedService ) {
+		if ( ! state.selectedDate || ! state.selectedServiceId ) {
 			slotsContainer.innerHTML = '';
 			return;
 		}
 
-		renderMessage( slotsContainer, 'Loading times…' );
+		renderMessage( slotsContainer, T.loadingTimes );
 
 		var url = AVAILABILITY_ENDPOINT +
 			'?widget=' + encodeURIComponent( widgetId ) +
-			'&service=' + encodeURIComponent( state.selectedService ) +
+			'&service=' + encodeURIComponent( state.selectedServiceId ) +
 			'&date=' + encodeURIComponent( state.selectedDate );
 
 		fetchJson( url )
@@ -203,7 +255,7 @@
 
 				var slots = result.json.slots || [];
 				if ( 0 === slots.length ) {
-					renderMessage( slotsContainer, 'No available times this day.' );
+					renderMessage( slotsContainer, T.noAvailableTimes );
 					return;
 				}
 
@@ -236,14 +288,14 @@
 		var nameInput = document.createElement( 'input' );
 		nameInput.type = 'text';
 		nameInput.name = 'name';
-		nameInput.placeholder = 'Your name';
+		nameInput.placeholder = T.yourName;
 		nameInput.required = true;
 		form.appendChild( nameInput );
 
 		var emailInput = document.createElement( 'input' );
 		emailInput.type = 'email';
 		emailInput.name = 'email';
-		emailInput.placeholder = 'Your email';
+		emailInput.placeholder = T.yourEmail;
 		emailInput.required = true;
 		form.appendChild( emailInput );
 
@@ -266,7 +318,7 @@
 			customFieldInputs[ field.name ] = input;
 		} );
 
-		var submitBtn = el( 'button', 'vms-booking-widget__submit', 'Request this time' );
+		var submitBtn = el( 'button', 'vms-booking-widget__submit', T.requestThisTime );
 		submitBtn.type = 'submit';
 		form.appendChild( submitBtn );
 
@@ -284,7 +336,7 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify( {
 					widget_public_id: widgetId,
-					service: state.selectedService,
+					service: state.selectedServiceId,
 					start_iso: state.selectedSlot.startIso,
 					visitor_name: nameInput.value,
 					visitor_email: emailInput.value,
@@ -316,18 +368,18 @@
 		var form = document.createElement( 'form' );
 		form.className = 'vms-booking-widget__code-form';
 		form.appendChild(
-			el( 'p', 'vms-booking-widget__message', 'Check your email for a 6-digit code and enter it below to confirm.' )
+			el( 'p', 'vms-booking-widget__message', T.checkEmailForCode )
 		);
 
 		var codeInput = document.createElement( 'input' );
 		codeInput.type = 'text';
 		codeInput.name = 'code';
 		codeInput.setAttribute( 'inputmode', 'numeric' );
-		codeInput.placeholder = '6-digit code';
+		codeInput.placeholder = T.sixDigitCode;
 		codeInput.required = true;
 		form.appendChild( codeInput );
 
-		var submitBtn = el( 'button', 'vms-booking-widget__submit', 'Confirm' );
+		var submitBtn = el( 'button', 'vms-booking-widget__submit', T.confirm );
 		submitBtn.type = 'submit';
 		form.appendChild( submitBtn );
 
@@ -346,7 +398,7 @@
 						showFormError( form, ( result.json && result.json.message ) || GENERIC_ERROR );
 						return;
 					}
-					renderMessage( formContainer, 'Your appointment is confirmed! Check your email for details.' );
+					renderMessage( formContainer, T.appointmentConfirmed );
 				} )
 				.catch( function () {
 					submitBtn.disabled = false;
