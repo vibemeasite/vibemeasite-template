@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
-import { getPageBySlug } from "../lib/queries";
+import { getPageBySlug, getSiteSettings } from "../lib/queries";
 import { getContainerContent, type CellpyBlockContent } from "../lib/cellpy-block";
+import { getCurrentLocale } from "../lib/locale";
 import { CellpyBlock } from "./CellpyBlock";
 
 // Set on the Vercel project at provisioning time (US-VMAS-DEPLOY-04) —
@@ -13,20 +14,24 @@ interface LoadedBlock {
   content: CellpyBlockContent | null;
 }
 
-async function loadBlocks(containers: Array<{ cellpyContainerSlug: string }>): Promise<LoadedBlock[]> {
+async function loadBlocks(
+  containers: Array<{ cellpyContainerSlug: string }>,
+  locale: string
+): Promise<LoadedBlock[]> {
   return Promise.all(
     containers.map(async (c) => ({
       slug: c.cellpyContainerSlug,
-      content: await getContainerContent(ACCOUNT_SLUG, c.cellpyContainerSlug),
+      content: await getContainerContent(ACCOUNT_SLUG, c.cellpyContainerSlug, locale),
     }))
   );
 }
 
 export async function SitePage({ slug }: { slug: string }) {
-  const result = await getPageBySlug(slug);
+  const [result, settings] = await Promise.all([getPageBySlug(slug), getSiteSettings()]);
   if (!result) notFound();
 
-  const blocks = await loadBlocks(result.containers);
+  const locale = await getCurrentLocale(settings.defaultLocale);
+  const blocks = await loadBlocks(result.containers, locale);
 
   // forms.js and lightbox.js are each only a few KB, but there's no reason
   // to ship either to pages that don't need it — matches wp-cellpy's
@@ -63,8 +68,10 @@ export interface ScrollSection {
 // included at most once for the whole concatenated page — including it per
 // section would re-run its form-binding init code once per <script> tag.
 export async function ScrollPage({ sections }: { sections: ScrollSection[] }) {
+  const settings = await getSiteSettings();
+  const locale = await getCurrentLocale(settings.defaultLocale);
   const rendered = await Promise.all(
-    sections.map(async (s) => ({ slug: s.slug, blocks: await loadBlocks(s.containers) }))
+    sections.map(async (s) => ({ slug: s.slug, blocks: await loadBlocks(s.containers, locale) }))
   );
   const hasForm = rendered.some((s) => s.blocks.some((b) => b.content?.formConfig));
   const hasLightbox = rendered.some((s) =>

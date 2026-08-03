@@ -95,4 +95,13 @@ export const siteSettings = pgTable("site_settings", {
   // Staging-first claim flow (ADR-001) — null once the site is claimed.
   // Read in app/layout.tsx to render the countdown banner.
   stagingExpiresAt: timestamp("staging_expires_at"),
+  // Phase 24 (Cellpy platform) — Multi-language Blocks, block-content-only
+  // scope: nav labels/page titles/slugs stay single-language for now (see
+  // bsa-documentation.md § Phase 24 Scope). defaultLocale is the fallback
+  // language and the value used when no ?lang= / cellpy_lang cookie is
+  // present; availableLocales drives which options the header switcher
+  // offers — both are just labels here, not enforced against what a given
+  // container actually has translations for.
+  defaultLocale: text("default_locale").notNull().default("en"),
+  availableLocales: jsonb("available_locales").notNull().default([]),
 });

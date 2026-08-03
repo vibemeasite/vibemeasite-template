@@ -1,0 +1,2 @@
+ALTER TABLE "site_settings" ADD COLUMN "default_locale" text DEFAULT 'en' NOT NULL;--> statement-breakpoint
+ALTER TABLE "site_settings" ADD COLUMN "available_locales" jsonb DEFAULT '[]'::jsonb NOT NULL;

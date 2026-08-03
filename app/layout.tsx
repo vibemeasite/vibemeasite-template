@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { getMenu, getSiteSettings } from "../lib/queries";
 import { getContainerContent } from "../lib/cellpy-block";
+import { getCurrentLocale } from "../lib/locale";
 import { CellpyBlock } from "../components/CellpyBlock";
 import { StagingBanner } from "../components/StagingBanner";
 import { MobileNav } from "../components/MobileNav";
@@ -57,11 +58,9 @@ function sanitizeHeaderCss(css: unknown): string {
 }
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const [menu, settings, footerContent] = await Promise.all([
-    getMenu(),
-    getSiteSettings(),
-    getContainerContent(ACCOUNT_SLUG, FOOTER_CONTAINER_SLUG),
-  ]);
+  const [menu, settings] = await Promise.all([getMenu(), getSiteSettings()]);
+  const locale = await getCurrentLocale(settings.defaultLocale);
+  const footerContent = await getContainerContent(ACCOUNT_SLUG, FOOTER_CONTAINER_SLUG, locale);
   const isSideNav = settings.navPosition === "side";
   const isOnePage = settings.layoutMode === "one-page";
   const customLinks = (settings.customLinks as CustomLink[] | null) ?? [];
@@ -73,7 +72,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const headStyle = [colorVars ? `:root { ${colorVars} }` : "", headerCss].filter(Boolean).join("\n");
 
   return (
-    <html lang="en">
+    <html lang={locale}>
       <head>{headStyle ? <style>{headStyle}</style> : null}</head>
       <body>
         {settings.stagingExpiresAt ? <StagingBanner expiresAt={new Date(settings.stagingExpiresAt).toISOString()} /> : null}
@@ -98,6 +97,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               phone={settings.phone}
               email={settings.email}
               customLinks={customLinks}
+              locale={locale}
+              availableLocales={(settings.availableLocales as string[] | null) ?? []}
             />
           </div>
           <main>{children}</main>

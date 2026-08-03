@@ -21,6 +21,15 @@ interface MobileNavProps {
   phone: string | null;
   email: string | null;
   customLinks: CustomLink[];
+  // Phase 24 (Cellpy platform) — Multi-language Blocks, block-content-only
+  // scope. `locale` is the currently-resolved language (see lib/locale.ts);
+  // `availableLocales` is site_settings.available_locales. The switcher
+  // itself is plain <a href="?lang={code}"> links — language switching is
+  // navigation-based, not a live client-side swap (see bsa-documentation.md
+  // § Phase 24 Scope) — middleware.ts persists the choice in a cookie so
+  // only this first link needs the query param.
+  locale: string;
+  availableLocales: string[];
 }
 
 // The nav itself is plain server-renderable markup (just <a> tags) — the
@@ -28,7 +37,9 @@ interface MobileNavProps {
 // hamburger toggle on narrow viewports, so that's all this component owns.
 // Desktop layout is unaffected: .nav-links-top/.nav-links-side/.nav-extras
 // are only ever hidden by the "is-open" gate inside a max-width media query.
-export function MobileNav({ isSideNav, isOnePage, menu, phone, email, customLinks }: MobileNavProps) {
+export function MobileNav({
+  isSideNav, isOnePage, menu, phone, email, customLinks, locale, availableLocales,
+}: MobileNavProps) {
   const [open, setOpen] = useState(false);
 
   // Closing on Escape and on viewport resize back to desktop keeps the
@@ -49,7 +60,8 @@ export function MobileNav({ isSideNav, isOnePage, menu, phone, email, customLink
     };
   }, [open]);
 
-  const hasExtras = Boolean(phone || email || customLinks.length > 0);
+  const showLangSwitcher = availableLocales.length > 1;
+  const hasExtras = Boolean(phone || email || customLinks.length > 0 || showLangSwitcher);
 
   return (
     <>
@@ -95,6 +107,19 @@ export function MobileNav({ isSideNav, isOnePage, menu, phone, email, customLink
                 {link.label}
               </a>
             ))}
+            {showLangSwitcher && (
+              <span className="nav-lang-switcher">
+                {availableLocales.map((code) => (
+                  <a
+                    key={code}
+                    href={`?lang=${encodeURIComponent(code)}`}
+                    aria-current={code === locale ? "true" : undefined}
+                  >
+                    {code.toUpperCase()}
+                  </a>
+                ))}
+              </span>
+            )}
           </div>
         )}
       </div>
