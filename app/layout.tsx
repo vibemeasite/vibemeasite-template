@@ -76,7 +76,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html lang="en">
       <head>{headStyle ? <style>{headStyle}</style> : null}</head>
       <body>
-        {settings.stagingExpiresAt ? <StagingBanner expiresAt={settings.stagingExpiresAt.toISOString()} /> : null}
+        {settings.stagingExpiresAt ? <StagingBanner expiresAt={new Date(settings.stagingExpiresAt).toISOString()} /> : null}
         <div className={isSideNav ? "layout-side" : "layout-top"}>
           <div className={isSideNav ? "nav-side" : "nav-top"}>
             <div className="nav-brand">
