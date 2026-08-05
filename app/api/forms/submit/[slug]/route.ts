@@ -145,7 +145,7 @@ export async function POST(
   }
 
   const localResult = await tryLocalDelivery(slug, fields, attachmentResult.attachments);
-  if (localResult) return NextResponse.json(localResult.body, { status: localResult.status });
+  if (localResult.ok) return NextResponse.json(localResult.body, { status: localResult.status });
 
   // Attachments only ever go out via the Site Owner's own Resend account
   // (connect_resend) — the central relay's JSON contract has no attachment
@@ -153,12 +153,11 @@ export async function POST(
   // files just vanish with no error. Fail loudly instead so they know to
   // retry rather than assume it worked.
   if (attachmentResult.attachments.length > 0) {
+    const message = localResult.reason === "resend_unverified"
+      ? "This site's connected email account isn't fully set up yet, so it can't deliver file attachments — the Site Owner needs to verify a sending domain in their Resend account at resend.com/domains. Submissions without attachments still work in the meantime."
+      : "Files couldn't be sent right now — please try again shortly, or resubmit without attachments.";
     return NextResponse.json(
-      {
-        ok: false,
-        error: "ATTACHMENTS_UNAVAILABLE",
-        message: "Files couldn't be sent right now — please try again shortly, or resubmit without attachments.",
-      },
+      { ok: false, error: "ATTACHMENTS_UNAVAILABLE", message },
       { status: 503 }
     );
   }
@@ -166,14 +165,18 @@ export async function POST(
   return forwardToCentralRelay(slug, fields);
 }
 
+type LocalDeliveryResult =
+  | { ok: true; body: unknown; status: number }
+  | { ok: false; reason: "not_configured" | "resend_unverified" | "other" };
+
 async function tryLocalDelivery(
   slug: string,
   fields: Record<string, unknown>,
   pendingAttachments: PendingAttachment[]
-): Promise<{ body: unknown; status: number } | null> {
+): Promise<LocalDeliveryResult> {
   const resendApiKey = process.env.RESEND_API_KEY;
   const cellpyApiToken = process.env.CELLPY_API_TOKEN;
-  if (!resendApiKey || !cellpyApiToken) return null;
+  if (!resendApiKey || !cellpyApiToken) return { ok: false, reason: "not_configured" };
 
   try {
     const destRes = await fetch(`${CENTRAL_DESTINATION_BASE}${encodeURIComponent(slug)}`, {
@@ -181,16 +184,16 @@ async function tryLocalDelivery(
     });
     if (!destRes.ok) {
       console.error(`[forms] destination lookup failed for "${slug}": ${destRes.status} ${await destRes.text().catch(() => "")}`);
-      return null;
+      return { ok: false, reason: "other" };
     }
     const { emails } = (await destRes.json()) as { emails: string[] };
     if (!emails || emails.length === 0) {
       console.error(`[forms] destination lookup for "${slug}" returned no email`);
-      return null;
+      return { ok: false, reason: "other" };
     }
 
     const attachments = await fetchAttachmentContent(slug, pendingAttachments, cellpyApiToken);
-    if (attachments === null) return null;
+    if (attachments === null) return { ok: false, reason: "other" };
 
     const [row] = await db
       .select({ pageTitle: pages.title, pageSlug: pages.slug })
@@ -221,13 +224,17 @@ async function tryLocalDelivery(
     });
     if (error) {
       console.error(`[forms] Resend send failed for "${slug}":`, JSON.stringify(error));
-      return null;
+      // Resend's testing-mode restriction on an unverified sending domain —
+      // distinct from a transient failure, and worth telling the Site Owner
+      // about directly rather than a generic "try again" message.
+      const unverified = /verify a domain/i.test(error.message ?? "");
+      return { ok: false, reason: unverified ? "resend_unverified" : "other" };
     }
 
-    return { body: { ok: true }, status: 200 };
+    return { ok: true, body: { ok: true }, status: 200 };
   } catch (err) {
     console.error(`[forms] local delivery threw for "${slug}":`, err instanceof Error ? err.message : String(err));
-    return null;
+    return { ok: false, reason: "other" };
   }
 }
 
