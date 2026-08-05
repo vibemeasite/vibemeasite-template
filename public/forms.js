@@ -15,21 +15,25 @@
 	// preflights, and any downstream cross-origin call happens server-to-
 	// server where CORS doesn't apply at all.
 	var ENDPOINT_BASE = '/api/forms/submit/';
+	// Attachments upload straight to the CDN Worker (Cloudflare, not this
+	// site's own Vercel function) so a single 10MB file never has to pass
+	// through a serverless function's request-body ceiling — see
+	// platform/workers/cdn/src/index.ts's handleFormUpload. The submit
+	// request to ENDPOINT_BASE above then only carries the resulting R2
+	// keys, not file bytes.
+	var UPLOAD_ENDPOINT_BASE = 'https://cdn.cellpy.com/form-uploads/';
 	var DEFAULT_SUCCESS_MESSAGE = "Thanks! We'll be in touch soon.";
 	var GENERIC_ERROR_MESSAGE = 'Something went wrong. Please try again.';
 	var RATE_LIMIT_MESSAGE = 'Too many submissions. Please wait a moment and try again.';
 
-	// Mirrors app/api/forms/submit/[slug]/route.ts's own limits exactly —
-	// validating here too just means a visitor sees the "too large"/"wrong
-	// type" message immediately instead of after a round trip, not a
-	// security boundary (the server re-checks everything).
+	// Mirrors the CDN Worker's and app/api/forms/submit/[slug]/route.ts's own
+	// limits exactly — validating here too just means a visitor sees the
+	// "too large"/"wrong type" message immediately instead of after a round
+	// trip, not a security boundary (the server re-checks everything).
 	var ALLOWED_ATTACHMENT_EXTENSIONS = [ 'jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif', 'pdf', 'doc', 'docx' ];
 	var MAX_ATTACHMENTS = 4;
-	// Raw (decoded) byte budget — base64 inflates this by ~1/3 once it's in
-	// the JSON body, so 3MB here means ~4MB of encoded content, leaving
-	// headroom under Vercel's ~4.5MB serverless request-body ceiling for the
-	// rest of the form fields. See route.ts's own copy of this constant.
-	var MAX_TOTAL_ATTACHMENT_BYTES = 3 * 1024 * 1024;
+	var MAX_ATTACHMENT_FILE_BYTES = 10 * 1024 * 1024;
+	var MAX_TOTAL_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 
 	// The block's authored HTML doesn't include the honeypot field itself —
 	// per the documented contract, rendering it is the client's job, done
@@ -63,24 +67,34 @@
 		return data;
 	}
 
-	function readFileAsBase64( file ) {
-		return new Promise( function ( resolve, reject ) {
-			var reader = new FileReader();
-			reader.onload = function () {
-				var result = String( reader.result || '' );
-				var commaIndex = result.indexOf( ',' );
-				resolve( -1 === commaIndex ? result : result.slice( commaIndex + 1 ) );
-			};
-			reader.onerror = function () {
-				reject( new Error( 'Could not read file "' + file.name + '".' ) );
-			};
-			reader.readAsDataURL( file );
-		} );
+	// Uploads one file straight to the CDN Worker and resolves to the R2 key
+	// it was stored under — never rejects, so callers can branch on the
+	// resolved shape without a .catch of their own.
+	function uploadFile( file, slug ) {
+		var url = UPLOAD_ENDPOINT_BASE + encodeURIComponent( slug ) + '?filename=' + encodeURIComponent( file.name );
+		return fetch( url, {
+			method: 'POST',
+			headers: { 'Content-Type': file.type || 'application/octet-stream' },
+			body: file,
+		} )
+			.then( function ( res ) {
+				return res.json().catch( function () {
+					return {};
+				} ).then( function ( json ) {
+					if ( ! res.ok || ! json.key ) {
+						return { ok: false, message: ( json && json.error ) || ( 'Could not upload "' + file.name + '".' ) };
+					}
+					return { ok: true, filename: file.name, contentType: file.type || 'application/octet-stream', key: json.key };
+				} );
+			} )
+			.catch( function () {
+				return { ok: false, message: 'Could not upload "' + file.name + '".' };
+			} );
 	}
 
 	// Resolves to { ok: true, attachments } or { ok: false, message } — never
 	// rejects, so callers can branch on .ok without a .catch of their own.
-	function collectAttachments( form ) {
+	function collectAttachments( form, slug ) {
 		var files = [];
 		form.querySelectorAll( 'input[type="file"]' ).forEach( function ( input ) {
 			Array.prototype.forEach.call( input.files || [], function ( file ) {
@@ -102,6 +116,12 @@
 			if ( -1 === ALLOWED_ATTACHMENT_EXTENSIONS.indexOf( ext ) ) {
 				return Promise.resolve( { ok: false, message: '"' + files[ i ].name + '" isn\'t an accepted file type — images, PDF, or Word docs only.' } );
 			}
+			if ( files[ i ].size > MAX_ATTACHMENT_FILE_BYTES ) {
+				return Promise.resolve( {
+					ok: false,
+					message: '"' + files[ i ].name + '" is over the ' + Math.floor( MAX_ATTACHMENT_FILE_BYTES / ( 1024 * 1024 ) ) + 'MB per-file limit.',
+				} );
+			}
 			totalBytes += files[ i ].size;
 		}
 
@@ -113,16 +133,14 @@
 		}
 
 		return Promise.all( files.map( function ( file ) {
-			return readFileAsBase64( file ).then( function ( content ) {
-				return { filename: file.name, contentType: file.type || 'application/octet-stream', content: content };
-			} );
-		} ) )
-			.then( function ( attachments ) {
-				return { ok: true, attachments: attachments };
-			} )
-			.catch( function ( err ) {
-				return { ok: false, message: ( err && err.message ) || 'Could not read the attached file(s).' };
-			} );
+			return uploadFile( file, slug );
+		} ) ).then( function ( results ) {
+			var failed = results.filter( function ( r ) { return ! r.ok; } );
+			if ( failed.length > 0 ) {
+				return { ok: false, message: failed[ 0 ].message };
+			}
+			return { ok: true, attachments: results };
+		} );
 	}
 
 	function setSubmitting( form, submitting ) {
@@ -185,17 +203,20 @@
 				existingError.remove();
 			}
 
-			collectAttachments( form ).then( function ( attachmentResult ) {
+			setSubmitting( form, true );
+
+			collectAttachments( form, slug ).then( function ( attachmentResult ) {
 				if ( ! attachmentResult.ok ) {
+					setSubmitting( form, false );
 					showError( form, attachmentResult.message );
 					return;
 				}
 
-				setSubmitting( form, true );
-
 				var payload = collectFields( form );
 				if ( attachmentResult.attachments.length > 0 ) {
-					payload._attachments = attachmentResult.attachments;
+					payload._attachments = attachmentResult.attachments.map( function ( a ) {
+						return { filename: a.filename, contentType: a.contentType, key: a.key };
+					} );
 				}
 
 				fetch( ENDPOINT_BASE + encodeURIComponent( slug ), {

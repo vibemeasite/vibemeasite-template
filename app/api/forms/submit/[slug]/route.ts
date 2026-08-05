@@ -14,44 +14,53 @@ import { containers, pages } from "../../../../../db/schema";
 // sites mid-setup working exactly as before.
 const CENTRAL_RELAY_BASE = "https://www.cellpy.com/api/forms/submit/";
 const CENTRAL_DESTINATION_BASE = "https://www.cellpy.com/api/forms/destination/";
+const CENTRAL_ATTACHMENTS_BASE = "https://www.cellpy.com/api/forms/attachments";
 
-interface Attachment {
+// The browser uploads files directly to the CDN Worker (see public/forms.js
+// and platform/workers/cdn/src/index.ts's handleFormUpload) — bypassing
+// this Vercel function's request-body ceiling entirely, since a single
+// 10MB image would blow past it. What arrives here is just the resulting R2
+// key, not bytes; ResolvedAttachment (with real content) only exists after
+// fetchAttachmentContent pulls it back via the central platform in
+// tryLocalDelivery, right before handing it to Resend.
+interface PendingAttachment {
   filename: string;
   contentType: string;
-  content: string; // base64, no data: prefix — see public/forms.js's collectAttachments
+  key: string;
+}
+interface ResolvedAttachment {
+  filename: string;
+  contentType: string;
+  content: string; // base64, no data: prefix
 }
 
 // Images/PDF/Word docs only — matches what the "Get a Quote"-style forms
-// this is built for actually need. MAX_TOTAL_ATTACHMENT_BYTES is a raw
-// (decoded) byte budget, not the wire size: base64 inflates it by ~1/3 once
-// it's in the JSON body, so 3MB raw means ~4MB of encoded content, kept
-// under Vercel's Node serverless function request-body ceiling (~4.5MB)
-// with headroom left for the rest of the form fields on top of it.
+// this is built for actually need. Mirrors the CDN Worker's own copy of
+// this constant (platform/workers/cdn/src/index.ts).
 const ALLOWED_ATTACHMENT_EXTENSIONS = new Set([
   "jpg", "jpeg", "png", "webp", "gif", "heic", "heif", "pdf", "doc", "docx",
 ]);
 const MAX_ATTACHMENTS = 4;
-const MAX_TOTAL_ATTACHMENT_BYTES = 3 * 1024 * 1024;
+const R2_KEY_RE = /^form-uploads\/[a-z0-9-]{1,64}\/[a-f0-9-]{36}-[a-zA-Z0-9._-]+$/;
 
 type AttachmentValidation =
-  | { ok: true; attachments: Attachment[] }
+  | { ok: true; attachments: PendingAttachment[] }
   | { ok: false; message: string };
 
-function validateAttachments(raw: unknown): AttachmentValidation {
+function validateAttachments(raw: unknown, slug: string): AttachmentValidation {
   if (raw === undefined || raw === null) return { ok: true, attachments: [] };
   if (!Array.isArray(raw)) return { ok: false, message: "Invalid attachment data." };
   if (raw.length > MAX_ATTACHMENTS) {
     return { ok: false, message: `You can attach up to ${MAX_ATTACHMENTS} files.` };
   }
 
-  const attachments: Attachment[] = [];
-  let totalRawBytes = 0;
+  const attachments: PendingAttachment[] = [];
 
   for (const item of raw) {
     const filename = (item as { filename?: unknown })?.filename;
-    const content = (item as { content?: unknown })?.content;
+    const key = (item as { key?: unknown })?.key;
     const contentType = (item as { contentType?: unknown })?.contentType;
-    if (typeof filename !== "string" || typeof content !== "string") {
+    if (typeof filename !== "string" || typeof key !== "string") {
       return { ok: false, message: "Invalid attachment data." };
     }
 
@@ -59,23 +68,51 @@ function validateAttachments(raw: unknown): AttachmentValidation {
     if (!ALLOWED_ATTACHMENT_EXTENSIONS.has(ext)) {
       return { ok: false, message: `"${filename}" isn't an accepted file type — images, PDF, or Word docs only.` };
     }
+    if (!R2_KEY_RE.test(key) || !key.startsWith(`form-uploads/${slug}/`)) {
+      return { ok: false, message: "Invalid attachment data." };
+    }
 
-    totalRawBytes += Math.floor((content.length * 3) / 4);
     attachments.push({
       filename,
-      content,
+      key,
       contentType: typeof contentType === "string" ? contentType : "application/octet-stream",
     });
   }
 
-  if (totalRawBytes > MAX_TOTAL_ATTACHMENT_BYTES) {
-    return {
-      ok: false,
-      message: `Attachments are too large (max ${(MAX_TOTAL_ATTACHMENT_BYTES / (1024 * 1024)).toFixed(0)}MB total) — try smaller files or fewer of them.`,
-    };
-  }
-
   return { ok: true, attachments };
+}
+
+// Pulls the real bytes back from R2 via the central platform (which holds
+// the Cloudflare credentials — per-site deployments never get those) and
+// consumes them: the central endpoint deletes each object right after a
+// successful read, since R2 is transient staging here, not storage.
+async function fetchAttachmentContent(
+  slug: string,
+  pending: PendingAttachment[],
+  cellpyApiToken: string
+): Promise<ResolvedAttachment[] | null> {
+  if (pending.length === 0) return [];
+  try {
+    const res = await fetch(CENTRAL_ATTACHMENTS_BASE, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${cellpyApiToken}`,
+      },
+      body: JSON.stringify({ slug, keys: pending.map((a) => a.key) }),
+    });
+    if (!res.ok) {
+      console.error(`[forms] attachment fetch failed for "${slug}": ${res.status} ${await res.text().catch(() => "")}`);
+      return null;
+    }
+    const { attachments } = (await res.json()) as {
+      attachments: { key: string; filename: string; contentType: string; content: string }[];
+    };
+    return attachments.map((a) => ({ filename: a.filename, contentType: a.contentType, content: a.content }));
+  } catch (err) {
+    console.error(`[forms] attachment fetch threw for "${slug}":`, err instanceof Error ? err.message : String(err));
+    return null;
+  }
 }
 
 export async function POST(
@@ -99,7 +136,7 @@ export async function POST(
 
   const { _hp: _ignoredHp, _attachments, ...fields } = rawBody;
 
-  const attachmentResult = validateAttachments(_attachments);
+  const attachmentResult = validateAttachments(_attachments, slug);
   if (!attachmentResult.ok) {
     return NextResponse.json(
       { ok: false, error: "ATTACHMENT_INVALID", message: attachmentResult.message },
@@ -132,7 +169,7 @@ export async function POST(
 async function tryLocalDelivery(
   slug: string,
   fields: Record<string, unknown>,
-  attachments: Attachment[]
+  pendingAttachments: PendingAttachment[]
 ): Promise<{ body: unknown; status: number } | null> {
   const resendApiKey = process.env.RESEND_API_KEY;
   const cellpyApiToken = process.env.CELLPY_API_TOKEN;
@@ -151,6 +188,9 @@ async function tryLocalDelivery(
       console.error(`[forms] destination lookup for "${slug}" returned no email`);
       return null;
     }
+
+    const attachments = await fetchAttachmentContent(slug, pendingAttachments, cellpyApiToken);
+    if (attachments === null) return null;
 
     const [row] = await db
       .select({ pageTitle: pages.title, pageSlug: pages.slug })
