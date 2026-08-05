@@ -183,8 +183,8 @@ async function tryLocalDelivery(
       console.error(`[forms] destination lookup failed for "${slug}": ${destRes.status} ${await destRes.text().catch(() => "")}`);
       return null;
     }
-    const { email } = (await destRes.json()) as { email: string | null };
-    if (!email) {
+    const { emails } = (await destRes.json()) as { emails: string[] };
+    if (!emails || emails.length === 0) {
       console.error(`[forms] destination lookup for "${slug}" returned no email`);
       return null;
     }
@@ -211,7 +211,7 @@ async function tryLocalDelivery(
     const resend = new Resend(resendApiKey);
     const { error } = await resend.emails.send({
       from: process.env.EMAIL_FROM || "onboarding@resend.dev",
-      to: email,
+      to: emails,
       subject: `New submission — ${pageTitle}`,
       html: formatEmailHtml(pageTitle, pageUrl, emailFields),
       text: formatEmailText(emailFields),
