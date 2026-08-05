@@ -25,7 +25,11 @@
 	// security boundary (the server re-checks everything).
 	var ALLOWED_ATTACHMENT_EXTENSIONS = [ 'jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif', 'pdf', 'doc', 'docx' ];
 	var MAX_ATTACHMENTS = 4;
-	var MAX_TOTAL_ATTACHMENT_BYTES = 2 * 1024 * 1024;
+	// Raw (decoded) byte budget — base64 inflates this by ~1/3 once it's in
+	// the JSON body, so 3MB here means ~4MB of encoded content, leaving
+	// headroom under Vercel's ~4.5MB serverless request-body ceiling for the
+	// rest of the form fields. See route.ts's own copy of this constant.
+	var MAX_TOTAL_ATTACHMENT_BYTES = 3 * 1024 * 1024;
 
 	// The block's authored HTML doesn't include the honeypot field itself —
 	// per the documented contract, rendering it is the client's job, done

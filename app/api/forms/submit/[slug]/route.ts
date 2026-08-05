@@ -22,15 +22,16 @@ interface Attachment {
 }
 
 // Images/PDF/Word docs only — matches what the "Get a Quote"-style forms
-// this is built for actually need. Total kept well under Vercel's Node
-// serverless function request-body ceiling (4.5MB): base64 inflates raw
-// bytes by ~1/3, and the JSON body carries the rest of the form on top of
-// this, so this leaves real headroom rather than sitting right at the edge.
+// this is built for actually need. MAX_TOTAL_ATTACHMENT_BYTES is a raw
+// (decoded) byte budget, not the wire size: base64 inflates it by ~1/3 once
+// it's in the JSON body, so 3MB raw means ~4MB of encoded content, kept
+// under Vercel's Node serverless function request-body ceiling (~4.5MB)
+// with headroom left for the rest of the form fields on top of it.
 const ALLOWED_ATTACHMENT_EXTENSIONS = new Set([
   "jpg", "jpeg", "png", "webp", "gif", "heic", "heif", "pdf", "doc", "docx",
 ]);
 const MAX_ATTACHMENTS = 4;
-const MAX_TOTAL_ATTACHMENT_BYTES = 2 * 1024 * 1024;
+const MAX_TOTAL_ATTACHMENT_BYTES = 3 * 1024 * 1024;
 
 type AttachmentValidation =
   | { ok: true; attachments: Attachment[] }
