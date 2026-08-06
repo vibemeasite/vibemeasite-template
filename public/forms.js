@@ -31,9 +31,64 @@
 	// "too large"/"wrong type" message immediately instead of after a round
 	// trip, not a security boundary (the server re-checks everything).
 	var ALLOWED_ATTACHMENT_EXTENSIONS = [ 'jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif', 'pdf', 'doc', 'docx' ];
+	var IMAGE_ATTACHMENT_EXTENSIONS = [ 'jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif' ];
 	var MAX_ATTACHMENTS = 4;
 	var MAX_ATTACHMENT_FILE_BYTES = 10 * 1024 * 1024;
 	var MAX_TOTAL_ATTACHMENT_BYTES = 25 * 1024 * 1024;
+
+	// Object URLs created for image thumbnails, keyed by the <input> they
+	// belong to, so re-selecting files revokes the previous batch instead of
+	// leaking blob URLs for the life of the page.
+	var attachmentPreviewUrls = new WeakMap();
+
+	function renderAttachmentPreviews( input ) {
+		var container = input.nextElementSibling;
+		if ( ! container || ! container.classList.contains( 'cellpy-form-attachment-previews' ) ) {
+			container = document.createElement( 'div' );
+			container.className = 'cellpy-form-attachment-previews';
+			input.insertAdjacentElement( 'afterend', container );
+		}
+		container.innerHTML = '';
+
+		( attachmentPreviewUrls.get( input ) || [] ).forEach( function ( url ) {
+			URL.revokeObjectURL( url );
+		} );
+
+		var files = Array.prototype.slice.call( input.files || [] );
+		var urls = [];
+
+		files.forEach( function ( file ) {
+			var ext = ( file.name.split( '.' ).pop() || '' ).toLowerCase();
+			var item = document.createElement( 'div' );
+			item.className = 'cellpy-form-attachment';
+			item.title = file.name;
+
+			if ( -1 !== IMAGE_ATTACHMENT_EXTENSIONS.indexOf( ext ) ) {
+				var url = URL.createObjectURL( file );
+				urls.push( url );
+				var img = document.createElement( 'img' );
+				img.className = 'cellpy-form-attachment-thumb';
+				img.src = url;
+				img.alt = file.name;
+				item.appendChild( img );
+			} else {
+				var isPdf = 'pdf' === ext;
+				var icon = document.createElement( 'div' );
+				icon.className = 'cellpy-form-attachment-icon ' + ( isPdf ? 'cellpy-form-attachment-icon--pdf' : 'cellpy-form-attachment-icon--doc' );
+				icon.textContent = isPdf ? 'PDF' : 'DOC';
+				item.appendChild( icon );
+			}
+
+			var name = document.createElement( 'span' );
+			name.className = 'cellpy-form-attachment-name';
+			name.textContent = file.name;
+			item.appendChild( name );
+
+			container.appendChild( item );
+		} );
+
+		attachmentPreviewUrls.set( input, urls );
+	}
 
 	// The block's authored HTML doesn't include the honeypot field itself —
 	// per the documented contract, rendering it is the client's job, done
@@ -273,6 +328,11 @@
 			}
 
 			ensureHoneypot( form );
+			form.querySelectorAll( 'input[type="file"]' ).forEach( function ( input ) {
+				input.addEventListener( 'change', function () {
+					renderAttachmentPreviews( input );
+				} );
+			} );
 			form.addEventListener( 'submit', handleSubmit( form, slug, config ) );
 		} );
 	}

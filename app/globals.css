@@ -137,6 +137,14 @@ a { color: var(--color-primary, inherit); }
 .cellpy-form-error { color: #c0392b; margin-top: 8px; }
 .cellpy-form-success { color: #1a5f4a; margin-top: 8px; }
 
+.cellpy-form-attachment-previews { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.cellpy-form-attachment { display: flex; flex-direction: column; align-items: center; width: 64px; }
+.cellpy-form-attachment-thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; border: 1px solid rgba(0, 0, 0, 0.1); }
+.cellpy-form-attachment-icon { width: 48px; height: 48px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #fff; }
+.cellpy-form-attachment-icon--pdf { background: #c0392b; }
+.cellpy-form-attachment-icon--doc { background: #2c5aa0; }
+.cellpy-form-attachment-name { font-size: 10px; margin-top: 4px; max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
+
 .staging-banner {
   position: sticky;
   top: 0;
