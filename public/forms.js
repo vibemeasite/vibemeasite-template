@@ -36,10 +36,59 @@
 	var MAX_ATTACHMENT_FILE_BYTES = 10 * 1024 * 1024;
 	var MAX_TOTAL_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 
+	// Selected files accumulate across multiple "Choose Files" picks — a bare
+	// <input type="file"> replaces its FileList on every change, which reads
+	// as "my first file vanished" to a visitor. Keyed by the <input> they
+	// belong to.
+	var attachmentFiles = new WeakMap();
+
 	// Object URLs created for image thumbnails, keyed by the <input> they
-	// belong to, so re-selecting files revokes the previous batch instead of
+	// belong to, so re-rendering revokes the previous batch instead of
 	// leaking blob URLs for the life of the page.
 	var attachmentPreviewUrls = new WeakMap();
+
+	function isSameFile( a, b ) {
+		return a.name === b.name && a.size === b.size && a.lastModified === b.lastModified;
+	}
+
+	// Rewrites the input's own FileList to match our accumulated selection,
+	// via the DataTransfer trick — the standard way to set input.files
+	// programmatically — so collectAttachments() (which reads input.files at
+	// submit time) needs no changes to see the merged/pruned set.
+	function syncInputFiles( input, files ) {
+		var dt = new DataTransfer();
+		files.forEach( function ( file ) {
+			dt.items.add( file );
+		} );
+		input.files = dt.files;
+	}
+
+	function addAttachmentFiles( input, newFiles ) {
+		var existing = attachmentFiles.get( input ) || [];
+		var merged = existing.concat( newFiles.filter( function ( nf ) {
+			return ! existing.some( function ( ef ) { return isSameFile( ef, nf ); } );
+		} ) );
+
+		if ( merged.length > MAX_ATTACHMENTS ) {
+			merged = merged.slice( 0, MAX_ATTACHMENTS );
+			if ( input.form ) {
+				showError( input.form, 'You can attach up to ' + MAX_ATTACHMENTS + ' files.' );
+			}
+		}
+
+		attachmentFiles.set( input, merged );
+		syncInputFiles( input, merged );
+		renderAttachmentPreviews( input );
+	}
+
+	function removeAttachmentFile( input, file ) {
+		var remaining = ( attachmentFiles.get( input ) || [] ).filter( function ( f ) {
+			return ! isSameFile( f, file );
+		} );
+		attachmentFiles.set( input, remaining );
+		syncInputFiles( input, remaining );
+		renderAttachmentPreviews( input );
+	}
 
 	function renderAttachmentPreviews( input ) {
 		var container = input.nextElementSibling;
@@ -54,7 +103,7 @@
 			URL.revokeObjectURL( url );
 		} );
 
-		var files = Array.prototype.slice.call( input.files || [] );
+		var files = attachmentFiles.get( input ) || [];
 		var urls = [];
 
 		files.forEach( function ( file ) {
@@ -62,6 +111,16 @@
 			var item = document.createElement( 'div' );
 			item.className = 'cellpy-form-attachment';
 			item.title = file.name;
+
+			var remove = document.createElement( 'button' );
+			remove.type = 'button';
+			remove.className = 'cellpy-form-attachment-remove';
+			remove.setAttribute( 'aria-label', 'Remove ' + file.name );
+			remove.textContent = '×';
+			remove.addEventListener( 'click', function () {
+				removeAttachmentFile( input, file );
+			} );
+			item.appendChild( remove );
 
 			if ( -1 !== IMAGE_ATTACHMENT_EXTENSIONS.indexOf( ext ) ) {
 				var url = URL.createObjectURL( file );
@@ -330,7 +389,7 @@
 			ensureHoneypot( form );
 			form.querySelectorAll( 'input[type="file"]' ).forEach( function ( input ) {
 				input.addEventListener( 'change', function () {
-					renderAttachmentPreviews( input );
+					addAttachmentFiles( input, Array.prototype.slice.call( input.files || [] ) );
 				} );
 			} );
 			form.addEventListener( 'submit', handleSubmit( form, slug, config ) );
