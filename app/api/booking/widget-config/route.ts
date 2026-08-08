@@ -9,10 +9,15 @@ import { NextRequest, NextResponse } from "next/server";
 const PUBLIC_BOOKING_BASE = "https://mcp.vibemeasite.com/api/public-booking/";
 
 export async function GET(req: NextRequest) {
-  const widget = new URL(req.url).searchParams.get("widget") ?? "";
+  const params = new URL(req.url).searchParams;
+  const widget = params.get("widget") ?? "";
+  const lang = params.get("lang");
 
   try {
-    const res = await fetch(`${PUBLIC_BOOKING_BASE}widget-config?widget=${encodeURIComponent(widget)}`);
+    const upstreamUrl = `${PUBLIC_BOOKING_BASE}widget-config?widget=${encodeURIComponent(widget)}${
+      lang ? `&lang=${encodeURIComponent(lang)}` : ""
+    }`;
+    const res = await fetch(upstreamUrl);
     const json = await res.json().catch(() => ({}));
     return NextResponse.json(json, { status: res.status });
   } catch {
