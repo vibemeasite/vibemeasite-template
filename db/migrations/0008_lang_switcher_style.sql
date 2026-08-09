@@ -1,0 +1,2 @@
+ALTER TABLE "site_settings" ADD COLUMN "lang_switcher_style" text DEFAULT 'buttons' NOT NULL;--> statement-breakpoint
+ALTER TABLE "site_settings" ADD COLUMN "lang_switcher_flags" boolean DEFAULT false NOT NULL;

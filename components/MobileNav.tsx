@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { flagForLocale } from "../lib/lang-flags";
 
 interface MenuItem {
   id: string;
@@ -30,6 +31,13 @@ interface MobileNavProps {
   // only this first link needs the query param.
   locale: string;
   availableLocales: string[];
+  // Set via vibemeasite-mcp's set_language_switcher_style tool.
+  // "buttons" (plain <a> links, the original behavior) or "select" (a
+  // single dropdown, enhanced by public/lang-switcher.js — see the
+  // conditional <script> in app/layout.tsx). langSwitcherFlags only
+  // applies to the "select" presentation.
+  langSwitcherStyle: "buttons" | "select";
+  langSwitcherFlags: boolean;
 }
 
 // The nav itself is plain server-renderable markup (just <a> tags) — the
@@ -39,6 +47,7 @@ interface MobileNavProps {
 // are only ever hidden by the "is-open" gate inside a max-width media query.
 export function MobileNav({
   isSideNav, isOnePage, menu, phone, email, customLinks, locale, availableLocales,
+  langSwitcherStyle, langSwitcherFlags,
 }: MobileNavProps) {
   const [open, setOpen] = useState(false);
 
@@ -109,15 +118,36 @@ export function MobileNav({
             ))}
             {showLangSwitcher && (
               <span className="nav-lang-switcher">
-                {availableLocales.map((code) => (
-                  <a
-                    key={code}
-                    href={`?lang=${encodeURIComponent(code)}`}
-                    aria-current={code === locale ? "true" : undefined}
-                  >
-                    {code.toUpperCase()}
-                  </a>
-                ))}
+                {langSwitcherStyle === "select" ? (
+                  // Plain uncontrolled <select> — navigation on change is
+                  // handled by public/lang-switcher.js, not React, so this
+                  // component's own client bundle (shipped on every page,
+                  // for the hamburger toggle) doesn't grow for sites that
+                  // never chose this presentation. Without that script (a
+                  // site whose settings say "select" but that hasn't been
+                  // rebuilt onto a template version carrying it yet), the
+                  // dropdown still shows the current language, it just
+                  // won't navigate on change — same "degrades, doesn't
+                  // break" tradeoff as forms.js.
+                  <select data-lang-switcher defaultValue={locale} aria-label="Language">
+                    {availableLocales.map((code) => (
+                      <option key={code} value={code}>
+                        {langSwitcherFlags ? `${flagForLocale(code)} ` : ""}
+                        {code.toUpperCase()}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  availableLocales.map((code) => (
+                    <a
+                      key={code}
+                      href={`?lang=${encodeURIComponent(code)}`}
+                      aria-current={code === locale ? "true" : undefined}
+                    >
+                      {code.toUpperCase()}
+                    </a>
+                  ))
+                )}
               </span>
             )}
           </div>

@@ -114,4 +114,15 @@ export const siteSettings = pgTable("site_settings", {
   // against what a given container/page actually has translations for.
   defaultLocale: text("default_locale").notNull().default("en"),
   availableLocales: jsonb("available_locales").notNull().default([]),
+  // Header language switcher presentation, follow-up to Phase 24 — set via
+  // vibemeasite-mcp's set_language_switcher_style tool. "buttons" (row of
+  // plain <a> links, the original/only behavior before this) or "select"
+  // (a single <select> dropdown, progressively enhanced by
+  // public/lang-switcher.js so it navigates on change). langSwitcherFlags
+  // shows a flag emoji per language, looked up from a small code -> emoji
+  // table in components/MobileNav.tsx rather than derived from the code —
+  // stored independently of style so toggling style back and forth doesn't
+  // lose the flags preference.
+  langSwitcherStyle: text("lang_switcher_style").notNull().default("buttons"),
+  langSwitcherFlags: boolean("lang_switcher_flags").notNull().default(false),
 });

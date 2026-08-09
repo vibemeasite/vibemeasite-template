@@ -66,6 +66,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const footerContent = await getContainerContent(ACCOUNT_SLUG, FOOTER_CONTAINER_SLUG, locale);
   const isSideNav = settings.navPosition === "side";
   const isOnePage = settings.layoutMode === "one-page";
+  const availableLocales = (settings.availableLocales as string[] | null) ?? [];
+  const langSwitcherStyle = (settings.langSwitcherStyle as "buttons" | "select" | null) ?? "buttons";
   const customLinks = ((settings.customLinks as CustomLink[] | null) ?? []).map((link) => ({
     ...link,
     label: resolveTranslation(link.label, link.labelTranslations, locale),
@@ -108,12 +110,22 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               email={settings.email}
               customLinks={customLinks}
               locale={locale}
-              availableLocales={(settings.availableLocales as string[] | null) ?? []}
+              availableLocales={availableLocales}
+              langSwitcherStyle={langSwitcherStyle}
+              langSwitcherFlags={settings.langSwitcherFlags ?? false}
             />
           </div>
           <main>{children}</main>
         </div>
         <CellpyBlock containerSlug={FOOTER_CONTAINER_SLUG} content={footerContent} />
+        {/* Only the "select" presentation needs JS — "buttons" is plain
+            <a href> links (see MobileNav.tsx). Present on every page (this
+            is the root layout), same reasoning as MobileNav.tsx's own
+            client bundle: it's conditioned on the site's settings, not on
+            any one page's content, since the switcher itself is here too. */}
+        {langSwitcherStyle === "select" && availableLocales.length > 1 && (
+          <script src="/lang-switcher.js" defer />
+        )}
       </body>
     </html>
   );

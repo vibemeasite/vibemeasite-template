@@ -134,6 +134,19 @@ a { color: var(--color-primary, inherit); }
 .layout-side .nav-extras { display: flex; flex-direction: column; gap: 8px; }
 .layout-side main { flex: 1; min-width: 0; }
 
+/* Header language switcher's "select" presentation (site_settings.lang_
+   switcher_style — see MobileNav.tsx). Not ancestor-qualified, unlike
+   .nav-extras: it doesn't need a different flex-direction per layout, just
+   sits inline wherever .nav-lang-switcher itself is placed. */
+.nav-lang-switcher select {
+  font: inherit;
+  color: var(--color-primary, #1a5f4a);
+  background: #ffffff;
+  border: 1px solid #e5e7e5;
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+
 .cellpy-form-error { color: #c0392b; margin-top: 8px; }
 .cellpy-form-success { color: #1a5f4a; margin-top: 8px; }
 

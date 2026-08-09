@@ -57,6 +57,13 @@
       "when": 1785738050899,
       "tag": "0007_normal_hammerhead",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1786298053104,
+      "tag": "0008_lang_switcher_style",
+      "breakpoints": true
     }
   ]
 }

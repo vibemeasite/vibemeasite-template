@@ -46,6 +46,8 @@ export const getSiteSettings = unstable_cache(
         stagingExpiresAt: null,
         defaultLocale: "en" as const,
         availableLocales: [] as string[],
+        langSwitcherStyle: "buttons" as const,
+        langSwitcherFlags: false,
       }
     );
   },
