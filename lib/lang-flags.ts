@@ -17,8 +17,20 @@
 // Originally used flag emoji, but Windows' system emoji font has no flag
 // glyphs at all (renders the two-letter regional-indicator fallback
 // instead, e.g. "IL" instead of 🇮🇱) — real flag pictures need actual
-// image assets, hence public/flags/ (sourced from vibemeasite/docs/svg,
-// one file per ISO 3166-1 alpha-2 country code).
+// image assets.
+//
+// All 251 country flags live as <symbol id="{cc}"> entries in one sprite
+// file, public/flags/sprite.svg (sourced from vibemeasite/docs/svg, built
+// by combining the original one-file-per-country set) — NOT as individual
+// files. upgrade_site_template's fetchTemplateFiles fetches every file in
+// the template repo individually (one GitHub request per file); 251
+// separate flag files pushed that past whatever concurrency/rate limit
+// made upgrades reliable, and a single sprite avoids that entirely,
+// independent of how many flags exist. Callers render
+// `<svg><use href={\`/flags/sprite.svg#${flagSymbolForLocale(code)}\`} /></svg>`
+// (see MobileNav.tsx) — a real <select><option> can't hold this at all,
+// which is also why the "select" presentation is a custom listbox, not a
+// native <select> (see MobileNav.tsx's own comment).
 const FLAG_COUNTRIES = new Set([
   "ad", "ae", "af", "ag", "ai", "al", "am", "ao", "aq", "ar", "as", "at", "au", "aw", "ax",
   "az", "ba", "bb", "bd", "be", "bf", "bg", "bh", "bi", "bj", "bl", "bm", "bn", "bo", "bq",
@@ -53,14 +65,14 @@ const BARE_LANG_COUNTRY: Record<string, string> = {
   vi: "vn", id: "id", ms: "my", ka: "ge", hy: "am", az: "az", lt: "lt",
   lv: "lv", et: "ee", hr: "hr", sr: "rs", sl: "si",
 };
-const FALLBACK_FLAG_SRC = "/flags/_globe.svg";
+const FALLBACK_SYMBOL_ID = "_globe";
 
-export function flagSrcForLocale(code: string): string {
+// Returns a <symbol id> in public/flags/sprite.svg, not a file path.
+export function flagSymbolForLocale(code: string): string {
   const normalized = code.toLowerCase();
   const region = normalized.split("-")[1];
-  if (region && FLAG_COUNTRIES.has(region)) return `/flags/${region}.svg`;
+  if (region && FLAG_COUNTRIES.has(region)) return region;
 
   const bareLang = normalized.split("-")[0];
-  const country = BARE_LANG_COUNTRY[bareLang];
-  return country ? `/flags/${country}.svg` : FALLBACK_FLAG_SRC;
+  return BARE_LANG_COUNTRY[bareLang] ?? FALLBACK_SYMBOL_ID;
 }

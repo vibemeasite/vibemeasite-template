@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { flagSrcForLocale } from "../lib/lang-flags";
+import { flagSymbolForLocale } from "../lib/lang-flags";
 
 interface MenuItem {
   id: string;
@@ -41,6 +41,18 @@ interface MobileNavProps {
   // presentation.
   langSwitcherStyle: "buttons" | "select";
   langSwitcherFlags: boolean;
+}
+
+// References a <symbol> in public/flags/sprite.svg (see lib/lang-flags.ts
+// for why it's one sprite rather than a file per flag) — never an <img>,
+// since a plain <img src="/flags/sprite.svg"> would just show the whole
+// (hidden) sprite sheet, not one flag.
+function FlagIcon({ code }: { code: string }) {
+  return (
+    <svg className="lang-flag" aria-hidden="true">
+      <use href={`/flags/sprite.svg#${flagSymbolForLocale(code)}`} />
+    </svg>
+  );
 }
 
 // The nav itself is plain server-renderable markup (just <a> tags) — the
@@ -135,9 +147,7 @@ export function MobileNav({
                   // this expanded list instead — degrades, doesn't break.
                   <div className="lang-switcher" data-lang-switcher>
                     <button type="button" className="lang-switcher-toggle" aria-expanded="false" hidden>
-                      {langSwitcherFlags && (
-                        <img src={flagSrcForLocale(locale)} alt="" className="lang-flag" />
-                      )}
+                      {langSwitcherFlags && <FlagIcon code={locale} />}
                       <span className="lang-switcher-current">{locale.toUpperCase()}</span>
                       <span className="lang-switcher-caret" aria-hidden="true" />
                     </button>
@@ -145,9 +155,7 @@ export function MobileNav({
                       {availableLocales.map((code) => (
                         <li key={code} role="option" aria-selected={code === locale}>
                           <a href={`?lang=${encodeURIComponent(code)}`} aria-current={code === locale ? "true" : undefined}>
-                            {langSwitcherFlags && (
-                              <img src={flagSrcForLocale(code)} alt="" className="lang-flag" />
-                            )}
+                            {langSwitcherFlags && <FlagIcon code={code} />}
                             {code.toUpperCase()}
                           </a>
                         </li>
