@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { flagForLocale } from "../lib/lang-flags";
+import { flagSrcForLocale } from "../lib/lang-flags";
 
 interface MenuItem {
   id: string;
@@ -33,9 +33,12 @@ interface MobileNavProps {
   availableLocales: string[];
   // Set via vibemeasite-mcp's set_language_switcher_style tool.
   // "buttons" (plain <a> links, the original behavior) or "select" (a
-  // single dropdown, enhanced by public/lang-switcher.js — see the
-  // conditional <script> in app/layout.tsx). langSwitcherFlags only
-  // applies to the "select" presentation.
+  // collapsible dropdown list — a real <select> can't hold flag icons in
+  // its options in any browser, so this is a custom <ul role="listbox">
+  // built from the same <a href="?lang="> links, progressively enhanced
+  // by public/lang-switcher.js — see the conditional <script> in
+  // app/layout.tsx). langSwitcherFlags only applies to the "select"
+  // presentation.
   langSwitcherStyle: "buttons" | "select";
   langSwitcherFlags: boolean;
 }
@@ -119,24 +122,38 @@ export function MobileNav({
             {showLangSwitcher && (
               <span className="nav-lang-switcher">
                 {langSwitcherStyle === "select" ? (
-                  // Plain uncontrolled <select> — navigation on change is
-                  // handled by public/lang-switcher.js, not React, so this
-                  // component's own client bundle (shipped on every page,
-                  // for the hamburger toggle) doesn't grow for sites that
-                  // never chose this presentation. Without that script (a
-                  // site whose settings say "select" but that hasn't been
-                  // rebuilt onto a template version carrying it yet), the
-                  // dropdown still shows the current language, it just
-                  // won't navigate on change — same "degrades, doesn't
-                  // break" tradeoff as forms.js.
-                  <select data-lang-switcher defaultValue={locale} aria-label="Language">
-                    {availableLocales.map((code) => (
-                      <option key={code} value={code}>
-                        {langSwitcherFlags ? `${flagForLocale(code)} ` : ""}
-                        {code.toUpperCase()}
-                      </option>
-                    ))}
-                  </select>
+                  // Server-rendered as a plain, always-visible list of
+                  // <a href="?lang="> links — identical in function to the
+                  // "buttons" presentation, just with flag icons and
+                  // wrapped for styling. public/lang-switcher.js
+                  // progressively collapses this into a toggle button +
+                  // dropdown list on load; the toggle button itself starts
+                  // `hidden` (useless without JS) and the list stays
+                  // expanded until the script hides it, so a site whose
+                  // settings say "select" but hasn't been rebuilt onto a
+                  // template version carrying the script yet just shows
+                  // this expanded list instead — degrades, doesn't break.
+                  <div className="lang-switcher" data-lang-switcher>
+                    <button type="button" className="lang-switcher-toggle" aria-expanded="false" hidden>
+                      {langSwitcherFlags && (
+                        <img src={flagSrcForLocale(locale)} alt="" className="lang-flag" />
+                      )}
+                      <span className="lang-switcher-current">{locale.toUpperCase()}</span>
+                      <span className="lang-switcher-caret" aria-hidden="true" />
+                    </button>
+                    <ul className="lang-switcher-menu" role="listbox">
+                      {availableLocales.map((code) => (
+                        <li key={code} role="option" aria-selected={code === locale}>
+                          <a href={`?lang=${encodeURIComponent(code)}`} aria-current={code === locale ? "true" : undefined}>
+                            {langSwitcherFlags && (
+                              <img src={flagSrcForLocale(code)} alt="" className="lang-flag" />
+                            )}
+                            {code.toUpperCase()}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 ) : (
                   availableLocales.map((code) => (
                     <a
