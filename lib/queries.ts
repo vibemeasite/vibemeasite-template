@@ -48,6 +48,14 @@ export const getSiteSettings = unstable_cache(
         availableLocales: [] as string[],
         langSwitcherStyle: "buttons" as const,
         langSwitcherFlags: false,
+        siteName: null,
+        tagline: null,
+        faviconUrl: null,
+        faviconSource: null,
+        gaId: null,
+        gtmId: null,
+        metaPixelId: null,
+        searchConsoleVerification: null,
       }
     );
   },
@@ -96,6 +104,18 @@ export const getScrollPages = unstable_cache(
   },
   ["scroll-pages"],
   { tags: ["menu", "pages"] }
+);
+
+// Every page's slug (+ inScroll, so app/sitemap.ts can skip pages that only
+// redirect to a "/#slug" anchor in one-page mode rather than rendering at
+// their own URL — see app/[slug]/page.tsx). No <lastmod> data: pages has no
+// created/updated timestamp column, out of scope for this pass.
+export const getAllPages = unstable_cache(
+  async () => {
+    return db.select({ slug: pages.slug, inScroll: pages.inScroll }).from(pages);
+  },
+  ["all-pages"],
+  { tags: ["pages"] }
 );
 
 export function getPageBySlug(slug: string) {

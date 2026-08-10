@@ -64,6 +64,13 @@
       "when": 1786298053104,
       "tag": "0008_lang_switcher_style",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1786358400000,
+      "tag": "0009_seo_expansion",
+      "breakpoints": true
     }
   ]
 }

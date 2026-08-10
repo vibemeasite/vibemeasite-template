@@ -125,4 +125,24 @@ export const siteSettings = pgTable("site_settings", {
   // lose the flags preference.
   langSwitcherStyle: text("lang_switcher_style").notNull().default("buttons"),
   langSwitcherFlags: boolean("lang_switcher_flags").notNull().default(false),
+  // SEO/branding expansion — set via vibemeasite-mcp's set_branding.
+  // siteName/tagline drive the page <title> (app/layout.tsx's
+  // generateMetadata); falls back to the pre-existing static "Site" title
+  // when unset, so nothing regresses for sites that haven't set it yet.
+  siteName: text("site_name"),
+  tagline: text("tagline"),
+  // Auto-generated from the logo whenever it changes (see set_branding's
+  // generateFavicon call), unless faviconSource is "custom" — a Site-Owner-
+  // supplied favicon_url override that future logo edits leave alone.
+  faviconUrl: text("favicon_url"),
+  faviconSource: text("favicon_source"), // "auto" | "custom"
+  // Analytics/SEO integration IDs — set via vibemeasite-mcp's
+  // set_analytics. Public tracking IDs, not secrets. Rendered in
+  // app/layout.tsx's <head>, skipped entirely while stagingExpiresAt is
+  // set so staging preview traffic doesn't pollute the owner's real
+  // analytics.
+  gaId: text("ga_id"),
+  gtmId: text("gtm_id"),
+  metaPixelId: text("meta_pixel_id"),
+  searchConsoleVerification: text("search_console_verification"),
 });

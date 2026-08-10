@@ -8,9 +8,20 @@ import { StagingBanner } from "../components/StagingBanner";
 import { MobileNav } from "../components/MobileNav";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: "Site",
-};
+// Dynamic (not a static `export const metadata`) so it can read the site's
+// own siteName/tagline (set via vibemeasite-mcp's set_branding). Falls back
+// to the pre-existing static "Site" title when siteName is unset, so a site
+// that hasn't configured it yet sees no change. When siteName IS set, the
+// `template` here is what makes app/[slug]/page.tsx's own generateMetadata
+// (just `{ title: page.title }`) come out as "{page title} | {siteName}"
+// without that route needing to know the site name itself.
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getSiteSettings();
+  if (!settings.siteName) return { title: "Site" };
+
+  const defaultTitle = settings.tagline ? `${settings.siteName} — ${settings.tagline}` : settings.siteName;
+  return { title: { default: defaultTitle, template: `%s | ${settings.siteName}` } };
+}
 
 // Same fixed slug on every site — not tied to any page, so it never goes
 // through the per-page `containers` table like ordinary sections do.
@@ -83,10 +94,58 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const headerCss = sanitizeHeaderCss(settings.headerCss);
   const headStyle = [colorVars ? `:root { ${colorVars} }` : "", headerCss].filter(Boolean).join("\n");
 
+  // Analytics/SEO integrations (set via vibemeasite-mcp's set_analytics) are
+  // withheld entirely while a site is still an unclaimed staging preview
+  // (stagingExpiresAt set) — same signal StagingBanner already uses — so
+  // test traffic never pollutes the Site Owner's real GA/GTM/Pixel data.
+  const isStaging = Boolean(settings.stagingExpiresAt);
+  const gaId = !isStaging ? settings.gaId : null;
+  const gtmId = !isStaging ? settings.gtmId : null;
+  const metaPixelId = !isStaging ? settings.metaPixelId : null;
+  const searchConsoleVerification = !isStaging ? settings.searchConsoleVerification : null;
+
   return (
     <html lang={locale}>
-      <head>{headStyle ? <style>{headStyle}</style> : null}</head>
+      <head>
+        {settings.faviconUrl ? <link rel="icon" type="image/png" href={settings.faviconUrl} /> : null}
+        {searchConsoleVerification ? <meta name="google-site-verification" content={searchConsoleVerification} /> : null}
+        {headStyle ? <style>{headStyle}</style> : null}
+        {gtmId ? (
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','${gtmId}');`,
+            }}
+          />
+        ) : null}
+        {gaId ? (
+          <>
+            <script async src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} />
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${gaId}');`,
+              }}
+            />
+          </>
+        ) : null}
+        {metaPixelId ? (
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','${metaPixelId}');fbq('track','PageView');`,
+            }}
+          />
+        ) : null}
+      </head>
       <body>
+        {gtmId ? (
+          <noscript>
+            <iframe
+              src={`https://www.googletagmanager.com/ns.html?id=${gtmId}`}
+              height="0"
+              width="0"
+              style={{ display: "none", visibility: "hidden" }}
+            />
+          </noscript>
+        ) : null}
         {settings.stagingExpiresAt ? <StagingBanner expiresAt={new Date(settings.stagingExpiresAt).toISOString()} /> : null}
         <div className={isSideNav ? "layout-side" : "layout-top"}>
           <div className={isSideNav ? "nav-side" : "nav-top"}>

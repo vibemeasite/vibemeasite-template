@@ -1,6 +1,18 @@
+import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { SitePage } from "../../components/SitePage";
 import { getPageBySlug, getSiteSettings } from "../../lib/queries";
+
+// Only overrides the title when the site has set siteName — otherwise {}
+// leaves the root layout's own fallback ("Site") untouched, so a site that
+// hasn't configured siteName yet sees no change (see layout.tsx's own
+// generateMetadata comment for the "%s | {siteName}" template this feeds).
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const [settings, result] = await Promise.all([getSiteSettings(), getPageBySlug(slug)]);
+  if (!settings.siteName || !result) return {};
+  return { title: result.page.title };
+}
 
 export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
