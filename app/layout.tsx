@@ -107,7 +107,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html lang={locale}>
       <head>
-        {settings.faviconUrl ? <link rel="icon" type="image/png" href={settings.faviconUrl} /> : null}
+        {settings.faviconUrl ? <link rel="icon" type="image/x-icon" href={settings.faviconUrl} /> : null}
         {searchConsoleVerification ? <meta name="google-site-verification" content={searchConsoleVerification} /> : null}
         {headStyle ? <style>{headStyle}</style> : null}
         {gtmId ? (
