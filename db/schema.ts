@@ -149,25 +149,15 @@ export const siteSettings = pgTable("site_settings", {
   // set_cookie_banner. Opt-in (enabled defaults false), so a site that
   // never calls set_cookie_banner sees zero behavior change: ga_id/gtm_id/
   // meta_pixel_id keep loading unconditionally exactly as before (see
-  // app/layout.tsx's consent-gate comment). policyUrl/message/labels are
-  // all nullable — app/layout.tsx applies fixed template-side defaults for
-  // message/accept_label/reject_label when unset, so enabling the banner
-  // with no other fields still produces working, sensibly-worded copy.
+  // app/layout.tsx's consent-gate comment). This is the ONLY settings
+  // column this feature has — the banner's actual content (message/button
+  // labels/policy link/reopen icon), styling, and translations all live in
+  // a real Cellpy block (fixed slug "cookie-banner", see
+  // COOKIE_BANNER_CONTAINER_SLUG in app/layout.tsx) instead, reusing the
+  // same locales-map/CSS-customization machinery the footer and booking
+  // widget already have. An earlier version of this feature stored
+  // message/labels/position/reopen-icon as their own settings columns
+  // (migrations 0010/0011) — dropped in 0012 once the block-based rebuild
+  // replaced them, before any live site had adopted it.
   cookieBannerEnabled: boolean("cookie_banner_enabled").notNull().default(false),
-  cookieBannerMessage: text("cookie_banner_message"),
-  cookieBannerAcceptLabel: text("cookie_banner_accept_label"),
-  cookieBannerRejectLabel: text("cookie_banner_reject_label"),
-  cookieBannerPolicyUrl: text("cookie_banner_policy_url"),
-  cookieBannerPosition: text("cookie_banner_position").notNull().default("bar"), // "bar" | "corner"
-  // Persistent "reopen the banner" icon (components/CookieBanner.tsx),
-  // follow-up to Phase 12 — made independently toggleable/positionable
-  // after feedback that a fixed bottom-left/bottom-right icon can clash
-  // with a site's own floating chrome (chat widgets, etc.). Defaults on
-  // (true) since disabling it removes the only way a visitor can revisit
-  // their choice — a deliberate opt-out, not the default. reopenIcon is
-  // nullable text (a short emoji/glyph) with an app-level default ("🍪"),
-  // same "nullable + template-side fallback" pattern as cookieBannerMessage.
-  cookieBannerReopenEnabled: boolean("cookie_banner_reopen_enabled").notNull().default(true),
-  cookieBannerReopenPosition: text("cookie_banner_reopen_position").notNull().default("bottom-right"), // "bottom-left" | "bottom-right" | "top-left" | "top-right"
-  cookieBannerReopenIcon: text("cookie_banner_reopen_icon"),
 });

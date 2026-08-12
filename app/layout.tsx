@@ -7,7 +7,6 @@ import { getCurrentLocale, resolveTranslation } from "../lib/locale";
 import { CellpyBlock } from "../components/CellpyBlock";
 import { StagingBanner } from "../components/StagingBanner";
 import { MobileNav } from "../components/MobileNav";
-import { CookieBanner, type ReopenPosition } from "../components/CookieBanner";
 import "./globals.css";
 
 // Dynamic (not a static `export const metadata`) so it can read the site's
@@ -31,6 +30,14 @@ export async function generateMetadata(): Promise<Metadata> {
 // nothing to look up, just try the fetch and render nothing if it 404s
 // (a site with no footer set yet), same as any other unset block.
 const FOOTER_CONTAINER_SLUG = "site-footer";
+// Same fixed-slug/sitewide pattern as the footer above — set_cookie_banner
+// (vibemeasite-mcp) publishes a real Cellpy block here (fixed HTML
+// skeleton + LLM-authored CSS, see lib/cookie-banner-template.ts on that
+// side), rather than the settings-column approach this feature started
+// with — reusing the same locales-map translation machinery and CSS
+// customization the footer/booking widget already have, instead of
+// hand-rolling both. Only rendered when cookie_banner_enabled (see below).
+const COOKIE_BANNER_CONTAINER_SLUG = "cookie-banner";
 const ACCOUNT_SLUG = process.env.CELLPY_ACCOUNT_SLUG!;
 
 interface CustomLink {
@@ -73,17 +80,12 @@ function sanitizeHeaderCss(css: unknown): string {
   return css;
 }
 
-// Phase 12 — Cookie Consent Banner. What CookieBanner.tsx writes after a
-// visitor decides; also read here, server-side, to gate GA/GTM/Meta Pixel
-// below. Not read via middleware.ts (unlike cellpy_lang) since consent has
-// no query-param source to reconcile — it's cookie-only, so next/headers
-// cookies() alone is enough.
+// Phase 12 — Cookie Consent Banner. What public/cookie-consent.js writes
+// after a visitor decides; also read here, server-side, to gate GA/GTM/
+// Meta Pixel below. Not read via middleware.ts (unlike cellpy_lang) since
+// consent has no query-param source to reconcile — it's cookie-only, so
+// next/headers cookies() alone is enough.
 const CONSENT_COOKIE = "cellpy_consent";
-const DEFAULT_COOKIE_MESSAGE =
-  "We use cookies to understand how visitors use this site. You can accept or reject non-essential cookies.";
-const DEFAULT_ACCEPT_LABEL = "Accept";
-const DEFAULT_REJECT_LABEL = "Reject";
-const DEFAULT_REOPEN_ICON = "🍪";
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const [menu, settings] = await Promise.all([getMenu(), getSiteSettings()]);
@@ -131,6 +133,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const gaId = analyticsAllowed ? settings.gaId : null;
   const gtmId = analyticsAllowed ? settings.gtmId : null;
   const metaPixelId = analyticsAllowed ? settings.metaPixelId : null;
+  const cookieBannerContent = cookieBannerEnabled
+    ? await getContainerContent(ACCOUNT_SLUG, COOKIE_BANNER_CONTAINER_SLUG, locale)
+    : null;
 
   return (
     <html lang={locale}>
@@ -213,18 +218,16 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         {langSwitcherStyle === "select" && availableLocales.length > 1 && (
           <script src="/lang-switcher.js" defer />
         )}
-        {cookieBannerEnabled ? (
-          <CookieBanner
-            initialConsent={consent}
-            message={settings.cookieBannerMessage || DEFAULT_COOKIE_MESSAGE}
-            acceptLabel={settings.cookieBannerAcceptLabel || DEFAULT_ACCEPT_LABEL}
-            rejectLabel={settings.cookieBannerRejectLabel || DEFAULT_REJECT_LABEL}
-            policyUrl={settings.cookieBannerPolicyUrl}
-            position={(settings.cookieBannerPosition as "bar" | "corner" | null) ?? "bar"}
-            reopenEnabled={settings.cookieBannerReopenEnabled ?? true}
-            reopenPosition={(settings.cookieBannerReopenPosition as ReopenPosition | null) ?? "bottom-right"}
-            reopenIcon={settings.cookieBannerReopenIcon || DEFAULT_REOPEN_ICON}
-          />
+        {cookieBannerContent ? (
+          <>
+            <CellpyBlock containerSlug={COOKIE_BANNER_CONTAINER_SLUG} content={cookieBannerContent} />
+            {/* Handles show/hide and the Accept/Reject/reopen clicks — the
+                block's own HTML ships both elements `hidden` (see
+                lib/cookie-banner-template.ts), so nothing shows at all
+                without this script (same fail-safe posture as
+                lang-switcher.js's toggle button). */}
+            <script src="/cookie-consent.js" defer />
+          </>
         ) : null}
       </body>
     </html>

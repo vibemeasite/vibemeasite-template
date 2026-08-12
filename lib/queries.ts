@@ -57,14 +57,6 @@ export const getSiteSettings = unstable_cache(
         metaPixelId: null,
         searchConsoleVerification: null,
         cookieBannerEnabled: false,
-        cookieBannerMessage: null,
-        cookieBannerAcceptLabel: null,
-        cookieBannerRejectLabel: null,
-        cookieBannerPolicyUrl: null,
-        cookieBannerPosition: "bar" as const,
-        cookieBannerReopenEnabled: true,
-        cookieBannerReopenPosition: "bottom-right" as const,
-        cookieBannerReopenIcon: null,
       }
     );
   },
