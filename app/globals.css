@@ -304,14 +304,14 @@ a { color: var(--color-primary, inherit); }
 .cookie-banner--corner .cookie-banner-actions { justify-content: flex-end; }
 
 /* Persistent reopen control (US-VMAS-COOKIE-03) — shown once a decision
-   already exists, in place of the banner. Bottom-left so it never collides
-   with a "corner" banner's own bottom-right position when both would
-   otherwise be visible (they never render at the same time, but this
-   keeps the resting position stable regardless of which style is active). */
+   already exists, in place of the banner. Bottom-right — the banner itself
+   is never open at the same time this button is shown, so there's no
+   collision with a "corner" banner's own bottom-right position to worry
+   about; this just keeps it on the same side visitors expect. */
 .cookie-settings-reopen {
   position: fixed;
   z-index: 30;
-  left: 16px;
+  right: 16px;
   bottom: 16px;
   width: 36px;
   height: 36px;
