@@ -159,4 +159,15 @@ export const siteSettings = pgTable("site_settings", {
   cookieBannerRejectLabel: text("cookie_banner_reject_label"),
   cookieBannerPolicyUrl: text("cookie_banner_policy_url"),
   cookieBannerPosition: text("cookie_banner_position").notNull().default("bar"), // "bar" | "corner"
+  // Persistent "reopen the banner" icon (components/CookieBanner.tsx),
+  // follow-up to Phase 12 — made independently toggleable/positionable
+  // after feedback that a fixed bottom-left/bottom-right icon can clash
+  // with a site's own floating chrome (chat widgets, etc.). Defaults on
+  // (true) since disabling it removes the only way a visitor can revisit
+  // their choice — a deliberate opt-out, not the default. reopenIcon is
+  // nullable text (a short emoji/glyph) with an app-level default ("🍪"),
+  // same "nullable + template-side fallback" pattern as cookieBannerMessage.
+  cookieBannerReopenEnabled: boolean("cookie_banner_reopen_enabled").notNull().default(true),
+  cookieBannerReopenPosition: text("cookie_banner_reopen_position").notNull().default("bottom-right"), // "bottom-left" | "bottom-right" | "top-left" | "top-right"
+  cookieBannerReopenIcon: text("cookie_banner_reopen_icon"),
 });

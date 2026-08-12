@@ -304,15 +304,16 @@ a { color: var(--color-primary, inherit); }
 .cookie-banner--corner .cookie-banner-actions { justify-content: flex-end; }
 
 /* Persistent reopen control (US-VMAS-COOKIE-03) — shown once a decision
-   already exists, in place of the banner. Bottom-right — the banner itself
-   is never open at the same time this button is shown, so there's no
-   collision with a "corner" banner's own bottom-right position to worry
-   about; this just keeps it on the same side visitors expect. */
+   already exists, in place of the banner (never both at once, so there's
+   no collision with a "corner" banner sharing the same corner to worry
+   about). Optional (CookieBanner.tsx renders nothing when reopenEnabled is
+   false) and positionable to one of four corners via set_cookie_banner, so
+   a site's own floating chrome (chat widgets, etc.) — or just a site
+   owner who doesn't want a persistent icon at all — can be accommodated
+   without a template code change. */
 .cookie-settings-reopen {
   position: fixed;
   z-index: 30;
-  right: 16px;
-  bottom: 16px;
   width: 36px;
   height: 36px;
   display: flex;
@@ -325,6 +326,10 @@ a { color: var(--color-primary, inherit); }
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   cursor: pointer;
 }
+.cookie-settings-reopen--bottom-right { right: 16px; bottom: 16px; }
+.cookie-settings-reopen--bottom-left { left: 16px; bottom: 16px; }
+.cookie-settings-reopen--top-right { right: 16px; top: 16px; }
+.cookie-settings-reopen--top-left { left: 16px; top: 16px; }
 
 @media (max-width: 640px) {
   .cookie-banner--bar { flex-direction: column; align-items: stretch; }

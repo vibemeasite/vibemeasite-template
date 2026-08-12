@@ -34,6 +34,8 @@ function purgeTrackingCookies() {
   }
 }
 
+export type ReopenPosition = "bottom-left" | "bottom-right" | "top-left" | "top-right";
+
 export interface CookieBannerProps {
   initialConsent: "accepted" | "rejected" | null;
   message: string;
@@ -41,9 +43,29 @@ export interface CookieBannerProps {
   rejectLabel: string;
   policyUrl: string | null;
   position: "bar" | "corner";
+  // Persistent reopen control (US-VMAS-COOKIE-03) — independently
+  // toggleable/positionable/iconable via set_cookie_banner, since a fixed
+  // always-on icon can clash with a site's own floating chrome (chat
+  // widgets, etc.) or just not suit the site's look. reopenEnabled: false
+  // means a visitor who's already decided has no way to reopen the banner
+  // (their cookie choice still stands for a year either way) — a
+  // deliberate site-owner trade-off, not a bug.
+  reopenEnabled: boolean;
+  reopenPosition: ReopenPosition;
+  reopenIcon: string;
 }
 
-export function CookieBanner({ initialConsent, message, acceptLabel, rejectLabel, policyUrl, position }: CookieBannerProps) {
+export function CookieBanner({
+  initialConsent,
+  message,
+  acceptLabel,
+  rejectLabel,
+  policyUrl,
+  position,
+  reopenEnabled,
+  reopenPosition,
+  reopenIcon,
+}: CookieBannerProps) {
   const [open, setOpen] = useState(initialConsent === null);
   const hasDecision = initialConsent !== null;
 
@@ -59,14 +81,15 @@ export function CookieBanner({ initialConsent, message, acceptLabel, rejectLabel
   }
 
   if (!open) {
+    if (!reopenEnabled) return null;
     return (
       <button
         type="button"
-        className="cookie-settings-reopen"
+        className={`cookie-settings-reopen cookie-settings-reopen--${reopenPosition}`}
         aria-label="Cookie settings"
         onClick={() => setOpen(true)}
       >
-        🍪
+        {reopenIcon}
       </button>
     );
   }

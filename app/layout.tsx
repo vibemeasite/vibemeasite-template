@@ -7,7 +7,7 @@ import { getCurrentLocale, resolveTranslation } from "../lib/locale";
 import { CellpyBlock } from "../components/CellpyBlock";
 import { StagingBanner } from "../components/StagingBanner";
 import { MobileNav } from "../components/MobileNav";
-import { CookieBanner } from "../components/CookieBanner";
+import { CookieBanner, type ReopenPosition } from "../components/CookieBanner";
 import "./globals.css";
 
 // Dynamic (not a static `export const metadata`) so it can read the site's
@@ -83,6 +83,7 @@ const DEFAULT_COOKIE_MESSAGE =
   "We use cookies to understand how visitors use this site. You can accept or reject non-essential cookies.";
 const DEFAULT_ACCEPT_LABEL = "Accept";
 const DEFAULT_REJECT_LABEL = "Reject";
+const DEFAULT_REOPEN_ICON = "🍪";
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const [menu, settings] = await Promise.all([getMenu(), getSiteSettings()]);
@@ -220,6 +221,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             rejectLabel={settings.cookieBannerRejectLabel || DEFAULT_REJECT_LABEL}
             policyUrl={settings.cookieBannerPolicyUrl}
             position={(settings.cookieBannerPosition as "bar" | "corner" | null) ?? "bar"}
+            reopenEnabled={settings.cookieBannerReopenEnabled ?? true}
+            reopenPosition={(settings.cookieBannerReopenPosition as ReopenPosition | null) ?? "bottom-right"}
+            reopenIcon={settings.cookieBannerReopenIcon || DEFAULT_REOPEN_ICON}
           />
         ) : null}
       </body>

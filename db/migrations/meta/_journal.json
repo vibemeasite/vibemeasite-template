@@ -78,6 +78,13 @@
       "when": 1786531200000,
       "tag": "0010_cookie_banner",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1786536500000,
+      "tag": "0011_cookie_banner_reopen",
+      "breakpoints": true
     }
   ]
 }
