@@ -56,13 +56,16 @@
 
 	// One cookie banner per site (fixed slug, sitewide) — no need for the
 	// multi-instance forEach pattern lang-switcher.js uses for its own
-	// (potentially repeated) widget.
+	// (potentially repeated) widget. `reopen` is optional — set_cookie_banner's
+	// reopen_enabled: false omits it from the skeleton entirely (not just
+	// hides it), so a missing reopen must not stop the banner itself from
+	// working — only bail out if the banner itself isn't there.
 	var banner = document.querySelector( '[data-cellpy-cookie-banner]' );
+	if ( ! banner ) return;
 	var reopen = document.querySelector( '.cookie-settings-reopen' );
-	if ( ! banner || ! reopen ) return;
 
 	if ( readConsent() ) {
-		reopen.hidden = false;
+		if ( reopen ) reopen.hidden = false;
 	} else {
 		banner.hidden = false;
 	}
@@ -73,8 +76,10 @@
 	if ( rejectBtn ) rejectBtn.addEventListener( 'click', function () { decide( 'rejected' ); } );
 
 	// Reopening doesn't touch the stored decision — only Accept/Reject do.
-	reopen.addEventListener( 'click', function () {
-		reopen.hidden = true;
-		banner.hidden = false;
-	} );
+	if ( reopen ) {
+		reopen.addEventListener( 'click', function () {
+			reopen.hidden = true;
+			banner.hidden = false;
+		} );
+	}
 } )();

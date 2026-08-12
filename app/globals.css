@@ -264,6 +264,23 @@ a { color: var(--color-primary, inherit); }
   bottom: 16px;
   z-index: 30;
 }
+/* Bug fix: the block's own default CSS (and any custom CSS a site owner
+   sets via set_cookie_banner) declares `display: flex` on these two
+   selectors so they actually lay out correctly once visible — but once
+   scoped under .cellpy-block-cookie-banner, that rule's specificity (two
+   selectors) beats the browser's built-in `[hidden] { display: none }`
+   (one selector), so the `hidden` attribute public/cookie-consent.js
+   relies on to keep them apart was silently inert: both the banner AND
+   the reopen icon rendered visible and stacked in the same bottom-right
+   corner at all times, with the reopen icon (later in paint order, same
+   z-index) intercepting clicks meant for the Accept button underneath it
+   — the reported "Accept/Reject buttons not working". `!important` here
+   guarantees `hidden` wins regardless of what display value the block's
+   CSS sets, present or future. */
+.cellpy-block-cookie-banner [data-cellpy-cookie-banner][hidden],
+.cellpy-block-cookie-banner .cookie-settings-reopen[hidden] {
+  display: none !important;
+}
 
 /* Mobile nav — rollup into a hamburger below 993px. Kept as one breakpoint
    (not split top/side) since both layouts collapse to the same pattern: a
