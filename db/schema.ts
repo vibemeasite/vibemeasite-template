@@ -145,4 +145,18 @@ export const siteSettings = pgTable("site_settings", {
   gtmId: text("gtm_id"),
   metaPixelId: text("meta_pixel_id"),
   searchConsoleVerification: text("search_console_verification"),
+  // Cookie Consent Banner (Phase 12) — set via vibemeasite-mcp's
+  // set_cookie_banner. Opt-in (enabled defaults false), so a site that
+  // never calls set_cookie_banner sees zero behavior change: ga_id/gtm_id/
+  // meta_pixel_id keep loading unconditionally exactly as before (see
+  // app/layout.tsx's consent-gate comment). policyUrl/message/labels are
+  // all nullable — app/layout.tsx applies fixed template-side defaults for
+  // message/accept_label/reject_label when unset, so enabling the banner
+  // with no other fields still produces working, sensibly-worded copy.
+  cookieBannerEnabled: boolean("cookie_banner_enabled").notNull().default(false),
+  cookieBannerMessage: text("cookie_banner_message"),
+  cookieBannerAcceptLabel: text("cookie_banner_accept_label"),
+  cookieBannerRejectLabel: text("cookie_banner_reject_label"),
+  cookieBannerPolicyUrl: text("cookie_banner_policy_url"),
+  cookieBannerPosition: text("cookie_banner_position").notNull().default("bar"), // "bar" | "corner"
 });

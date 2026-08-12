@@ -235,6 +235,103 @@ a { color: var(--color-primary, inherit); }
   border-bottom: 1px solid #ffe69c;
 }
 
+/* Cookie Consent Banner (Phase 12, components/CookieBanner.tsx) — styled
+   from the site's own --color-* vars (same ones set_branding's header CSS
+   and every Cellpy block already target) rather than a separate LLM-
+   authored CSS step, since the banner doesn't need to look distinctive per
+   site, just consistent with it. z-index sits above everything else on the
+   page (30) since it's a consent gate, not decoration. */
+.cookie-banner {
+  position: fixed;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #ffffff;
+  color: var(--color-text, #222222);
+  border: 1px solid #e5e7e5;
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.1);
+}
+.cookie-banner-message { margin: 0; flex: 1; font-size: 14px; line-height: 1.5; }
+.cookie-banner-message a { text-decoration: underline; }
+.cookie-banner-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.cookie-banner-actions button {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.cookie-banner-reject {
+  background: #ffffff;
+  color: var(--color-text, #222222);
+  border: 1px solid #d0d3d0;
+}
+.cookie-banner-accept {
+  background: var(--color-primary, #1a5f4a);
+  color: #ffffff;
+  border: 1px solid var(--color-primary, #1a5f4a);
+}
+.cookie-banner-dismiss {
+  background: transparent;
+  border: none;
+  color: var(--color-text, #222222);
+  font-size: 20px;
+  line-height: 1;
+  padding: 4px 8px !important;
+}
+
+/* position="bar" (default) — full-width bar pinned to the bottom. */
+.cookie-banner--bar {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  flex-wrap: wrap;
+  padding: 16px 24px;
+}
+
+/* position="corner" — a narrower card, bottom-right, off the edge. */
+.cookie-banner--corner {
+  right: 16px;
+  bottom: 16px;
+  max-width: 360px;
+  flex-direction: column;
+  align-items: stretch;
+  border-radius: 8px;
+  padding: 16px;
+}
+.cookie-banner--corner .cookie-banner-actions { justify-content: flex-end; }
+
+/* Persistent reopen control (US-VMAS-COOKIE-03) — shown once a decision
+   already exists, in place of the banner. Bottom-left so it never collides
+   with a "corner" banner's own bottom-right position when both would
+   otherwise be visible (they never render at the same time, but this
+   keeps the resting position stable regardless of which style is active). */
+.cookie-settings-reopen {
+  position: fixed;
+  z-index: 30;
+  left: 16px;
+  bottom: 16px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  background: #ffffff;
+  border: 1px solid #e5e7e5;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .cookie-banner--bar { flex-direction: column; align-items: stretch; }
+  .cookie-banner--bar .cookie-banner-actions { justify-content: flex-end; }
+  .cookie-banner--corner { left: 16px; right: 16px; max-width: none; }
+}
+
 /* Mobile nav — rollup into a hamburger below 993px. Kept as one breakpoint
    (not split top/side) since both layouts collapse to the same pattern: a
    brand+toggle bar with a full-width dropdown panel underneath. */

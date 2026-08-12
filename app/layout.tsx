@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { cookies } from "next/headers";
 import { getMenu, getSiteSettings } from "../lib/queries";
 import { getContainerContent } from "../lib/cellpy-block";
 import { getCurrentLocale, resolveTranslation } from "../lib/locale";
 import { CellpyBlock } from "../components/CellpyBlock";
 import { StagingBanner } from "../components/StagingBanner";
 import { MobileNav } from "../components/MobileNav";
+import { CookieBanner } from "../components/CookieBanner";
 import "./globals.css";
 
 // Dynamic (not a static `export const metadata`) so it can read the site's
@@ -71,6 +73,17 @@ function sanitizeHeaderCss(css: unknown): string {
   return css;
 }
 
+// Phase 12 — Cookie Consent Banner. What CookieBanner.tsx writes after a
+// visitor decides; also read here, server-side, to gate GA/GTM/Meta Pixel
+// below. Not read via middleware.ts (unlike cellpy_lang) since consent has
+// no query-param source to reconcile — it's cookie-only, so next/headers
+// cookies() alone is enough.
+const CONSENT_COOKIE = "cellpy_consent";
+const DEFAULT_COOKIE_MESSAGE =
+  "We use cookies to understand how visitors use this site. You can accept or reject non-essential cookies.";
+const DEFAULT_ACCEPT_LABEL = "Accept";
+const DEFAULT_REJECT_LABEL = "Reject";
+
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const [menu, settings] = await Promise.all([getMenu(), getSiteSettings()]);
   const locale = await getCurrentLocale(settings.defaultLocale);
@@ -99,10 +112,24 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   // (stagingExpiresAt set) — same signal StagingBanner already uses — so
   // test traffic never pollutes the Site Owner's real GA/GTM/Pixel data.
   const isStaging = Boolean(settings.stagingExpiresAt);
-  const gaId = !isStaging ? settings.gaId : null;
-  const gtmId = !isStaging ? settings.gtmId : null;
-  const metaPixelId = !isStaging ? settings.metaPixelId : null;
   const searchConsoleVerification = !isStaging ? settings.searchConsoleVerification : null;
+
+  // Cookie Consent Banner (Phase 12) — opt-in via cookie_banner_enabled, so
+  // a site that never calls set_cookie_banner sees zero behavior change
+  // (gaId/gtmId/metaPixelId below fall straight through to the pre-existing
+  // !isStaging-only gate). Once enabled, GA/GTM/Meta Pixel additionally
+  // require an explicit "accepted" cellpy_consent cookie — on first visit
+  // (no cookie yet) or after Reject, these scripts are never server-
+  // rendered at all, not merely hidden, so nothing gets a chance to set a
+  // tracking cookie in the first place.
+  const cookieBannerEnabled = Boolean(settings.cookieBannerEnabled);
+  const consentCookie = (await cookies()).get(CONSENT_COOKIE)?.value;
+  const consent: "accepted" | "rejected" | null =
+    consentCookie === "accepted" || consentCookie === "rejected" ? consentCookie : null;
+  const analyticsAllowed = !isStaging && (!cookieBannerEnabled || consent === "accepted");
+  const gaId = analyticsAllowed ? settings.gaId : null;
+  const gtmId = analyticsAllowed ? settings.gtmId : null;
+  const metaPixelId = analyticsAllowed ? settings.metaPixelId : null;
 
   return (
     <html lang={locale}>
@@ -185,6 +212,16 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         {langSwitcherStyle === "select" && availableLocales.length > 1 && (
           <script src="/lang-switcher.js" defer />
         )}
+        {cookieBannerEnabled ? (
+          <CookieBanner
+            initialConsent={consent}
+            message={settings.cookieBannerMessage || DEFAULT_COOKIE_MESSAGE}
+            acceptLabel={settings.cookieBannerAcceptLabel || DEFAULT_ACCEPT_LABEL}
+            rejectLabel={settings.cookieBannerRejectLabel || DEFAULT_REJECT_LABEL}
+            policyUrl={settings.cookieBannerPolicyUrl}
+            position={(settings.cookieBannerPosition as "bar" | "corner" | null) ?? "bar"}
+          />
+        ) : null}
       </body>
     </html>
   );
