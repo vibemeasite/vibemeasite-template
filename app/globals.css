@@ -235,13 +235,35 @@ a { color: var(--color-primary, inherit); }
   border-bottom: 1px solid #ffe69c;
 }
 
-/* Cookie Consent Banner (Phase 12) — rebuilt as a real Cellpy block
-   (fixed slug "cookie-banner"), same as the footer/booking widget: its
-   styling lives entirely in the LLM-authored CSS published via
-   set_cookie_banner (vibemeasite-mcp's lib/cookie-banner-template.ts),
-   not here. Nothing left to style globally — public/cookie-consent.js only
+/* Cookie Consent Banner (Phase 12) — a real Cellpy block (fixed slug
+   "cookie-banner"), same as the footer/booking widget: its appearance
+   (colors, padding, internal layout) lives entirely in the LLM-authored
+   CSS published via set_cookie_banner (vibemeasite-mcp's
+   lib/cookie-banner-template.ts). Pinning it to the viewport does NOT —
+   `position: fixed` is always rejected by Cellpy's block CSS validator
+   (packages/block-validator's LAYOUT_ESCAPE rule), a deliberate platform-
+   wide rule against blocks escaping their container (the same thing that
+   would make a malicious/careless block able to overlay the whole page).
+   That's a real security boundary, not something to route around per-
+   block — so the fix is keeping the one thing that genuinely needs
+   position: fixed here, in trusted template code, instead. Selectors
+   match COOKIE_BANNER_CSS_CLASS_CONTRACT (vibemeasite-mcp's
+   lib/cookie-banner-template.ts) — keep in sync. public/cookie-consent.js
    toggles the `hidden` attribute the block's own fixed skeleton ships on
-   both `[data-cellpy-cookie-banner]` and `.cookie-settings-reopen`. */
+   both elements; this only controls where they sit once visible. */
+.cellpy-block-cookie-banner [data-cellpy-cookie-banner] {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+}
+.cellpy-block-cookie-banner .cookie-settings-reopen {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 30;
+}
 
 /* Mobile nav — rollup into a hamburger below 993px. Kept as one breakpoint
    (not split top/side) since both layouts collapse to the same pattern: a
