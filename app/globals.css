@@ -213,6 +213,9 @@ a { color: var(--color-primary, inherit); }
 .cellpy-form-error { color: #c0392b; margin-top: 8px; }
 .cellpy-form-success { color: #1a5f4a; margin-top: 8px; }
 
+/* v2's iframe is a fixed ~304px wide — guard narrow mobile form columns. */
+.cellpy-form-recaptcha { margin-top: 8px; max-width: 100%; overflow-x: auto; }
+
 .cellpy-form-attachment-previews { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .cellpy-form-attachment { position: relative; display: flex; flex-direction: column; align-items: center; width: 64px; }
 .cellpy-form-attachment-remove { position: absolute; top: -6px; right: 2px; width: 16px; height: 16px; padding: 0; border: none; border-radius: 50%; background: #333; color: #fff; font-size: 11px; line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; }

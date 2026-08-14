@@ -43,6 +43,61 @@ const ALLOWED_ATTACHMENT_EXTENSIONS = new Set([
 const MAX_ATTACHMENTS = 4;
 const R2_KEY_RE = /^form-uploads\/[a-z0-9-]{1,64}\/[a-f0-9-]{36}-[a-zA-Z0-9._-]+$/;
 
+const RECAPTCHA_VERIFY_URL = "https://www.google.com/recaptcha/api/siteverify";
+
+interface RecaptchaResult {
+  ok: boolean;
+  message?: string;
+}
+
+// Set by connect_recaptcha (vibemeasite-mcp) for sites that opt in — see
+// public/forms.js's own read of RECAPTCHA_TYPE/RECAPTCHA_SITE_KEY for the
+// client-side half of this.
+async function verifyRecaptcha(token: unknown, slug: string): Promise<RecaptchaResult> {
+  const secretKey = process.env.RECAPTCHA_SECRET_KEY;
+  const siteKey = process.env.RECAPTCHA_SITE_KEY;
+
+  // Fail OPEN unless BOTH are set, not just "secret is set" — a secret key
+  // with no site key means the client never got a key to render a widget or
+  // call execute() with, so every real submission would carry an empty
+  // token and get rejected below. That's "form silently stops working" for
+  // a config half-set by hand (e.g. someone deletes one Vercel env var
+  // outside connect_recaptcha), not a real opt-out.
+  if (!secretKey || !siteKey) return { ok: true };
+
+  const responseToken = typeof token === "string" ? token : "";
+  if (!responseToken) {
+    return { ok: false, message: "Verification required — please try again." };
+  }
+
+  try {
+    const res = await fetch(RECAPTCHA_VERIFY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ secret: secretKey, response: responseToken }),
+    });
+    const json = (await res.json()) as { success?: boolean; score?: number };
+    if (!json.success) {
+      return { ok: false, message: "Verification failed — please try again." };
+    }
+    // Only v3 responses include a score — v2's pass/fail is fully captured
+    // by `success` above, no threshold to apply.
+    if (typeof json.score === "number") {
+      const minScore = Number(process.env.RECAPTCHA_MIN_SCORE) || 0.5;
+      if (json.score < minScore) {
+        return { ok: false, message: "Verification failed — please try again." };
+      }
+    }
+    return { ok: true };
+  } catch (err) {
+    console.error(`[forms] recaptcha verify threw for "${slug}":`, err instanceof Error ? err.message : String(err));
+    // Inverse of the "unconfigured" case above: this IS configured and
+    // reachable-but-erroring, a transient issue, not "not set up" — fail
+    // CLOSED here.
+    return { ok: false, message: "Something went wrong verifying your submission. Please try again." };
+  }
+}
+
 type AttachmentValidation =
   | { ok: true; attachments: PendingAttachment[] }
   | { ok: false; message: string };
@@ -134,7 +189,15 @@ export async function POST(
     return NextResponse.json({ ok: true });
   }
 
-  const { _hp: _ignoredHp, _attachments, ...fields } = rawBody;
+  const { _hp: _ignoredHp, _attachments, _recaptcha, ...fields } = rawBody;
+
+  const recaptchaResult = await verifyRecaptcha(_recaptcha, slug);
+  if (!recaptchaResult.ok) {
+    return NextResponse.json(
+      { ok: false, error: "RECAPTCHA_FAILED", message: recaptchaResult.message },
+      { status: 400 }
+    );
+  }
 
   const attachmentResult = validateAttachments(_attachments, slug);
   if (!attachmentResult.ok) {

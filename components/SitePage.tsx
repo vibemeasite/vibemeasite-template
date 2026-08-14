@@ -9,6 +9,18 @@ import { CellpyBlock } from "./CellpyBlock";
 // container CDN URLs.
 const ACCOUNT_SLUG = process.env.CELLPY_ACCOUNT_SLUG!;
 
+// Set by connect_recaptcha (vibemeasite-mcp) for sites that opt in — both
+// unset (the default) means no reCAPTCHA, forms.js behaves exactly as
+// before. Stamped onto the forms.js <script> tag as data-* attributes
+// rather than NEXT_PUBLIC_* env vars: this is a Server Component, so the
+// value only needs to reach the rendered HTML, not the client bundle — see
+// forms.js's own document.currentScript read of these same attributes.
+function recaptchaScriptAttrs(): Record<string, string> {
+  const type = process.env.RECAPTCHA_TYPE;
+  const siteKey = process.env.RECAPTCHA_SITE_KEY;
+  return type && siteKey ? { "data-recaptcha-type": type, "data-recaptcha-site-key": siteKey } : {};
+}
+
 interface LoadedBlock {
   slug: string;
   content: CellpyBlockContent | null;
@@ -50,7 +62,7 @@ export async function SitePage({ slug }: { slug: string }) {
       {blocks.map((b) => (
         <CellpyBlock key={b.slug} containerSlug={b.slug} content={b.content} />
       ))}
-      {hasForm && <script src="/forms.js" defer />}
+      {hasForm && <script src="/forms.js" defer {...recaptchaScriptAttrs()} />}
       {hasLightbox && <script src="/lightbox.js" defer />}
       {hasBooking && <script src="/booking.js" defer />}
     </>
@@ -90,7 +102,7 @@ export async function ScrollPage({ sections }: { sections: ScrollSection[] }) {
           ))}
         </section>
       ))}
-      {hasForm && <script src="/forms.js" defer />}
+      {hasForm && <script src="/forms.js" defer {...recaptchaScriptAttrs()} />}
       {hasLightbox && <script src="/lightbox.js" defer />}
       {hasBooking && <script src="/booking.js" defer />}
     </>

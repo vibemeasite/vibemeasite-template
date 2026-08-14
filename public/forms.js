@@ -7,6 +7,18 @@
  * app/[slug]/page.tsx.
  */
 ( function () {
+	// Read synchronously, before any async work — document.currentScript is
+	// only reliable during a classic script's initial synchronous execution
+	// (it goes null afterward, and is always null for type="module", which
+	// this file deliberately isn't). Set by connect_recaptcha (vibemeasite-mcp)
+	// via data-* attrs on this same <script> tag (components/SitePage.tsx) —
+	// both unset (the default) means reCAPTCHA is off, everything below is a
+	// no-op.
+	var __scriptEl = document.currentScript;
+	var RECAPTCHA_TYPE = __scriptEl && __scriptEl.getAttribute( 'data-recaptcha-type' );
+	var RECAPTCHA_SITE_KEY = __scriptEl && __scriptEl.getAttribute( 'data-recaptcha-site-key' );
+	var recaptchaEnabled = !! ( RECAPTCHA_TYPE && RECAPTCHA_SITE_KEY );
+
 	// Same-origin — the site's own app/api/forms/submit/[slug]/route.ts
 	// handles delivery server-side (via the Site Owner's own Resend account
 	// if connect_resend was set up, else forwarding server-to-server to
@@ -46,6 +58,127 @@
 	// belong to, so re-rendering revokes the previous batch instead of
 	// leaking blob URLs for the life of the page.
 	var attachmentPreviewUrls = new WeakMap();
+
+	// v2 widget id per form, so multiple forms on one page (or the same form
+	// re-rendered after a failed submit) each get their own independent
+	// checkbox instance. v3 needs no per-form state — execute() is stateless.
+	var recaptchaWidgetIds = new WeakMap();
+	var recaptchaApiLoadingPromise = null;
+
+	// Lazily injects Google's reCAPTCHA loader once. v2 uses render=explicit
+	// so grecaptcha.render() (below) controls exactly where/when each widget
+	// appears, instead of auto-rendering every stray .g-recaptcha div on the
+	// page. v3 has no visible widget, so it renders itself via the render=
+	// param and is driven entirely through grecaptcha.execute() at submit time.
+	function loadRecaptchaApi() {
+		if ( recaptchaApiLoadingPromise ) {
+			return recaptchaApiLoadingPromise;
+		}
+		recaptchaApiLoadingPromise = new Promise( function ( resolve, reject ) {
+			var s = document.createElement( 'script' );
+			s.src = 'https://www.google.com/recaptcha/api.js' + ( 'v3' === RECAPTCHA_TYPE
+				? '?render=' + encodeURIComponent( RECAPTCHA_SITE_KEY )
+				: '?render=explicit' );
+			s.async = true;
+			s.onload = function () { resolve(); };
+			s.onerror = function () { reject( new Error( 'recaptcha failed to load' ) ); };
+			document.head.appendChild( s );
+		} );
+		return recaptchaApiLoadingPromise;
+	}
+
+	// v2 only — v3 has no visible widget. Mirrors ensureHoneypot's own
+	// dedup-by-querySelector guard, which is what makes this safe if init()
+	// somehow ran twice (see the ScrollPage comment in components/SitePage.tsx
+	// about exactly that risk for forms.js in general).
+	function ensureRecaptchaWidget( form ) {
+		if ( ! recaptchaEnabled || 'v2' !== RECAPTCHA_TYPE ) {
+			return;
+		}
+		if ( form.querySelector( '.g-recaptcha' ) ) {
+			return;
+		}
+		var container = document.createElement( 'div' );
+		container.className = 'g-recaptcha cellpy-form-recaptcha';
+		var button = form.querySelector( 'button[type="submit"], input[type="submit"]' );
+		if ( button && button.parentNode ) {
+			button.parentNode.insertBefore( container, button );
+		} else {
+			form.appendChild( container );
+		}
+		loadRecaptchaApi().then( function () {
+			grecaptcha.ready( function () {
+				if ( ! document.body.contains( container ) ) {
+					return;
+				}
+				recaptchaWidgetIds.set( form, grecaptcha.render( container, { sitekey: RECAPTCHA_SITE_KEY } ) );
+			} );
+		} ).catch( function () {
+			// Leave the widget id unset — getRecaptchaToken()'s empty-token
+			// check below surfaces a clear "please complete the verification"
+			// error instead of silently letting the submission through.
+		} );
+	}
+
+	// Resolves to a token string ('' if unavailable/failed), or null when
+	// reCAPTCHA isn't configured for this site at all — handleSubmit branches
+	// on that to skip the whole flow with zero overhead on every other site.
+	function getRecaptchaToken( form ) {
+		if ( ! recaptchaEnabled ) {
+			return Promise.resolve( null );
+		}
+		if ( 'v2' === RECAPTCHA_TYPE ) {
+			var widgetId = recaptchaWidgetIds.get( form );
+			if ( undefined === widgetId || 'undefined' === typeof window.grecaptcha ) {
+				return Promise.resolve( '' );
+			}
+			return Promise.resolve( grecaptcha.getResponse( widgetId ) || '' );
+		}
+		// v3 — tokens are short-lived and single-use, so a fresh one has to be
+		// fetched at submit time rather than once at page load. Timeboxed so a
+		// blocked/ad-blocked script can't leave the submit button stuck on
+		// "Sending…" forever.
+		return loadRecaptchaApi().then( function () {
+			return new Promise( function ( resolve ) {
+				var settled = false;
+				var timeout = setTimeout( function () {
+					if ( ! settled ) {
+						settled = true;
+						resolve( '' );
+					}
+				}, 5000 );
+				grecaptcha.ready( function () {
+					grecaptcha.execute( RECAPTCHA_SITE_KEY, { action: 'submit' } ).then( function ( token ) {
+						if ( ! settled ) {
+							settled = true;
+							clearTimeout( timeout );
+							resolve( token );
+						}
+					} ).catch( function () {
+						if ( ! settled ) {
+							settled = true;
+							clearTimeout( timeout );
+							resolve( '' );
+						}
+					} );
+				} );
+			} );
+		} ).catch( function () {
+			return '';
+		} );
+	}
+
+	// v2 tokens are single-use — after any failed submission, the widget has
+	// to be reset so a real visitor can retry without reloading the page.
+	function resetRecaptchaIfNeeded( form ) {
+		if ( ! recaptchaEnabled || 'v2' !== RECAPTCHA_TYPE ) {
+			return;
+		}
+		var widgetId = recaptchaWidgetIds.get( form );
+		if ( undefined !== widgetId && window.grecaptcha ) {
+			grecaptcha.reset( widgetId );
+		}
+	}
 
 	function isSameFile( a, b ) {
 		return a.name === b.name && a.size === b.size && a.lastModified === b.lastModified;
@@ -319,54 +452,70 @@
 
 			setSubmitting( form, true );
 
-			collectAttachments( form, slug ).then( function ( attachmentResult ) {
-				if ( ! attachmentResult.ok ) {
+			getRecaptchaToken( form ).then( function ( recaptchaToken ) {
+				if ( recaptchaEnabled && ! recaptchaToken ) {
 					setSubmitting( form, false );
-					showError( form, attachmentResult.message );
+					showError( form, 'v2' === RECAPTCHA_TYPE ? 'Please complete the verification.' : 'Verification failed — please try again.' );
+					resetRecaptchaIfNeeded( form );
 					return;
 				}
 
-				var payload = collectFields( form );
-				if ( attachmentResult.attachments.length > 0 ) {
-					payload._attachments = attachmentResult.attachments.map( function ( a ) {
-						return { filename: a.filename, contentType: a.contentType, key: a.key };
-					} );
-				}
-
-				fetch( ENDPOINT_BASE + encodeURIComponent( slug ), {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify( payload ),
-				} )
-					.then( function ( res ) {
-						return res
-							.json()
-							.catch( function () {
-								return {};
-							} )
-							.then( function ( json ) {
-								return { status: res.status, json: json };
-							} );
-					} )
-					.then( function ( result ) {
+				collectAttachments( form, slug ).then( function ( attachmentResult ) {
+					if ( ! attachmentResult.ok ) {
 						setSubmitting( form, false );
+						showError( form, attachmentResult.message );
+						resetRecaptchaIfNeeded( form );
+						return;
+					}
 
-						if ( 429 === result.status ) {
-							showError( form, RATE_LIMIT_MESSAGE );
-							return;
-						}
+					var payload = collectFields( form );
+					if ( attachmentResult.attachments.length > 0 ) {
+						payload._attachments = attachmentResult.attachments.map( function ( a ) {
+							return { filename: a.filename, contentType: a.contentType, key: a.key };
+						} );
+					}
+					if ( recaptchaEnabled ) {
+						payload._recaptcha = recaptchaToken;
+					}
 
-						if ( result.json && true === result.json.ok ) {
-							showSuccess( form, config );
-							return;
-						}
-
-						showError( form, ( result.json && result.json.message ) || GENERIC_ERROR_MESSAGE );
+					fetch( ENDPOINT_BASE + encodeURIComponent( slug ), {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify( payload ),
 					} )
-					.catch( function () {
-						setSubmitting( form, false );
-						showError( form, GENERIC_ERROR_MESSAGE );
-					} );
+						.then( function ( res ) {
+							return res
+								.json()
+								.catch( function () {
+									return {};
+								} )
+								.then( function ( json ) {
+									return { status: res.status, json: json };
+								} );
+						} )
+						.then( function ( result ) {
+							setSubmitting( form, false );
+
+							if ( 429 === result.status ) {
+								showError( form, RATE_LIMIT_MESSAGE );
+								resetRecaptchaIfNeeded( form );
+								return;
+							}
+
+							if ( result.json && true === result.json.ok ) {
+								showSuccess( form, config );
+								return;
+							}
+
+							showError( form, ( result.json && result.json.message ) || GENERIC_ERROR_MESSAGE );
+							resetRecaptchaIfNeeded( form );
+						} )
+						.catch( function () {
+							setSubmitting( form, false );
+							showError( form, GENERIC_ERROR_MESSAGE );
+							resetRecaptchaIfNeeded( form );
+						} );
+				} );
 			} );
 		};
 	}
@@ -387,6 +536,7 @@
 			}
 
 			ensureHoneypot( form );
+			ensureRecaptchaWidget( form );
 			form.querySelectorAll( 'input[type="file"]' ).forEach( function ( input ) {
 				input.addEventListener( 'change', function () {
 					addAttachmentFiles( input, Array.prototype.slice.call( input.files || [] ) );
