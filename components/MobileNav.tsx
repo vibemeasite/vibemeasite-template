@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { flagSymbolForLocale } from "../lib/lang-flags";
+import { flagSymbolForLocale, flagSpriteFile } from "../lib/lang-flags";
 
 interface MenuItem {
   id: string;
@@ -43,14 +43,15 @@ interface MobileNavProps {
   langSwitcherFlags: boolean;
 }
 
-// References a <symbol> in public/flags/sprite.svg (see lib/lang-flags.ts
-// for why it's one sprite rather than a file per flag) — never an <img>,
-// since a plain <img src="/flags/sprite.svg"> would just show the whole
-// (hidden) sprite sheet, not one flag.
+// References a <symbol> in one of the public/flags/sprite-*.svg files (see
+// lib/lang-flags.ts for why they're sprites split by size rather than a
+// file per flag) — never an <img>, since a plain <img src="..."> would
+// just show the whole (hidden) sprite sheet, not one flag.
 function FlagIcon({ code }: { code: string }) {
+  const symbolId = flagSymbolForLocale(code);
   return (
     <svg className="lang-flag" aria-hidden="true">
-      <use href={`/flags/sprite.svg#${flagSymbolForLocale(code)}`} />
+      <use href={`${flagSpriteFile(symbolId)}#${symbolId}`} />
     </svg>
   );
 }
