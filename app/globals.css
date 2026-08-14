@@ -174,6 +174,15 @@ a { color: var(--color-primary, inherit); }
   margin: 0;
   padding: 0;
 }
+/* Bug fix (same class of bug as the cookie banner's, see that commit):
+   `.lang-switcher-menu { display: flex }` above outranks the browser's
+   built-in `[hidden] { display: none }`, so lang-switcher.js setting
+   menu.hidden = true had no visible effect — the dropdown rendered open at
+   all times regardless of toggle state. `!important` guarantees `hidden`
+   wins regardless of what display value this or future CSS sets. */
+.lang-switcher-menu[hidden] {
+  display: none !important;
+}
 .lang-switcher-menu a {
   display: flex;
   align-items: center;
