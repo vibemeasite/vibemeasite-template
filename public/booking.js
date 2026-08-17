@@ -10,6 +10,12 @@
  * see components/SitePage.tsx.
  */
 ( function () {
+	// See forms.js's own comment — Floating Widgets can independently decide
+	// a popup target needs this script at the same time a page's own content
+	// does, so this can now run twice on the same request without a guard.
+	if ( window.__cellpyBookingInit ) return;
+	window.__cellpyBookingInit = true;
+
 	// Same-origin relays to vibemeasite-mcp's public booking API — same
 	// CORS-avoidance reasoning as forms.js's own endpoint choice (see that
 	// file's comment): a same-origin fetch never preflights, and the

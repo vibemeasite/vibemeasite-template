@@ -270,10 +270,15 @@ a { color: var(--color-primary, inherit); }
   bottom: 0;
   z-index: 30;
 }
+/* Floating Widgets (see below) — the reopen control is now rendered as a
+   flex child of .fw-bucket--bottom-right (components/FloatingWidgets.tsx)
+   instead of its own independent position:fixed element, so it stacks with
+   any floating widget anchored at the same corner instead of pixel-
+   overlapping it. It keeps its own z-index (above .fw-bucket's 25) so it
+   always paints above ordinary floating widgets, consistent with the
+   consent banner bar's own z-index: 30 below. */
 .cellpy-block-cookie-banner .cookie-settings-reopen {
-  position: fixed;
-  right: 16px;
-  bottom: 16px;
+  position: static;
   z-index: 30;
 }
 /* Bug fix: the block's own default CSS (and any custom CSS a site owner
@@ -293,6 +298,116 @@ a { color: var(--color-primary, inherit); }
 .cellpy-block-cookie-banner .cookie-settings-reopen[hidden] {
   display: none !important;
 }
+
+/* Floating Widgets — fixed-position buttons/popup-triggers (multiple,
+   dynamic cardinality — a site can have any number, see
+   components/FloatingWidgets.tsx), set via vibemeasite-mcp's
+   add_floating_widget. Position is 100% trusted template CSS, keyed by a
+   small fixed enum of 7 buckets (never a per-instance class/id, since the
+   number of widgets and their positions are runtime data, not known at
+   template-build time) — same LAYOUT_ESCAPE boundary as the cookie banner
+   above: Cellpy's block CSS validator always rejects `position: fixed` in
+   a widget's own CSS, on purpose, so this lives here instead. Stacking
+   within a bucket is pure CSS (flex column + gap), not JS-computed pixel
+   offsets — adding/removing a widget just adds/removes a flex child,
+   nothing to recompute. z-index: 25, deliberately BELOW the cookie banner
+   bar's z-index: 30 above — consent UI must never be visually buried under
+   a marketing widget. The cookie-reopen control (see its own comment
+   above) renders as the first child of .fw-bucket--bottom-right rather
+   than its own independent fixed element, so it can never pixel-overlap a
+   floating widget anchored at that same corner. */
+.fw-bucket {
+  position: fixed;
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  /* Gaps between stacked buttons shouldn't block clicks/scroll on the page
+     content behind them — only the buttons themselves are clickable. */
+  pointer-events: none;
+}
+.fw-bucket > * { pointer-events: auto; }
+.fw-bucket--bottom-right  { right: 16px; bottom: 16px; align-items: flex-end; }
+.fw-bucket--bottom-left   { left: 16px;  bottom: 16px; align-items: flex-start; }
+.fw-bucket--top-right     { right: 16px; top: 16px;    align-items: flex-end; }
+.fw-bucket--top-left      { left: 16px;  top: 16px;    align-items: flex-start; }
+.fw-bucket--mid-right     { right: 16px; top: 50%; transform: translateY(-50%); align-items: flex-end; }
+.fw-bucket--mid-left      { left: 16px;  top: 50%; transform: translateY(-50%); align-items: flex-start; }
+.fw-bucket--bottom-center { left: 50%;   bottom: 16px; transform: translateX(-50%); align-items: center; }
+
+/* device_visibility ("all"/"mobile"/"desktop") — pure @media, no
+   server-side UA sniffing. .fw-device--all has no rule of its own: always
+   visible at both breakpoints, same default posture as everything else on
+   this page. Breakpoint matches the mobile-nav rollup below, for one
+   consistent "mobile" definition across the template rather than a second,
+   slightly different threshold. */
+.fw-device--mobile  { display: none; }
+@media (max-width: 992px) {
+  .fw-device--desktop { display: none; }
+  .fw-device--mobile  { display: block; }
+}
+
+/* Popup mode — the trigger opens one of these panels (ships `hidden`,
+   revealed by public/floating-widgets.js toggling the attribute — same
+   fail-safe "no JS, no popup" posture as the cookie banner: without JS,
+   nothing ever opens, rather than risking content stuck open blocking the
+   page). Trusted shell (backdrop/panel/close button/animation) — only the
+   panel's CONTENTS (an existing Cellpy block, e.g. a contact form) are
+   LLM/user-authored, and that content was already validated wherever it
+   was originally published (e.g. generate_block), same as any other block
+   placement. z-index above every .fw-bucket AND the cookie banner, since an
+   open popup is a modal-like state that should sit above all other fixed
+   chrome while active. */
+.fw-popup { position: fixed; inset: 0; z-index: 40; }
+.fw-popup[hidden] { display: none; }
+.fw-popup-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  animation: fw-fade-in 0.15s ease forwards;
+}
+.fw-popup-panel {
+  position: absolute;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.fw-popup--modal .fw-popup-panel {
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(0.96);
+  width: min(480px, 92vw);
+  opacity: 0;
+  animation: fw-modal-in 0.18s ease forwards;
+}
+.fw-popup--drawer .fw-popup-panel {
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: min(400px, 92vw);
+  border-radius: 0;
+  transform: translateX(100%);
+  animation: fw-drawer-in 0.2s ease forwards;
+}
+.fw-popup-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  color: #666666;
+}
+@keyframes fw-fade-in { to { opacity: 1; } }
+@keyframes fw-modal-in { to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+@keyframes fw-drawer-in { to { transform: translateX(0); } }
 
 /* Mobile nav — rollup into a hamburger below 993px. Kept as one breakpoint
    (not split top/side) since both layouts collapse to the same pattern: a

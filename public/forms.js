@@ -7,6 +7,15 @@
  * app/[slug]/page.tsx.
  */
 ( function () {
+	// Floating Widgets can independently decide a popup target needs this
+	// script (components/FloatingWidgets.tsx) at the same time a page's own
+	// content does (components/SitePage.tsx) — both <script> tags then run
+	// on the same request. Without this guard, a second execution rebinds
+	// every submit handler a second time, so one visitor click submits the
+	// form twice.
+	if ( window.__cellpyFormsInit ) return;
+	window.__cellpyFormsInit = true;
+
 	// Read synchronously, before any async work — document.currentScript is
 	// only reliable during a classic script's initial synchronous execution
 	// (it goes null afterward, and is always null for type="module", which

@@ -7,6 +7,7 @@ import { getCurrentLocale, resolveTranslation } from "../lib/locale";
 import { CellpyBlock } from "../components/CellpyBlock";
 import { StagingBanner } from "../components/StagingBanner";
 import { MobileNav } from "../components/MobileNav";
+import { FloatingWidgets } from "../components/FloatingWidgets";
 import "./globals.css";
 
 // Dynamic (not a static `export const metadata`) so it can read the site's
@@ -218,17 +219,19 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         {langSwitcherStyle === "select" && availableLocales.length > 1 && (
           <script src="/lang-switcher.js" defer />
         )}
-        {cookieBannerContent ? (
-          <>
-            <CellpyBlock containerSlug={COOKIE_BANNER_CONTAINER_SLUG} content={cookieBannerContent} />
-            {/* Handles show/hide and the Accept/Reject/reopen clicks — the
-                block's own HTML ships both elements `hidden` (see
-                lib/cookie-banner-template.ts), so nothing shows at all
-                without this script (same fail-safe posture as
-                lang-switcher.js's toggle button). */}
-            <script src="/cookie-consent.js" defer />
-          </>
-        ) : null}
+        {/* Handles show/hide and the Accept/Reject/reopen clicks for the
+            cookie banner block — the block's own HTML ships both elements
+            `hidden` (see lib/cookie-banner-template.ts), so nothing shows
+            at all without this script (same fail-safe posture as
+            lang-switcher.js's toggle button). The block itself now renders
+            inside FloatingWidgets below (its reopen control joins the same
+            bottom-right stack as any floating widget there — see
+            components/FloatingWidgets.tsx and globals.css's .fw-bucket
+            comment) — this script still belongs here, not there, since
+            it's gated purely on cookieBannerContent, unrelated to whether
+            any floating widget exists. */}
+        {cookieBannerContent ? <script src="/cookie-consent.js" defer /> : null}
+        <FloatingWidgets locale={locale} cookieBannerContent={cookieBannerContent} />
       </body>
     </html>
   );

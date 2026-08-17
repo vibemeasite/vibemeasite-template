@@ -9,6 +9,12 @@
  * see components/SitePage.tsx.
  */
 ( function () {
+	// See forms.js's own comment — Floating Widgets can independently decide
+	// a popup target needs this script at the same time a page's own content
+	// does, so this can now run twice on the same request without a guard.
+	if ( window.__cellpyLightboxInit ) return;
+	window.__cellpyLightboxInit = true;
+
 	var OVERLAY_ID = 'cellpy-lightbox-overlay';
 	var NAV_BTN_STYLE =
 		'position:fixed;top:50%;transform:translateY(-50%);font-size:3rem;' +

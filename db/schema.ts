@@ -161,3 +161,25 @@ export const siteSettings = pgTable("site_settings", {
   // replaced them, before any live site had adopted it.
   cookieBannerEnabled: boolean("cookie_banner_enabled").notNull().default(false),
 });
+
+// Floating widgets — fixed-position buttons/popup-triggers, multiple per
+// site (a phone button AND a promo popup trigger can coexist), set via
+// vibemeasite-mcp's add_floating_widget/update_floating_widget/
+// remove_floating_widget. This is deliberately a NARROW mirror of the
+// control-plane vibemeasite-mcp floating_widgets table (db/schema.ts
+// there) — only the fields app/layout.tsx needs synchronously to decide
+// placement and whether to fetch a popup target. Icon/label/CSS are not
+// duplicated here; they only matter for the trigger block's own CDN
+// content, fetched via cellpyContainerSlug + getContainerContent, same as
+// every other Cellpy block placement.
+export const floatingWidgets = pgTable("floating_widgets", {
+  id: text("id").primaryKey(),
+  cellpyContainerSlug: text("cellpy_container_slug").notNull(),
+  position: text("position").notNull(), // "bottom-right"|"bottom-left"|"top-right"|"top-left"|"mid-right"|"mid-left"|"bottom-center"
+  deviceVisibility: text("device_visibility").notNull().default("all"), // "all"|"mobile"|"desktop"
+  mode: text("mode").notNull(), // "link" | "popup"
+  popupTargetContainerSlug: text("popup_target_container_slug"),
+  popupStyle: text("popup_style"), // "modal" | "drawer"
+  enabled: boolean("enabled").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+});

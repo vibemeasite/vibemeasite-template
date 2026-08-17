@@ -1,7 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { asc, eq } from "drizzle-orm";
 import { db } from "../db/index";
-import { pages, menuItems, containers, siteSettings } from "../db/schema";
+import { pages, menuItems, containers, siteSettings, floatingWidgets } from "../db/schema";
 
 // Tag-based revalidation (US-VMAS-MUTATE-01) only works for cached
 // functions wrapped in unstable_cache (or fetch() calls with { next: { tags } }
@@ -117,6 +117,23 @@ export const getAllPages = unstable_cache(
   },
   ["all-pages"],
   { tags: ["pages"] }
+);
+
+// Floating widgets (fixed-position buttons/popup-triggers) — set via
+// vibemeasite-mcp's add_floating_widget/update_floating_widget. Only enabled
+// rows: remove_floating_widget soft-removes (enabled: false) rather than
+// deleting, same as cookie_banner_enabled, so app/layout.tsx never needs to
+// distinguish "never configured" from "configured, currently off" itself.
+export const getFloatingWidgets = unstable_cache(
+  async () => {
+    return db
+      .select()
+      .from(floatingWidgets)
+      .where(eq(floatingWidgets.enabled, true))
+      .orderBy(asc(floatingWidgets.sortOrder));
+  },
+  ["floating-widgets"],
+  { tags: ["floating-widgets"] }
 );
 
 export function getPageBySlug(slug: string) {

@@ -15,7 +15,7 @@ const ACCOUNT_SLUG = process.env.CELLPY_ACCOUNT_SLUG!;
 // rather than NEXT_PUBLIC_* env vars: this is a Server Component, so the
 // value only needs to reach the rendered HTML, not the client bundle — see
 // forms.js's own document.currentScript read of these same attributes.
-function recaptchaScriptAttrs(): Record<string, string> {
+export function recaptchaScriptAttrs(): Record<string, string> {
   const type = process.env.RECAPTCHA_TYPE;
   const siteKey = process.env.RECAPTCHA_SITE_KEY;
   return type && siteKey ? { "data-recaptcha-type": type, "data-recaptcha-site-key": siteKey } : {};
