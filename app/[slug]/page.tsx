@@ -2,16 +2,16 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { SitePage } from "../../components/SitePage";
 import { getPageBySlug, getSiteSettings } from "../../lib/queries";
+import { pageMetadata } from "../../lib/seo";
 
-// Only overrides the title when the site has set siteName — otherwise {}
-// leaves the root layout's own fallback ("Site") untouched, so a site that
-// hasn't configured siteName yet sees no change (see layout.tsx's own
-// generateMetadata comment for the "%s | {siteName}" template this feeds).
+// Phase 13 (VibeMeASite), US-VMAS-SEO-01 — delegates to the shared
+// pageMetadata() helper (locale-resolved title/description + hreflang) so
+// this route and app/page.tsx (home) can't drift from each other. See
+// lib/seo.ts for the "only overrides title when siteName is set" fallback
+// this preserves from before.
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const [settings, result] = await Promise.all([getSiteSettings(), getPageBySlug(slug)]);
-  if (!settings.siteName || !result) return {};
-  return { title: result.page.title };
+  return pageMetadata(slug, `/${slug}`);
 }
 
 export default async function Page({ params }: { params: Promise<{ slug: string }> }) {

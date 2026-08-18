@@ -90,11 +90,11 @@ const CONSENT_COOKIE = "cellpy_consent";
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const [menu, settings] = await Promise.all([getMenu(), getSiteSettings()]);
-  const locale = await getCurrentLocale(settings.defaultLocale);
+  const availableLocales = (settings.availableLocales as string[] | null) ?? [];
+  const locale = await getCurrentLocale(settings.defaultLocale, availableLocales);
   const footerContent = await getContainerContent(ACCOUNT_SLUG, FOOTER_CONTAINER_SLUG, locale);
   const isSideNav = settings.navPosition === "side";
   const isOnePage = settings.layoutMode === "one-page";
-  const availableLocales = (settings.availableLocales as string[] | null) ?? [];
   const langSwitcherStyle = (settings.langSwitcherStyle as "buttons" | "select" | null) ?? "buttons";
   const customLinks = ((settings.customLinks as CustomLink[] | null) ?? []).map((link) => ({
     ...link,

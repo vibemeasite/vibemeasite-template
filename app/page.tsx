@@ -1,5 +1,15 @@
+import type { Metadata } from "next";
 import { SitePage, ScrollPage } from "../components/SitePage";
 import { getSiteSettings, getScrollPages } from "../lib/queries";
+import { pageMetadata } from "../lib/seo";
+
+// Phase 13 (VibeMeASite), US-VMAS-SEO-01/03 — the home route previously had
+// no generateMetadata of its own at all (title/description/hreflang came
+// only from the root layout's site-wide defaults). The home page's slug is
+// always "home" by convention (see HomePage below).
+export async function generateMetadata(): Promise<Metadata> {
+  return pageMetadata("home", "/");
+}
 
 // Without this, "/" has no dynamic route params so Next prerenders it as a
 // fully static route (confirmed in the build output: "○ / 30s 1y" vs the

@@ -42,7 +42,7 @@ export async function SitePage({ slug }: { slug: string }) {
   const [result, settings] = await Promise.all([getPageBySlug(slug), getSiteSettings()]);
   if (!result) notFound();
 
-  const locale = await getCurrentLocale(settings.defaultLocale);
+  const locale = await getCurrentLocale(settings.defaultLocale, (settings.availableLocales as string[] | null) ?? []);
   const blocks = await loadBlocks(result.containers, locale);
 
   // forms.js and lightbox.js are each only a few KB, but there's no reason
@@ -81,7 +81,7 @@ export interface ScrollSection {
 // section would re-run its form-binding init code once per <script> tag.
 export async function ScrollPage({ sections }: { sections: ScrollSection[] }) {
   const settings = await getSiteSettings();
-  const locale = await getCurrentLocale(settings.defaultLocale);
+  const locale = await getCurrentLocale(settings.defaultLocale, (settings.availableLocales as string[] | null) ?? []);
   const rendered = await Promise.all(
     sections.map(async (s) => ({ slug: s.slug, blocks: await loadBlocks(s.containers, locale) }))
   );
