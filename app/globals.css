@@ -4,7 +4,7 @@ html { scroll-behavior: smooth; }
    from Cellpy blocks (arbitrary per-site authored HTML/CSS) and a logoSvg
    we don't control the dimensions of, so this is defense-in-depth rather
    than a substitute for fixing individual overflow sources. */
-html, body { overflow-x: hidden; }
+html, body { overflow-x: clip; }
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
