@@ -263,6 +263,13 @@ a { color: var(--color-primary, inherit); }
      dropdown width and let individual options wrap rather than pushing
      the panel off-screen. */
   max-width: min(280px, 80vw);
+  /* With many site languages the option list can run taller than the
+     viewport — cap it and let the panel scroll rather than overflow the
+     screen. ~60vh keeps it usable on short windows; the flag column is a
+     fixed-width child so a vertical scrollbar never reflows the rows. */
+  max-height: 60vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: #ffffff;
   border: 1px solid #e5e7e5;
   border-radius: 4px;
