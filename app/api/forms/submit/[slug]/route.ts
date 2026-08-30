@@ -249,9 +249,13 @@ async function tryLocalDelivery(
       console.error(`[forms] destination lookup failed for "${slug}": ${destRes.status} ${await destRes.text().catch(() => "")}`);
       return { ok: false, reason: "other" };
     }
-    const { emails } = (await destRes.json()) as { emails: string[] };
-    if (!emails || emails.length === 0) {
-      console.error(`[forms] destination lookup for "${slug}" returned no email`);
+    const { emails, webhook } = (await destRes.json()) as {
+      emails: string[];
+      webhook?: { url: string; secret: string } | null;
+    };
+    const hasEmail = Array.isArray(emails) && emails.length > 0;
+    if (!hasEmail && !webhook) {
+      console.error(`[forms] destination lookup for "${slug}" returned no email and no webhook`);
       return { ok: false, reason: "other" };
     }
 
@@ -274,24 +278,35 @@ async function tryLocalDelivery(
       ? { ...fields, Attachments: attachments.map((a) => a.filename).join(", ") }
       : fields;
 
-    const resend = new Resend(resendApiKey);
-    const { error } = await resend.emails.send({
-      from: process.env.EMAIL_FROM || "onboarding@resend.dev",
-      to: emails,
-      subject: `New submission — ${pageTitle}`,
-      html: formatEmailHtml(pageTitle, pageUrl, emailFields),
-      text: formatEmailText(emailFields),
-      attachments: attachments.length > 0
-        ? attachments.map((a) => ({ filename: a.filename, content: a.content }))
-        : undefined,
-    });
-    if (error) {
-      console.error(`[forms] Resend send failed for "${slug}":`, JSON.stringify(error));
-      // Resend's testing-mode restriction on an unverified sending domain —
-      // distinct from a transient failure, and worth telling the Site Owner
-      // about directly rather than a generic "try again" message.
-      const unverified = /verify a domain/i.test(error.message ?? "");
-      return { ok: false, reason: unverified ? "resend_unverified" : "other" };
+    if (hasEmail) {
+      const resend = new Resend(resendApiKey);
+      const { error } = await resend.emails.send({
+        from: process.env.EMAIL_FROM || "onboarding@resend.dev",
+        to: emails,
+        subject: `New submission — ${pageTitle}`,
+        html: formatEmailHtml(pageTitle, pageUrl, emailFields),
+        text: formatEmailText(emailFields),
+        attachments: attachments.length > 0
+          ? attachments.map((a) => ({ filename: a.filename, content: a.content }))
+          : undefined,
+      });
+      if (error) {
+        console.error(`[forms] Resend send failed for "${slug}":`, JSON.stringify(error));
+        // Resend's testing-mode restriction on an unverified sending domain —
+        // distinct from a transient failure, and worth telling the Site Owner
+        // about directly rather than a generic "try again" message.
+        const unverified = /verify a domain/i.test(error.message ?? "");
+        return { ok: false, reason: unverified ? "resend_unverified" : "other" };
+      }
+    }
+
+    // Best-effort webhook (set_form_destination's webhook_url) — fired here
+    // because a site with connect_resend never reaches forwardToCentralRelay
+    // (where lib/form-relay.ts fires the same webhook for unclaimed/relay
+    // sites). Attachments aren't carried, matching the central relay; their
+    // filenames still ride along as an emailFields entry.
+    if (webhook) {
+      await postWebhook(webhook, pageTitle, pageUrl, emailFields);
     }
 
     return { ok: true, body: { ok: true }, status: 200 };
@@ -318,6 +333,38 @@ async function forwardToCentralRelay(
       { ok: false, error: "RELAY_FAILED", message: "Something went wrong. Please try again." },
       { status: 502 }
     );
+  }
+}
+
+// Best-effort outbound webhook — the local-delivery counterpart of
+// lib/form-relay.ts's relayWebhook (same JSON contract:
+// { fields, pageTitle, pageUrl, submittedAt }, Bearer secret). One retry,
+// then give up; never surfaced to the visitor.
+async function postWebhook(
+  webhook: { url: string; secret: string },
+  pageTitle: string,
+  pageUrl: string,
+  fields: Record<string, unknown>,
+  attempt = 1
+): Promise<void> {
+  try {
+    const res = await fetch(webhook.url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${webhook.secret}` },
+      body: JSON.stringify({
+        fields,
+        pageTitle,
+        pageUrl: pageUrl || undefined,
+        submittedAt: new Date().toISOString(),
+      }),
+    });
+    if (!res.ok) throw new Error(`webhook ${res.status}`);
+  } catch (err) {
+    if (attempt < 2) {
+      await new Promise((r) => setTimeout(r, 500));
+      return postWebhook(webhook, pageTitle, pageUrl, fields, attempt + 1);
+    }
+    console.error("[forms] webhook delivery failed:", err instanceof Error ? err.message : String(err));
   }
 }
 

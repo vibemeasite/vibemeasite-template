@@ -56,6 +56,12 @@ export async function SitePage({ slug }: { slug: string }) {
   // skeleton always carries this data attribute (lib/booking-widget-template.ts
   // on the vibemeasite-mcp side), same conditional-enqueue pattern as forms/lightbox.
   const hasBooking = blocks.some((b) => b.content?.html.includes("data-cellpy-booking-widget"));
+  // Host scripts that hydrate static block markup the block-validator won't
+  // let a block script itself — a <span data-countdown> live timer and a
+  // <div class="video-embed" data-youtube/data-vimeo> click-to-load player.
+  // Same conditional-enqueue reasoning as forms/lightbox above.
+  const hasCountdown = blocks.some((b) => b.content?.html.includes("data-countdown"));
+  const hasVideoEmbed = blocks.some((b) => b.content?.html.includes("video-embed"));
 
   return (
     <>
@@ -65,6 +71,8 @@ export async function SitePage({ slug }: { slug: string }) {
       {hasForm && <script src="/forms.js" defer {...recaptchaScriptAttrs()} />}
       {hasLightbox && <script src="/lightbox.js" defer />}
       {hasBooking && <script src="/booking.js" defer />}
+      {hasCountdown && <script src="/countdown.js" defer />}
+      {hasVideoEmbed && <script src="/video-embed.js" defer />}
     </>
   );
 }
@@ -92,6 +100,12 @@ export async function ScrollPage({ sections }: { sections: ScrollSection[] }) {
   const hasBooking = rendered.some((s) =>
     s.blocks.some((b) => b.content?.html.includes("data-cellpy-booking-widget"))
   );
+  const hasCountdown = rendered.some((s) =>
+    s.blocks.some((b) => b.content?.html.includes("data-countdown"))
+  );
+  const hasVideoEmbed = rendered.some((s) =>
+    s.blocks.some((b) => b.content?.html.includes("video-embed"))
+  );
 
   return (
     <>
@@ -105,6 +119,8 @@ export async function ScrollPage({ sections }: { sections: ScrollSection[] }) {
       {hasForm && <script src="/forms.js" defer {...recaptchaScriptAttrs()} />}
       {hasLightbox && <script src="/lightbox.js" defer />}
       {hasBooking && <script src="/booking.js" defer />}
+      {hasCountdown && <script src="/countdown.js" defer />}
+      {hasVideoEmbed && <script src="/video-embed.js" defer />}
     </>
   );
 }
