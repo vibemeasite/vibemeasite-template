@@ -101,6 +101,19 @@ export const siteSettings = pgTable("site_settings", {
   // "support all CSS" is incompatible with a strict allowlist; rendered as
   // a plain JSX text child (React escapes it), never dangerouslySetInnerHTML.
   headerCss: text("header_css"),
+  // Tier 2 (2026-08) - where the header logo links. Defaults to "/" so every
+  // site gets the universal "logo -> home" convention; set via set_branding's
+  // logo_href (validated as a safe URL / relative path).
+  logoHref: text("logo_href").notNull().default("/"),
+  // Tier 2 - one prominent call-to-action in the header, distinct from the
+  // plain-link customLinks. { label, url, style: "button" | "link" }, set via
+  // set_branding's header_cta. Rendered inside .nav-extras with class
+  // .nav-cta so header_css / the theme can style it.
+  headerCta: jsonb("header_cta"),
+  // Tier 2 - raw CSS applied to <body> site-wide (e.g. a gradient/textured
+  // page background the flat --color-background token can't express). Same
+  // blocklist validation and plain-text-child rendering as headerCss.
+  bodyCss: text("body_css"),
   // Staging-first claim flow (ADR-001) — null once the site is claimed.
   // Read in app/layout.tsx to render the countdown banner.
   stagingExpiresAt: timestamp("staging_expires_at"),

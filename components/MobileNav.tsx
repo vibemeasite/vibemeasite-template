@@ -22,6 +22,11 @@ interface MobileNavProps {
   phone: string | null;
   email: string | null;
   customLinks: CustomLink[];
+  // Tier 2 — one prominent header call-to-action, distinct from the
+  // plain-link customLinks. Rendered last in .nav-extras with class
+  // .nav-cta (+ .nav-cta--button by default) so header_css / the theme
+  // can style it as a real button.
+  headerCta: { label: string; url: string; style: "button" | "link" } | null;
   // Phase 24 (Cellpy platform) — Multi-language Blocks, block-content-only
   // scope. `locale` is the currently-resolved language (see lib/locale.ts);
   // `availableLocales` is site_settings.available_locales. The switcher
@@ -62,7 +67,7 @@ function FlagIcon({ code }: { code: string }) {
 // Desktop layout is unaffected: .nav-links-top/.nav-links-side/.nav-extras
 // are only ever hidden by the "is-open" gate inside a max-width media query.
 export function MobileNav({
-  isSideNav, isOnePage, menu, phone, email, customLinks, locale, availableLocales,
+  isSideNav, isOnePage, menu, phone, email, customLinks, headerCta, locale, availableLocales,
   langSwitcherStyle, langSwitcherFlags,
 }: MobileNavProps) {
   const [open, setOpen] = useState(false);
@@ -86,7 +91,7 @@ export function MobileNav({
   }, [open]);
 
   const showLangSwitcher = availableLocales.length > 1;
-  const hasExtras = Boolean(phone || email || customLinks.length > 0 || showLangSwitcher);
+  const hasExtras = Boolean(phone || email || customLinks.length > 0 || headerCta || showLangSwitcher);
 
   return (
     <>
@@ -132,6 +137,14 @@ export function MobileNav({
                 {link.label}
               </a>
             ))}
+            {headerCta && (
+              <a
+                className={headerCta.style === "button" ? "nav-cta nav-cta--button" : "nav-cta"}
+                href={headerCta.url}
+              >
+                {headerCta.label}
+              </a>
+            )}
             {showLangSwitcher && (
               <span className="nav-lang-switcher">
                 {langSwitcherStyle === "select" ? (

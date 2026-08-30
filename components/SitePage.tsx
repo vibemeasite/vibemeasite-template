@@ -62,6 +62,8 @@ export async function SitePage({ slug }: { slug: string }) {
   // Same conditional-enqueue reasoning as forms/lightbox above.
   const hasCountdown = blocks.some((b) => b.content?.html.includes("data-countdown"));
   const hasVideoEmbed = blocks.some((b) => b.content?.html.includes("video-embed"));
+  const hasCopy = blocks.some((b) => b.content?.html.includes("data-copy"));
+  const hasModal = blocks.some((b) => b.content?.html.includes("data-modal-open"));
 
   return (
     <>
@@ -73,6 +75,8 @@ export async function SitePage({ slug }: { slug: string }) {
       {hasBooking && <script src="/booking.js" defer />}
       {hasCountdown && <script src="/countdown.js" defer />}
       {hasVideoEmbed && <script src="/video-embed.js" defer />}
+      {hasCopy && <script src="/copy-button.js" defer />}
+      {hasModal && <script src="/modal.js" defer />}
     </>
   );
 }
@@ -106,6 +110,8 @@ export async function ScrollPage({ sections }: { sections: ScrollSection[] }) {
   const hasVideoEmbed = rendered.some((s) =>
     s.blocks.some((b) => b.content?.html.includes("video-embed"))
   );
+  const hasCopy = rendered.some((s) => s.blocks.some((b) => b.content?.html.includes("data-copy")));
+  const hasModal = rendered.some((s) => s.blocks.some((b) => b.content?.html.includes("data-modal-open")));
 
   return (
     <>
@@ -121,6 +127,8 @@ export async function ScrollPage({ sections }: { sections: ScrollSection[] }) {
       {hasBooking && <script src="/booking.js" defer />}
       {hasCountdown && <script src="/countdown.js" defer />}
       {hasVideoEmbed && <script src="/video-embed.js" defer />}
+      {hasCopy && <script src="/copy-button.js" defer />}
+      {hasModal && <script src="/modal.js" defer />}
     </>
   );
 }

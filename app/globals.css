@@ -31,7 +31,23 @@ a { color: var(--color-primary, inherit); }
 .nav-logo { height: clamp(20px, 5vw, 32px); width: auto; display: block; }
 .nav-logo-svg { display: inline-flex; align-items: center; height: clamp(20px, 5vw, 32px); }
 .nav-logo-svg svg { height: 100%; width: auto; display: block; }
+/* Tier 2 — the logo is wrapped in an <a> (logo_href). Keep it laid out
+   exactly like the bare logo was: an inline flex box with no link chrome. */
+.nav-logo-link { display: inline-flex; align-items: center; min-width: 0; text-decoration: none; }
 .nav-top a, .nav-side a { text-decoration: none; color: inherit; font-weight: 500; }
+
+/* Tier 2 — the single header CTA (header_cta). Plain link by default;
+   .nav-cta--button gets a filled pill in the site's primary colour. A
+   site's header_css can override any of this (higher specificity via
+   .layout-top .nav-extras .nav-cta, same note as .nav-extras itself). */
+.nav-cta--button {
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--color-primary, #1d4ed8);
+  color: #fff !important;
+  font-weight: 600;
+  white-space: nowrap;
+}
 
 .sr-only {
   position: absolute;
@@ -464,3 +480,49 @@ a { color: var(--color-primary, inherit); }
     padding: 10px 4px;
   }
 }
+
+/* ── Modal overlay (public/modal.js) ──────────────────────────────────────
+   Host chrome, not block content — position: fixed is fine here even though
+   the Cellpy block-validator forbids it in block CSS (same reasoning as the
+   lightbox styles in public/lightbox.js). A block emits
+   `<div class="cellpy-modal" id="…" hidden><div class="cellpy-modal-panel">…`
+   and styles only what's INSIDE the panel; this positions the overlay. */
+.cellpy-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5vh 5vw;
+  background: rgba(0, 0, 0, 0.6);
+  overflow-y: auto;
+}
+.cellpy-modal[hidden] { display: none; }
+.cellpy-modal-panel {
+  position: relative;
+  max-width: 480px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--color-background, #ffffff);
+  color: var(--color-text, inherit);
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.5);
+}
+.cellpy-modal-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  font-size: 22px;
+  line-height: 1;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.6;
+}
+.cellpy-modal-close:hover { opacity: 1; }

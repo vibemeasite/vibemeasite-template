@@ -81,6 +81,13 @@ function sanitizeHeaderCss(css: unknown): string {
   return css;
 }
 
+// Tier 2 — same allowed shapes as isSafeLinkUrl on the vibemeasite-mcp side
+// (set_branding validates before storing; re-checked here, never trusted
+// blindly from the DB — same defense-in-depth as sanitizeColors/logoSvg).
+function isSafeHref(href: string): boolean {
+  return /^(\/[^/]|\/$|\/#|#|https?:\/\/|mailto:|tel:)/.test(href.trim());
+}
+
 // Phase 12 — Cookie Consent Banner. What public/cookie-consent.js writes
 // after a visitor decides; also read here, server-side, to gate GA/GTM/
 // Meta Pixel below. Not read via middleware.ts (unlike cellpy_lang) since
@@ -109,7 +116,19 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     .map(([key, value]) => `--color-${key}: ${value};`)
     .join(" ");
   const headerCss = sanitizeHeaderCss(settings.headerCss);
-  const headStyle = [colorVars ? `:root { ${colorVars} }` : "", headerCss].filter(Boolean).join("\n");
+  // Tier 2 — same blocklist sanitization as headerCss; targets <body>
+  // site-wide (a gradient/textured page background the flat
+  // --color-background token can't express).
+  const bodyCss = sanitizeHeaderCss(settings.bodyCss);
+  const headStyle = [colorVars ? `:root { ${colorVars} }` : "", headerCss, bodyCss].filter(Boolean).join("\n");
+
+  // Tier 2 — logo link target (default "/") and the single header CTA.
+  const logoHref = typeof settings.logoHref === "string" && isSafeHref(settings.logoHref) ? settings.logoHref : "/";
+  const rawCta = settings.headerCta as { label?: unknown; url?: unknown; style?: unknown } | null;
+  const headerCta =
+    rawCta && typeof rawCta.label === "string" && typeof rawCta.url === "string" && isSafeHref(rawCta.url)
+      ? { label: rawCta.label, url: rawCta.url, style: (rawCta.style === "link" ? "link" : "button") as "link" | "button" }
+      : null;
 
   // Analytics/SEO integrations (set via vibemeasite-mcp's set_analytics) are
   // withheld entirely while a site is still an unclaimed staging preview
@@ -184,15 +203,22 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <div className={isSideNav ? "layout-side" : "layout-top"}>
           <div className={isSideNav ? "nav-side" : "nav-top"}>
             <div className="nav-brand">
-              {settings.logoSvg ? (
-                // Validated (forbids <script>, event handlers, javascript:
-                // URIs, <foreignObject>, etc. — see validateSvgLogo in
-                // block-validator) before ever being written to this column;
-                // never accept unvalidated SVG here.
-                <span className="nav-logo-svg" dangerouslySetInnerHTML={{ __html: settings.logoSvg }} />
-              ) : settings.logoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img className="nav-logo" src={settings.logoUrl} alt="" />
+              {settings.logoSvg || settings.logoUrl ? (
+                // Tier 2 — the logo is now a link (default "/"). Rendered
+                // as a plain <a> (not next/link) since logoHref may be an
+                // external URL; still same-tab, no rel needed for "/".
+                <a className="nav-logo-link" href={logoHref} aria-label="Home">
+                  {settings.logoSvg ? (
+                    // Validated (forbids <script>, event handlers, javascript:
+                    // URIs, <foreignObject>, etc. — see validateSvgLogo in
+                    // block-validator) before ever being written to this column;
+                    // never accept unvalidated SVG here.
+                    <span className="nav-logo-svg" dangerouslySetInnerHTML={{ __html: settings.logoSvg }} />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img className="nav-logo" src={settings.logoUrl!} alt="" />
+                  )}
+                </a>
               ) : null}
             </div>
             <MobileNav
@@ -202,6 +228,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               phone={settings.phone}
               email={settings.email}
               customLinks={customLinks}
+              headerCta={headerCta}
               locale={locale}
               availableLocales={availableLocales}
               langSwitcherStyle={langSwitcherStyle}
