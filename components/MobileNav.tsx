@@ -138,12 +138,27 @@ export function MobileNav({
               </a>
             ))}
             {headerCta && (
-              <a
-                className={headerCta.style === "button" ? "nav-cta nav-cta--button" : "nav-cta"}
-                href={headerCta.url}
-              >
-                {headerCta.label}
-              </a>
+              headerCta.url.startsWith("#") ? (
+                // A "#id" target opens the matching <div class="cellpy-modal"
+                // id="id"> via public/modal.js (rendered as a plain button so
+                // it works on every page the modal container is present on —
+                // e.g. one placed in set_footer). Falls back to nothing if no
+                // such modal exists, same as any data-modal-open trigger.
+                <button
+                  type="button"
+                  className={headerCta.style === "button" ? "nav-cta nav-cta--button" : "nav-cta"}
+                  data-modal-open={headerCta.url.slice(1)}
+                >
+                  {headerCta.label}
+                </button>
+              ) : (
+                <a
+                  className={headerCta.style === "button" ? "nav-cta nav-cta--button" : "nav-cta"}
+                  href={headerCta.url}
+                >
+                  {headerCta.label}
+                </a>
+              )
             )}
             {showLangSwitcher && (
               <span className="nav-lang-switcher">

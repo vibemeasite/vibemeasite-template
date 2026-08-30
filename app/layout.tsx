@@ -258,6 +258,17 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             it's gated purely on cookieBannerContent, unrelated to whether
             any floating widget exists. */}
         {cookieBannerContent ? <script src="/cookie-consent.js" defer /> : null}
+        {/* modal.js / copy-button.js are normally enqueued per-page by
+            SitePage.tsx, but a connect-style modal placed in the sitewide
+            footer (set_footer) — opened by the header CTA when header_cta's
+            url is a "#id" — lives outside any page's blocks, so load them
+            here too when the footer itself carries the markers. Both scripts
+            self-guard against double-init. */}
+        {footerContent?.html.includes("data-modal-open") ? <script src="/modal.js" defer /> : null}
+        {footerContent?.html.includes("data-copy") ? <script src="/copy-button.js" defer /> : null}
+        {(headerCta?.url.startsWith("#") && !footerContent?.html.includes("data-modal-open")) ? (
+          <script src="/modal.js" defer />
+        ) : null}
         <FloatingWidgets locale={locale} cookieBannerContent={cookieBannerContent} />
       </body>
     </html>
