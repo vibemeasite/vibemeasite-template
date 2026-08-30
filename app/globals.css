@@ -40,6 +40,14 @@ a { color: var(--color-primary, inherit); }
    .nav-cta--button gets a filled pill in the site's primary colour. A
    site's header_css can override any of this (higher specificity via
    .layout-top .nav-extras .nav-cta, same note as .nav-extras itself). */
+.nav-cta {
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
 .nav-cta--button {
   padding: 8px 16px;
   border-radius: 999px;
