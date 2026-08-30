@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { flagSymbolForLocale, flagSpriteFile } from "../lib/lang-flags";
+import { langLabel, type LangLabelStyle } from "../lib/lang-names";
 
 interface MenuItem {
   id: string;
@@ -42,10 +43,14 @@ interface MobileNavProps {
   // its options in any browser, so this is a custom <ul role="listbox">
   // built from the same <a href="?lang="> links, progressively enhanced
   // by public/lang-switcher.js — see the conditional <script> in
-  // app/layout.tsx). langSwitcherFlags only applies to the "select"
-  // presentation.
+  // app/layout.tsx). langSwitcherFlags / langSwitcherLabels only apply to
+  // the "select" presentation.
   langSwitcherStyle: "buttons" | "select";
   langSwitcherFlags: boolean;
+  // How each language is written in the "select" switcher — "code" ("EN"),
+  // "native" ("Español"), or "native_english" ("Español (Spanish)"). See
+  // lib/lang-names.ts. "buttons" always stays an uppercase code regardless.
+  langSwitcherLabels: LangLabelStyle;
 }
 
 // References a <symbol> in one of the public/flags/sprite-*.svg files (see
@@ -68,7 +73,7 @@ function FlagIcon({ code }: { code: string }) {
 // are only ever hidden by the "is-open" gate inside a max-width media query.
 export function MobileNav({
   isSideNav, isOnePage, menu, phone, email, customLinks, headerCta, locale, availableLocales,
-  langSwitcherStyle, langSwitcherFlags,
+  langSwitcherStyle, langSwitcherFlags, langSwitcherLabels,
 }: MobileNavProps) {
   const [open, setOpen] = useState(false);
 
@@ -177,7 +182,7 @@ export function MobileNav({
                   <div className="lang-switcher" data-lang-switcher>
                     <button type="button" className="lang-switcher-toggle" aria-expanded="false" hidden>
                       {langSwitcherFlags && <FlagIcon code={locale} />}
-                      <span className="lang-switcher-current">{locale.toUpperCase()}</span>
+                      <span className="lang-switcher-current">{langLabel(locale, langSwitcherLabels)}</span>
                       <span className="lang-switcher-caret" aria-hidden="true" />
                     </button>
                     <ul className="lang-switcher-menu" role="listbox">
@@ -185,7 +190,7 @@ export function MobileNav({
                         <li key={code} role="option" aria-selected={code === locale}>
                           <a href={`?lang=${encodeURIComponent(code)}`} aria-current={code === locale ? "true" : undefined}>
                             {langSwitcherFlags && <FlagIcon code={code} />}
-                            {code.toUpperCase()}
+                            {langLabel(code, langSwitcherLabels)}
                           </a>
                         </li>
                       ))}

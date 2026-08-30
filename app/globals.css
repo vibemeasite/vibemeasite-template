@@ -209,6 +209,16 @@ a { color: var(--color-primary, inherit); }
   border-left: 4px solid transparent;
   border-right: 4px solid transparent;
   border-top: 5px solid currentColor;
+  flex-shrink: 0;
+}
+/* lang_switcher_labels "native"/"native_english" put a full language name
+   here ("Español", "Español (Spanish)") instead of a 2-letter code — keep
+   the toggle button from growing without bound in the header. */
+.lang-switcher-current {
+  max-width: 22ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 /* Expanded (no-JS / not-yet-collapsed) state — a plain flex row of links,
    same look as the "buttons" presentation. lang-switcher.js flips this to
@@ -249,6 +259,10 @@ a { color: var(--color-primary, inherit); }
   align-items: stretch;
   gap: 0;
   min-width: 120px;
+  /* Full language names (lang_switcher_labels) can be long — cap the
+     dropdown width and let individual options wrap rather than pushing
+     the panel off-screen. */
+  max-width: min(280px, 80vw);
   background: #ffffff;
   border: 1px solid #e5e7e5;
   border-radius: 4px;

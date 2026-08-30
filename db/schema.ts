@@ -138,6 +138,13 @@ export const siteSettings = pgTable("site_settings", {
   // lose the flags preference.
   langSwitcherStyle: text("lang_switcher_style").notNull().default("buttons"),
   langSwitcherFlags: boolean("lang_switcher_flags").notNull().default(false),
+  // How each language is labelled in the "select" switcher — "code" ("EN",
+  // the default / original behavior), "native" ("Español"), or
+  // "native_english" ("Español (Spanish)"). Names come from a curated
+  // table in lib/lang-names.ts (Intl.DisplayNames fallback). Like
+  // langSwitcherFlags, only the "select" presentation reads this and it's
+  // stored independently of style.
+  langSwitcherLabels: text("lang_switcher_labels").notNull().default("code"),
   // SEO/branding expansion — set via vibemeasite-mcp's set_branding.
   // siteName/tagline drive the page <title> (app/layout.tsx's
   // generateMetadata); falls back to the pre-existing static "Site" title

@@ -51,6 +51,7 @@ export const getSiteSettings = unstable_cache(
         availableLocales: [] as string[],
         langSwitcherStyle: "buttons" as const,
         langSwitcherFlags: false,
+        langSwitcherLabels: "code" as const,
         siteName: null,
         tagline: null,
         faviconUrl: null,

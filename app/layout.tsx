@@ -103,6 +103,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const isSideNav = settings.navPosition === "side";
   const isOnePage = settings.layoutMode === "one-page";
   const langSwitcherStyle = (settings.langSwitcherStyle as "buttons" | "select" | null) ?? "buttons";
+  const langSwitcherLabels = (settings.langSwitcherLabels as "code" | "native" | "native_english" | null) ?? "code";
   const customLinks = ((settings.customLinks as CustomLink[] | null) ?? []).map((link) => ({
     ...link,
     label: resolveTranslation(link.label, link.labelTranslations, locale),
@@ -233,6 +234,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               availableLocales={availableLocales}
               langSwitcherStyle={langSwitcherStyle}
               langSwitcherFlags={settings.langSwitcherFlags ?? false}
+              langSwitcherLabels={langSwitcherLabels}
             />
           </div>
           <main>{children}</main>

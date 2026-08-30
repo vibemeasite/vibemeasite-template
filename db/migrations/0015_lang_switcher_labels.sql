@@ -1,0 +1,1 @@
+ALTER TABLE "site_settings" ADD COLUMN "lang_switcher_labels" text DEFAULT 'code' NOT NULL;
