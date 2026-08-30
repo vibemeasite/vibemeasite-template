@@ -1,5 +1,29 @@
 * , *::before, *::after { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
+
+/* Themed scrollbars everywhere a scrollbar can appear — the page, modal
+   panels (public/modal.js), the floating-widget popup, horizontally
+   scrolling tables in blocks, etc. Tinted from the site's own --color-text
+   via color-mix so it reads correctly on both light and dark sites without
+   a per-theme rule. Firefox uses scrollbar-width/-color; Chromium/WebKit
+   use the ::-webkit-scrollbar pseudo-elements. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-text, #888888) 28%, transparent) transparent;
+}
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-text, #888888) 22%, transparent);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--color-text, #888888) 40%, transparent);
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-corner { background: transparent; }
 /* Safety net against sideways scroll on narrow phones — page content comes
    from Cellpy blocks (arbitrary per-site authored HTML/CSS) and a logoSvg
    we don't control the dimensions of, so this is defense-in-depth rather
