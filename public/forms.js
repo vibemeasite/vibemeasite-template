@@ -28,6 +28,66 @@
 	var RECAPTCHA_SITE_KEY = __scriptEl && __scriptEl.getAttribute( 'data-recaptcha-site-key' );
 	var recaptchaEnabled = !! ( RECAPTCHA_TYPE && RECAPTCHA_SITE_KEY );
 
+	// Cloudflare Turnstile — set by connect_turnstile (vibemeasite-mcp) via a
+	// data-* attr on this same <script> tag (components/SitePage.tsx's
+	// recaptchaScriptAttrs). Independent of reCAPTCHA; if both are somehow
+	// configured, Turnstile's token is what the server verifies (its
+	// verifyTurnstile runs first and fails closed). Unset -> everything below
+	// is a no-op.
+	var TURNSTILE_SITE_KEY = __scriptEl && __scriptEl.getAttribute( 'data-turnstile-site-key' );
+	var turnstileEnabled = !! TURNSTILE_SITE_KEY;
+	var turnstileWidgetIds = new WeakMap();
+	var turnstileApiLoadingPromise = null;
+
+	function loadTurnstileApi() {
+		if ( turnstileApiLoadingPromise ) return turnstileApiLoadingPromise;
+		turnstileApiLoadingPromise = new Promise( function ( resolve, reject ) {
+			var s = document.createElement( 'script' );
+			s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+			s.async = true;
+			s.onload = function () { resolve(); };
+			s.onerror = function () { reject( new Error( 'turnstile failed to load' ) ); };
+			document.head.appendChild( s );
+		} );
+		return turnstileApiLoadingPromise;
+	}
+
+	// Renders one Turnstile widget per form, just before the submit button —
+	// same placement + dedup-by-querySelector guard as ensureRecaptchaWidget.
+	function ensureTurnstileWidget( form ) {
+		if ( ! turnstileEnabled ) return;
+		if ( form.querySelector( '.cellpy-form-turnstile' ) ) return;
+		var container = document.createElement( 'div' );
+		container.className = 'cellpy-form-turnstile';
+		var button = form.querySelector( 'button[type="submit"], input[type="submit"]' );
+		if ( button && button.parentNode ) {
+			button.parentNode.insertBefore( container, button );
+		} else {
+			form.appendChild( container );
+		}
+		loadTurnstileApi().then( function () {
+			if ( ! document.body.contains( container ) || 'undefined' === typeof window.turnstile ) return;
+			turnstileWidgetIds.set( form, window.turnstile.render( container, { sitekey: TURNSTILE_SITE_KEY } ) );
+		} ).catch( function () {
+			// leave unset — getTurnstileToken()'s empty-token check surfaces a
+			// clear "please complete the verification" error.
+		} );
+	}
+
+	// '' when unavailable/failed, null when Turnstile isn't configured at all.
+	function getTurnstileToken( form ) {
+		if ( ! turnstileEnabled ) return null;
+		var widgetId = turnstileWidgetIds.get( form );
+		if ( undefined === widgetId || 'undefined' === typeof window.turnstile ) return '';
+		return window.turnstile.getResponse( widgetId ) || '';
+	}
+
+	function resetTurnstileIfNeeded( form ) {
+		if ( ! turnstileEnabled ) return;
+		var widgetId = turnstileWidgetIds.get( form );
+		if ( undefined !== widgetId && window.turnstile ) window.turnstile.reset( widgetId );
+	}
+
 	// Same-origin — the site's own app/api/forms/submit/[slug]/route.ts
 	// handles delivery server-side (via the Site Owner's own Resend account
 	// if connect_resend was set up, else forwarding server-to-server to
@@ -466,6 +526,15 @@
 					setSubmitting( form, false );
 					showError( form, 'v2' === RECAPTCHA_TYPE ? 'Please complete the verification.' : 'Verification failed — please try again.' );
 					resetRecaptchaIfNeeded( form );
+					resetTurnstileIfNeeded( form );
+					return;
+				}
+
+				var turnstileToken = getTurnstileToken( form );
+				if ( turnstileEnabled && ! turnstileToken ) {
+					setSubmitting( form, false );
+					showError( form, 'Please complete the verification.' );
+					resetTurnstileIfNeeded( form );
 					return;
 				}
 
@@ -474,6 +543,7 @@
 						setSubmitting( form, false );
 						showError( form, attachmentResult.message );
 						resetRecaptchaIfNeeded( form );
+						resetTurnstileIfNeeded( form );
 						return;
 					}
 
@@ -485,6 +555,9 @@
 					}
 					if ( recaptchaEnabled ) {
 						payload._recaptcha = recaptchaToken;
+					}
+					if ( turnstileEnabled ) {
+						payload._turnstile = turnstileToken;
 					}
 
 					fetch( ENDPOINT_BASE + encodeURIComponent( slug ), {
@@ -508,6 +581,7 @@
 							if ( 429 === result.status ) {
 								showError( form, RATE_LIMIT_MESSAGE );
 								resetRecaptchaIfNeeded( form );
+								resetTurnstileIfNeeded( form );
 								return;
 							}
 
@@ -518,11 +592,13 @@
 
 							showError( form, ( result.json && result.json.message ) || GENERIC_ERROR_MESSAGE );
 							resetRecaptchaIfNeeded( form );
+							resetTurnstileIfNeeded( form );
 						} )
 						.catch( function () {
 							setSubmitting( form, false );
 							showError( form, GENERIC_ERROR_MESSAGE );
 							resetRecaptchaIfNeeded( form );
+							resetTurnstileIfNeeded( form );
 						} );
 				} );
 			} );
@@ -546,6 +622,7 @@
 
 			ensureHoneypot( form );
 			ensureRecaptchaWidget( form );
+			ensureTurnstileWidget( form );
 			form.querySelectorAll( 'input[type="file"]' ).forEach( function ( input ) {
 				input.addEventListener( 'change', function () {
 					addAttachmentFiles( input, Array.prototype.slice.call( input.files || [] ) );

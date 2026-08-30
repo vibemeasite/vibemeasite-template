@@ -18,7 +18,15 @@ const ACCOUNT_SLUG = process.env.CELLPY_ACCOUNT_SLUG!;
 export function recaptchaScriptAttrs(): Record<string, string> {
   const type = process.env.RECAPTCHA_TYPE;
   const siteKey = process.env.RECAPTCHA_SITE_KEY;
-  return type && siteKey ? { "data-recaptcha-type": type, "data-recaptcha-site-key": siteKey } : {};
+  const attrs: Record<string, string> = type && siteKey
+    ? { "data-recaptcha-type": type, "data-recaptcha-site-key": siteKey }
+    : {};
+  // Cloudflare Turnstile — set by connect_turnstile (vibemeasite-mcp).
+  // Independent of reCAPTCHA; forms.js reads both and uses whichever is
+  // configured (connect_turnstile / connect_recaptcha — last one wins).
+  const turnstileSiteKey = process.env.TURNSTILE_SITE_KEY;
+  if (turnstileSiteKey) attrs["data-turnstile-site-key"] = turnstileSiteKey;
+  return attrs;
 }
 
 interface LoadedBlock {

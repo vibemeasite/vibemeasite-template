@@ -248,6 +248,7 @@ a { color: var(--color-primary, inherit); }
 
 /* v2's iframe is a fixed ~304px wide — guard narrow mobile form columns. */
 .cellpy-form-recaptcha { margin-top: 8px; max-width: 100%; overflow-x: auto; }
+.cellpy-form-turnstile { margin: 6px 0 16px; max-width: 100%; overflow-x: auto; }
 
 .cellpy-form-attachment-previews { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .cellpy-form-attachment { position: relative; display: flex; flex-direction: column; align-items: center; width: 64px; }

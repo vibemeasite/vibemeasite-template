@@ -44,10 +44,38 @@ const MAX_ATTACHMENTS = 4;
 const R2_KEY_RE = /^form-uploads\/[a-z0-9-]{1,64}\/[a-f0-9-]{36}-[a-zA-Z0-9._-]+$/;
 
 const RECAPTCHA_VERIFY_URL = "https://www.google.com/recaptcha/api/siteverify";
+const TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 
 interface RecaptchaResult {
   ok: boolean;
   message?: string;
+}
+
+// Cloudflare Turnstile — set by connect_turnstile (vibemeasite-mcp).
+// Independent of reCAPTCHA and checked first; fails OPEN only when
+// TURNSTILE_SECRET_KEY is entirely unset (not configured), fails CLOSED on
+// a missing/invalid token or a transient verify error, mirroring
+// verifyRecaptcha's posture.
+async function verifyTurnstile(token: unknown): Promise<RecaptchaResult> {
+  const secretKey = process.env.TURNSTILE_SECRET_KEY;
+  if (!secretKey) return { ok: true };
+
+  const responseToken = typeof token === "string" ? token : "";
+  if (!responseToken) return { ok: false, message: "Verification required — please try again." };
+
+  try {
+    const res = await fetch(TURNSTILE_VERIFY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ secret: secretKey, response: responseToken }),
+    });
+    const json = (await res.json()) as { success?: boolean };
+    if (!json.success) return { ok: false, message: "Verification failed — please try again." };
+    return { ok: true };
+  } catch (err) {
+    console.error("[forms] turnstile verify threw:", err instanceof Error ? err.message : String(err));
+    return { ok: false, message: "Something went wrong verifying your submission. Please try again." };
+  }
 }
 
 // Set by connect_recaptcha (vibemeasite-mcp) for sites that opt in — see
@@ -189,7 +217,15 @@ export async function POST(
     return NextResponse.json({ ok: true });
   }
 
-  const { _hp: _ignoredHp, _attachments, _recaptcha, ...fields } = rawBody;
+  const { _hp: _ignoredHp, _attachments, _recaptcha, _turnstile, ...fields } = rawBody;
+
+  const turnstileResult = await verifyTurnstile(_turnstile);
+  if (!turnstileResult.ok) {
+    return NextResponse.json(
+      { ok: false, error: "TURNSTILE_FAILED", message: turnstileResult.message },
+      { status: 400 }
+    );
+  }
 
   const recaptchaResult = await verifyRecaptcha(_recaptcha, slug);
   if (!recaptchaResult.ok) {
