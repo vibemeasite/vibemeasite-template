@@ -25,6 +25,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // canonical page to list. Pages with in_scroll = false still get their
     // own standalone route either way.
     if (isOnePage && p.inScroll) return false;
+    // seo_meta.unlisted — a link-only page (kept out of the menu too) that
+    // must not be advertised anywhere a crawler looks. lib/seo.ts also
+    // gives it a noindex robots tag and strips its hreflang alternates; a
+    // noindex URL has no business being in the sitemap either.
+    const seoMeta = p.seoMeta as { unlisted?: boolean } | null;
+    if (seoMeta?.unlisted === true) return false;
     return true;
   });
 

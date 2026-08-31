@@ -7,6 +7,10 @@ import { ogLocale } from "./og-locale";
 interface PageSeoMeta {
   description?: string;
   descriptionTranslations?: Record<string, string>;
+  // A private, link-only page: not in the menu, not in the sitemap (see
+  // app/sitemap.ts), noindex, and served in exactly one language — the
+  // site default — regardless of ?lang= (see components/SitePage.tsx).
+  unlisted?: boolean;
 }
 
 // Multilingual & SEO Tooling (Phase 13), US-VMAS-SEO-01/03 — shared by
@@ -21,9 +25,22 @@ export async function pageMetadata(slug: string, urlPath: string): Promise<Metad
   if (!result) return {};
 
   const availableLocales = (settings.availableLocales as string[] | null) ?? [];
-  const locale = await getCurrentLocale(settings.defaultLocale, availableLocales);
+  const requestedLocale = await getCurrentLocale(settings.defaultLocale, availableLocales);
+
+  const seoMeta = (result.page.seoMeta as PageSeoMeta | null) ?? null;
+  // seo_meta.unlisted — a private, link-only page has exactly one version,
+  // in the site's default language. Pin the locale here so its <title>,
+  // description, canonical and Open Graph never vary by ?lang=; the
+  // hreflang alternates are dropped and a noindex robots tag is added
+  // below, and SitePage renders the default-locale content to match.
+  const isUnlisted = seoMeta?.unlisted === true;
+  const locale = isUnlisted ? settings.defaultLocale : requestedLocale;
 
   const metadata: Metadata = {};
+
+  if (isUnlisted) {
+    metadata.robots = { index: false, follow: false };
+  }
 
   // Only overrides the title when the site has set siteName — otherwise {}
   // leaves the root layout's own fallback ("Site") untouched, matching this
@@ -46,7 +63,6 @@ export async function pageMetadata(slug: string, urlPath: string): Promise<Metad
     metadata.title = rawLocalizedTitle;
   }
 
-  const seoMeta = (result.page.seoMeta as PageSeoMeta | null) ?? null;
   const localizedDescription = seoMeta?.description
     ? resolveTranslation(seoMeta.description, seoMeta.descriptionTranslations, locale)
     : undefined;
@@ -69,8 +85,9 @@ export async function pageMetadata(slug: string, urlPath: string): Promise<Metad
   // default locale maps to the bare URL, every other locale to ?lang={code}
   // on the same path — matching the site's existing query-param language
   // scheme; there is no path-based i18n routing to point at instead.
+  // Skipped entirely for an unlisted page — it has only the one version.
   let languages: Record<string, string> | undefined;
-  if (availableLocales.length > 1) {
+  if (availableLocales.length > 1 && !isUnlisted) {
     languages = {};
     for (const l of availableLocales) {
       languages[l] = l === settings.defaultLocale ? `${base}${urlPath}` : `${base}${urlPath}?lang=${l}`;
@@ -95,7 +112,7 @@ export async function pageMetadata(slug: string, urlPath: string): Promise<Metad
     ...(settings.siteName ? { siteName: settings.siteName } : {}),
     ...(settings.logoUrl ? { images: [settings.logoUrl] } : {}),
     locale: ogLocale(locale),
-    ...(availableLocales.length > 1
+    ...(availableLocales.length > 1 && !isUnlisted
       ? { alternateLocale: availableLocales.filter((l) => l !== locale).map(ogLocale) }
       : {}),
   };

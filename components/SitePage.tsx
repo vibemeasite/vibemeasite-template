@@ -50,7 +50,14 @@ export async function SitePage({ slug }: { slug: string }) {
   const [result, settings] = await Promise.all([getPageBySlug(slug), getSiteSettings()]);
   if (!result) notFound();
 
-  const locale = await getCurrentLocale(settings.defaultLocale, (settings.availableLocales as string[] | null) ?? []);
+  // seo_meta.unlisted — a private, link-only page is served in exactly one
+  // language (the site default), regardless of ?lang= / the cellpy_lang
+  // cookie. lib/seo.ts pins the same locale for its <title>/canonical and
+  // marks it noindex; app/sitemap.ts leaves it out of the sitemap.
+  const unlisted = (result.page.seoMeta as { unlisted?: boolean } | null)?.unlisted === true;
+  const locale = unlisted
+    ? settings.defaultLocale
+    : await getCurrentLocale(settings.defaultLocale, (settings.availableLocales as string[] | null) ?? []);
   const blocks = await loadBlocks(result.containers, locale);
 
   // forms.js and lightbox.js are each only a few KB, but there's no reason

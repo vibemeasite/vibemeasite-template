@@ -113,11 +113,14 @@ export const getScrollPages = unstable_cache(
 
 // Every page's slug (+ inScroll, so app/sitemap.ts can skip pages that only
 // redirect to a "/#slug" anchor in one-page mode rather than rendering at
-// their own URL — see app/[slug]/page.tsx). No <lastmod> data: pages has no
-// created/updated timestamp column, out of scope for this pass.
+// their own URL — see app/[slug]/page.tsx; + seoMeta, so it can also skip
+// pages flagged seo_meta.unlisted — link-only pages that must stay out of
+// the sitemap and the search index entirely, see lib/seo.ts). No <lastmod>
+// data: pages has no created/updated timestamp column, out of scope for
+// this pass.
 export const getAllPages = unstable_cache(
   async () => {
-    return db.select({ slug: pages.slug, inScroll: pages.inScroll }).from(pages);
+    return db.select({ slug: pages.slug, inScroll: pages.inScroll, seoMeta: pages.seoMeta }).from(pages);
   },
   ["all-pages"],
   { tags: ["pages"] }
