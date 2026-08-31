@@ -91,6 +91,16 @@ export function MobileNav({
   };
   const inCurrentLocale = (path: string) => withLocale(locale, path);
 
+  // Header language switcher — every option carries "?hl={code}" so
+  // middleware.ts persists the explicit choice in the cellpy_lang cookie
+  // (and 307s to the clean URL). Needed so that picking the DEFAULT
+  // language, whose URL is the bare path, isn't immediately bounced back
+  // by a stale non-default cookie's sticky-language redirect.
+  const switcherHref = (code: string) => {
+    const target = withLocale(code, currentPath);
+    return `${target}${target.includes("?") ? "&" : "?"}hl=${encodeURIComponent(code)}`;
+  };
+
   // Closing on Escape and on viewport resize back to desktop keeps the
   // panel from getting stuck open if a user rotates a tablet or opens
   // devtools mid-interaction.
@@ -202,7 +212,7 @@ export function MobileNav({
                     <ul className="lang-switcher-menu" role="listbox">
                       {availableLocales.map((code) => (
                         <li key={code} role="option" aria-selected={code === locale}>
-                          <a href={withLocale(code, currentPath)} aria-current={code === locale ? "true" : undefined}>
+                          <a href={switcherHref(code)} aria-current={code === locale ? "true" : undefined}>
                             {langSwitcherFlags && <FlagIcon code={code} />}
                             {langLabel(code, langSwitcherLabels)}
                           </a>
@@ -214,7 +224,7 @@ export function MobileNav({
                   availableLocales.map((code) => (
                     <a
                       key={code}
-                      href={withLocale(code, currentPath)}
+                      href={switcherHref(code)}
                       aria-current={code === locale ? "true" : undefined}
                     >
                       {code.toUpperCase()}

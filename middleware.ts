@@ -37,6 +37,25 @@ export function middleware(req: NextRequest) {
   const firstSeg = segments[0] ?? "";
   const pathHasLocalePrefix = LOCALE_SEG_RE.test(firstSeg);
 
+  // 0) Explicit language choice from the header switcher (MobileNav.tsx) —
+  //    "?hl={code}" on an already-correct URL. Persist the choice in
+  //    `cellpy_lang` and 307 to the same URL with the param stripped. This
+  //    is what lets a click on the DEFAULT-language option actually land
+  //    on the bare URL: without an explicit cookie write, a stale
+  //    non-default `cellpy_lang` would immediately bounce the visitor back
+  //    via the catch-all route's sticky-language redirect.
+  const hl = req.nextUrl.searchParams.get("hl");
+  if (hl !== null) {
+    const dest = req.nextUrl.clone();
+    dest.searchParams.delete("hl");
+    const res = NextResponse.redirect(dest, 307);
+    const value = hl.trim();
+    if (LOCALE_SEG_RE.test(value)) {
+      res.cookies.set(LANG_COOKIE, value, { path: "/", maxAge: YEAR });
+    }
+    return res;
+  }
+
   // 1) Legacy ?lang= → 308 to the path-prefix form. Strip the param; if the
   //    value is locale-shaped, move it into the path (replacing any locale
   //    segment already there). A non-locale-shaped value (e.g. "?lang=xx"
