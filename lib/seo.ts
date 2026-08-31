@@ -28,9 +28,22 @@ export async function pageMetadata(slug: string, urlPath: string): Promise<Metad
   // Only overrides the title when the site has set siteName — otherwise {}
   // leaves the root layout's own fallback ("Site") untouched, matching this
   // route's pre-existing behavior for a site that hasn't configured it yet.
-  const localizedTitle = resolveTranslation(result.page.title, result.page.titleTranslations, locale);
-  if (settings.siteName) {
-    metadata.title = localizedTitle;
+  const rawLocalizedTitle = resolveTranslation(result.page.title, result.page.titleTranslations, locale);
+
+  // Audit fix H5 — the home page's record title is always the bare
+  // convention word "Home" (create_site requires slug "home"), which is a
+  // wasted <title> on the single most important page. When that's all
+  // there is (no real per-locale home-title translation), fall through to
+  // the root layout's branded default ("{siteName} — {tagline}") by
+  // leaving metadata.title unset. A genuine home-title translation still
+  // wins.
+  const isHomeWithConventionTitle = slug === "home" && rawLocalizedTitle === result.page.title;
+  const brandedFallbackTitle =
+    [settings.siteName, settings.tagline].filter(Boolean).join(" — ") || rawLocalizedTitle;
+  const localizedTitle = isHomeWithConventionTitle ? brandedFallbackTitle : rawLocalizedTitle;
+
+  if (settings.siteName && !isHomeWithConventionTitle) {
+    metadata.title = rawLocalizedTitle;
   }
 
   const seoMeta = (result.page.seoMeta as PageSeoMeta | null) ?? null;
