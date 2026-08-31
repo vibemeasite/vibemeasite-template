@@ -13,9 +13,9 @@ interface PageSeoMeta {
   unlisted?: boolean;
 }
 
-// Multilingual & SEO Tooling (Phase 13), US-VMAS-SEO-01/03 — shared by
-// app/[slug]/page.tsx and app/page.tsx (home) so the two routes can't drift
-// from each other. Fixes a pre-existing bug where a translated page's
+// Multilingual & SEO Tooling (Phase 13), US-VMAS-SEO-01/03 — the shared
+// generateMetadata helper for app/[[...path]]/page.tsx (every page, every
+// locale). Fixes a pre-existing bug where a translated page's
 // <title> stayed in the default language (title_translations existed but
 // was never read in generateMetadata) and wires up pages.seo_meta (present
 // in the schema since migration 0000, never previously read or written by
@@ -72,26 +72,27 @@ export async function pageMetadata(slug: string, urlPath: string): Promise<Metad
 
   // The self-URL for the locale actually being rendered — kept byte-for-byte
   // identical to this locale's hreflang entry below so canonical and
-  // hreflang never contradict. getCurrentLocale() has already collapsed an
-  // unknown / stale ?lang= to defaultLocale, so "?lang=xx" and "?lang=en"
-  // both canonicalise to the bare path here (audit fixes C1 + C2).
+  // hreflang never contradict. `urlPath` is always the path WITHOUT any
+  // locale prefix (see app/[[...path]]/page.tsx).
   const headersList = await headers();
   const base = `https://${headersList.get("host")}`;
-  const selfUrl =
-    locale === settings.defaultLocale ? `${base}${urlPath}` : `${base}${urlPath}?lang=${locale}`;
+  // Path-prefix i18n (template v15) — the default locale lives at the bare
+  // path, every other locale under a "/{locale}" prefix. Replaces the
+  // earlier "?lang={code}" query-param scheme. Byte-identical to the
+  // sitemap's alternates.
+  const localeUrl = (l: string) =>
+    l === settings.defaultLocale
+      ? `${base}${urlPath}`
+      : `${base}/${l}${urlPath === "/" ? "" : urlPath}`;
+  const selfUrl = localeUrl(locale);
 
   // US-VMAS-SEO-03 — hreflang alternates, only when there's more than one
-  // declared language (zero <head> change for a single-language site). The
-  // default locale maps to the bare URL, every other locale to ?lang={code}
-  // on the same path — matching the site's existing query-param language
-  // scheme; there is no path-based i18n routing to point at instead.
+  // declared language (zero <head> change for a single-language site).
   // Skipped entirely for an unlisted page — it has only the one version.
   let languages: Record<string, string> | undefined;
   if (availableLocales.length > 1 && !isUnlisted) {
     languages = {};
-    for (const l of availableLocales) {
-      languages[l] = l === settings.defaultLocale ? `${base}${urlPath}` : `${base}${urlPath}?lang=${l}`;
-    }
+    for (const l of availableLocales) languages[l] = localeUrl(l);
     languages["x-default"] = `${base}${urlPath}`;
   }
 

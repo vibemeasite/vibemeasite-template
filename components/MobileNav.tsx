@@ -28,14 +28,17 @@ interface MobileNavProps {
   // .nav-cta (+ .nav-cta--button by default) so header_css / the theme
   // can style it as a real button.
   headerCta: { label: string; url: string; style: "button" | "link" } | null;
-  // Phase 24 (Cellpy platform) — Multi-language Blocks, block-content-only
-  // scope. `locale` is the currently-resolved language (see lib/locale.ts);
-  // `availableLocales` is site_settings.available_locales. The switcher
-  // itself is plain <a href="?lang={code}"> links — language switching is
-  // navigation-based, not a live client-side swap (see bsa-documentation.md
-  // § Phase 24 Scope) — middleware.ts persists the choice in a cookie so
-  // only this first link needs the query param.
+  // Phase 24 (Cellpy platform) — Multi-language Blocks. `locale` is the
+  // currently-resolved language; `availableLocales` is
+  // site_settings.available_locales. Path-prefix i18n (template v15) — the
+  // switcher and every nav link are plain <a> tags pointing at
+  // "/{locale}{path}" (or the bare path for the default locale);
+  // `currentPath` is this page's path WITHOUT any locale prefix (from
+  // app/layout.tsx) so a switcher click keeps the visitor on the same page
+  // in the new language.
   locale: string;
+  defaultLocale: string;
+  currentPath: string;
   availableLocales: string[];
   // Set via vibemeasite-mcp's set_language_switcher_style tool.
   // "buttons" (plain <a> links, the original behavior) or "select" (a
@@ -72,10 +75,21 @@ function FlagIcon({ code }: { code: string }) {
 // Desktop layout is unaffected: .nav-links-top/.nav-links-side/.nav-extras
 // are only ever hidden by the "is-open" gate inside a max-width media query.
 export function MobileNav({
-  isSideNav, isOnePage, menu, phone, email, customLinks, headerCta, locale, availableLocales,
+  isSideNav, isOnePage, menu, phone, email, customLinks, headerCta, locale, defaultLocale, currentPath, availableLocales,
   langSwitcherStyle, langSwitcherFlags, langSwitcherLabels,
 }: MobileNavProps) {
   const [open, setOpen] = useState(false);
+
+  // Path-prefix i18n (template v15) — put a same-origin path under the
+  // "/{targetLocale}" prefix (nothing for the default locale). External /
+  // protocol-relative / "#" / "mailto:" / "tel:" targets pass through
+  // untouched.
+  const withLocale = (targetLocale: string, path: string): string => {
+    if (targetLocale === defaultLocale) return path || "/";
+    if (!path.startsWith("/") || path.startsWith("//")) return path;
+    return `/${targetLocale}${path === "/" ? "" : path}`;
+  };
+  const inCurrentLocale = (path: string) => withLocale(locale, path);
 
   // Closing on Escape and on viewport resize back to desktop keeps the
   // panel from getting stuck open if a user rotates a tablet or opens
@@ -120,14 +134,14 @@ export function MobileNav({
       >
         <nav className={isSideNav ? "nav-links-side" : "nav-links-top"}>
           {menu.map((item) => {
-            const href =
+            const barePath =
               isOnePage && item.inScroll
                 ? `/#${item.pageSlug}`
                 : item.pageSlug === "home"
                 ? "/"
                 : `/${item.pageSlug}`;
             return (
-              <a key={item.id} href={href}>
+              <a key={item.id} href={inCurrentLocale(barePath)}>
                 {item.label}
               </a>
             );
@@ -138,7 +152,7 @@ export function MobileNav({
             {phone && <a href={`tel:${phone}`}>{phone}</a>}
             {email && <a href={`mailto:${email}`}>{email}</a>}
             {customLinks.map((link, i) => (
-              <a key={i} href={link.url}>
+              <a key={i} href={inCurrentLocale(link.url)}>
                 {link.label}
               </a>
             ))}
@@ -159,7 +173,7 @@ export function MobileNav({
               ) : (
                 <a
                   className={headerCta.style === "button" ? "nav-cta nav-cta--button" : "nav-cta"}
-                  href={headerCta.url}
+                  href={inCurrentLocale(headerCta.url)}
                 >
                   {headerCta.label}
                 </a>
@@ -188,7 +202,7 @@ export function MobileNav({
                     <ul className="lang-switcher-menu" role="listbox">
                       {availableLocales.map((code) => (
                         <li key={code} role="option" aria-selected={code === locale}>
-                          <a href={`?lang=${encodeURIComponent(code)}`} aria-current={code === locale ? "true" : undefined}>
+                          <a href={withLocale(code, currentPath)} aria-current={code === locale ? "true" : undefined}>
                             {langSwitcherFlags && <FlagIcon code={code} />}
                             {langLabel(code, langSwitcherLabels)}
                           </a>
@@ -200,7 +214,7 @@ export function MobileNav({
                   availableLocales.map((code) => (
                     <a
                       key={code}
-                      href={`?lang=${encodeURIComponent(code)}`}
+                      href={withLocale(code, currentPath)}
                       aria-current={code === locale ? "true" : undefined}
                     >
                       {code.toUpperCase()}

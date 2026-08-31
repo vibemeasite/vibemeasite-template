@@ -39,6 +39,41 @@ export async function getCurrentLocale(defaultLocale: string, availableLocales: 
   return defaultLocale;
 }
 
+// Path-prefix i18n (template v15) — replaces the ?lang= query-param scheme
+// with "/fr/…" path prefixes. isLocaleShaped is a purely syntactic test
+// (2–3 letter language subtag, optional 2–4 char region/script subtag) used
+// to tell a plausible locale segment apart from an ordinary page slug
+// BEFORE the site's real language list is known (middleware.ts) or to
+// decide, in the catch-all route, whether an unmatched first segment was a
+// stale/unknown locale prefix worth 301-stripping vs. a genuine 404.
+export function isLocaleShaped(seg: string): boolean {
+  return /^[a-z]{2,3}(-[a-z0-9]{2,4})?$/i.test(seg);
+}
+
+// Splits an incoming path's segments into { locale, rest } against the
+// site's declared languages. Only a segment that exactly matches a real
+// declared locale (or the default locale itself) counts as a prefix —
+// anything else is left in `restSegments` and treated as part of the slug,
+// so a page slugged like a locale code (`/id`, `/co-op`) can never be
+// mistaken for a language and a `/de/` prefix on a site that doesn't offer
+// German is not silently honoured. Matching is case-insensitive; the
+// site's own casing is returned so every downstream URL stays byte-
+// identical to the hreflang alternates.
+export function splitLocalePath(
+  segments: string[],
+  availableLocales: string[],
+  defaultLocale: string
+): { locale: string; isPrefixed: boolean; restSegments: string[] } {
+  const first = segments[0];
+  if (first) {
+    const match = [defaultLocale, ...availableLocales].find(
+      (l) => l.toLowerCase() === first.toLowerCase()
+    );
+    if (match) return { locale: match, isPrefixed: true, restSegments: segments.slice(1) };
+  }
+  return { locale: defaultLocale, isPrefixed: false, restSegments: segments };
+}
+
 // Multilingual SEO audit (2026-08-31), fix M2 — RTL scripts need
 // `<html dir="rtl">`, not just `lang`. Covers the right-to-left languages
 // plus any code that explicitly names an RTL script subtag

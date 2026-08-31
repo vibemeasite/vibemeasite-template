@@ -37,17 +37,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const paths = ["/", ...otherPages.map((p) => `/${p.slug}`)];
 
   // Audit fix C3 — every listed URL carries the full hreflang alternate
-  // set (default locale = bare path, others = ?lang={code}, plus
-  // x-default), so localized pages are discoverable and correctly
-  // associated from the sitemap alone, not only by parsing 30+ <head>
-  // <link> tags per page. Byte-identical to lib/seo.ts's alternates.
+  // set (default locale = bare path, others = "/{locale}" prefix on the
+  // same path, plus x-default), so localized pages are discoverable and
+  // correctly associated from the sitemap alone, not only by parsing 30+
+  // <head> <link> tags per page. Byte-identical to lib/seo.ts's alternates.
   // Skipped entirely for a single-language site (no <xhtml:link> noise).
+  const localeUrl = (l: string, urlPath: string) =>
+    l === defaultLocale ? `${base}${urlPath}` : `${base}/${l}${urlPath === "/" ? "" : urlPath}`;
   const alternatesFor = (urlPath: string): MetadataRoute.Sitemap[number]["alternates"] => {
     if (availableLocales.length <= 1) return undefined;
     const languages: Record<string, string> = {};
-    for (const l of availableLocales) {
-      languages[l] = l === defaultLocale ? `${base}${urlPath}` : `${base}${urlPath}?lang=${l}`;
-    }
+    for (const l of availableLocales) languages[l] = localeUrl(l, urlPath);
     languages["x-default"] = `${base}${urlPath}`;
     return { languages };
   };

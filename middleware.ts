@@ -1,39 +1,66 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-// Phase 24 (Cellpy platform) — Multi-language Blocks, block-content-only
-// scope (see bsa-documentation.md § Phase 24). Layouts (app/layout.tsx)
-// can't read searchParams — only params/headers — so this middleware
-// converts a `?lang=` query param into a request header every server
-// component can read via next/headers `headers()`, and persists the choice
-// in a cookie so a header switcher click only needs `?lang=` on the first
-// link: subsequent in-site navigation carries the language via the cookie
-// without repeating the query param on every href.
+// Phase 24 (Cellpy platform) — Multi-language Blocks. Layouts
+// (app/layout.tsx) can't read searchParams — only params/headers — so this
+// middleware resolves the request's language and exposes it as the
+// `x-cellpy-lang` request header every server component reads via
+// next/headers `headers()`.
+//
+// Path-prefix i18n (template v15) — the language now lives in the URL path
+// ("/fr/pricing"), not a "?lang=fr" query param. This middleware:
+//   1. 308-redirects any legacy "?lang=" URL to its path-prefix equivalent.
+//   2. Reads a leading locale-shaped path segment into `x-cellpy-lang` and
+//      refreshes the `cellpy_lang` cookie from it (the cookie is still used
+//      by the catch-all route's "sticky language" redirect for bare
+//      in-content links, and by public/booking.js).
+// It deliberately does NOT rewrite the path — the catch-all route
+// (app/[...path]) receives the locale segment as a param and validates it
+// against the site's real declared languages, so middleware never has to
+// know that list and a page slugged like a locale code can't collide.
 const LANG_HEADER = "x-cellpy-lang";
 const LANG_COOKIE = "cellpy_lang";
 const PATH_HEADER = "x-pathname";
+const YEAR = 60 * 60 * 24 * 365;
 
-// Multilingual SEO audit (2026-08-31), fix C2 — a coarse BCP-47 shape gate
-// so an arbitrary ?lang= value ("xx", "<script>", "../../etc") never
-// becomes a persisted cookie or an x-cellpy-lang header. This is only the
-// syntactic filter; lib/locale.ts still validates the value against the
-// site's actually-declared languages before it affects any rendered URL.
+// Loose shape gate for a "?lang=" value (kept from the query-param era) —
+// stops "?lang=<script>" etc. from ever becoming a redirect target/cookie.
 const LANG_TAG_RE = /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/;
+// Stricter shape for a leading PATH segment — matches lib/locale.ts's
+// isLocaleShaped. Tight enough to tell "fr" / "zh-CN" apart from an
+// ordinary page slug; the catch-all route still validates against the
+// site's actual language list before it means anything.
+const LOCALE_SEG_RE = /^[a-z]{2,3}(-[a-z0-9]{2,4})?$/i;
 
 export function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+  const segments = pathname.split("/").filter(Boolean);
+  const firstSeg = segments[0] ?? "";
+  const pathHasLocalePrefix = LOCALE_SEG_RE.test(firstSeg);
+
+  // 1) Legacy ?lang= → 308 to the path-prefix form. Strip the param; if the
+  //    value is locale-shaped, move it into the path (replacing any locale
+  //    segment already there). A non-locale-shaped value (e.g. "?lang=xx"
+  //    junk) just drops the param — the catch-all route then canonicalises
+  //    an unknown leading segment to the bare path anyway.
   const rawQueryLang = req.nextUrl.searchParams.get("lang");
-  const queryLang = rawQueryLang && LANG_TAG_RE.test(rawQueryLang) ? rawQueryLang : null;
-  const lang = queryLang || req.cookies.get(LANG_COOKIE)?.value;
+  if (rawQueryLang !== null) {
+    const dest = req.nextUrl.clone();
+    dest.searchParams.delete("lang");
+    const rest = pathHasLocalePrefix ? segments.slice(1) : segments;
+    const value = rawQueryLang.trim();
+    const localePart = LANG_TAG_RE.test(value) ? [value] : [];
+    dest.pathname = "/" + [...localePart, ...rest].join("/");
+    return NextResponse.redirect(dest, 308);
+  }
 
   const requestHeaders = new Headers(req.headers);
-  if (lang) requestHeaders.set(LANG_HEADER, lang);
-  // So server components / lib/seo.ts can build absolute self-URLs and
-  // JSON-LD without next/navigation's client-only usePathname.
-  requestHeaders.set(PATH_HEADER, req.nextUrl.pathname);
+  requestHeaders.set(PATH_HEADER, pathname);
+  if (pathHasLocalePrefix) requestHeaders.set(LANG_HEADER, firstSeg);
 
   const res = NextResponse.next({ request: { headers: requestHeaders } });
 
-  if (queryLang && queryLang !== req.cookies.get(LANG_COOKIE)?.value) {
-    res.cookies.set(LANG_COOKIE, queryLang, { path: "/", maxAge: 60 * 60 * 24 * 365 });
+  if (pathHasLocalePrefix && req.cookies.get(LANG_COOKIE)?.value !== firstSeg) {
+    res.cookies.set(LANG_COOKIE, firstSeg, { path: "/", maxAge: YEAR });
   }
 
   return res;

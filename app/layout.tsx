@@ -124,7 +124,13 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const headStyle = [colorVars ? `:root { ${colorVars} }` : "", headerCss, bodyCss].filter(Boolean).join("\n");
 
   // Tier 2 — logo link target (default "/") and the single header CTA.
-  const logoHref = typeof settings.logoHref === "string" && isSafeHref(settings.logoHref) ? settings.logoHref : "/";
+  const rawLogoHref = typeof settings.logoHref === "string" && isSafeHref(settings.logoHref) ? settings.logoHref : "/";
+  // Path-prefix i18n (v15) — keep a same-origin logo link inside the
+  // current language (external / mailto: / tel: targets pass through).
+  const logoHref =
+    locale !== settings.defaultLocale && rawLogoHref.startsWith("/") && !rawLogoHref.startsWith("//")
+      ? `/${locale}${rawLogoHref === "/" ? "" : rawLogoHref}`
+      : rawLogoHref;
   const rawCta = settings.headerCta as { label?: unknown; url?: unknown; style?: unknown } | null;
   const headerCta =
     rawCta && typeof rawCta.label === "string" && typeof rawCta.url === "string" && isSafeHref(rawCta.url)
@@ -170,7 +176,17 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   // matching how the <title> override is gated.
   const hdrs = await headers();
   const base = `https://${hdrs.get("host")}`;
-  const pathname = hdrs.get("x-pathname") || "/";
+  const rawPath = hdrs.get("x-pathname") || "/";
+  // Path-prefix i18n (template v15) — x-pathname still carries any
+  // "/{locale}" prefix; strip it so the nav/switcher can rebuild links for
+  // any target language, and so JSON-LD / canonical logic works off the
+  // bare path. (For the default locale rawPath is already un-prefixed.)
+  const currentPath =
+    locale !== settings.defaultLocale && (rawPath === `/${locale}` || rawPath.startsWith(`/${locale}/`))
+      ? rawPath.slice(locale.length + 1) || "/"
+      : rawPath;
+  const localePrefix = locale === settings.defaultLocale ? "" : `/${locale}`;
+  const pageUrl = `${base}${localePrefix}${currentPath === "/" ? (localePrefix ? "" : "/") : currentPath}`;
   const jsonLd = settings.siteName
     ? [
         {
@@ -190,7 +206,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         {
           "@context": "https://schema.org",
           "@type": "WebPage",
-          url: `${base}${pathname}${locale === settings.defaultLocale ? "" : `?lang=${locale}`}`,
+          url: pageUrl,
           inLanguage: locale,
           isPartOf: { "@type": "WebSite", url: base, name: settings.siteName },
         },
@@ -276,6 +292,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               customLinks={customLinks}
               headerCta={headerCta}
               locale={locale}
+              defaultLocale={settings.defaultLocale}
+              currentPath={currentPath}
               availableLocales={availableLocales}
               langSwitcherStyle={langSwitcherStyle}
               langSwitcherFlags={settings.langSwitcherFlags ?? false}
