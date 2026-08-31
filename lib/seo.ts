@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { getPageBySlug, getSiteSettings } from "./queries";
 import { getCurrentLocale, resolveTranslation } from "./locale";
+import { ogLocale } from "./og-locale";
 
 interface PageSeoMeta {
   description?: string;
@@ -27,30 +28,70 @@ export async function pageMetadata(slug: string, urlPath: string): Promise<Metad
   // Only overrides the title when the site has set siteName — otherwise {}
   // leaves the root layout's own fallback ("Site") untouched, matching this
   // route's pre-existing behavior for a site that hasn't configured it yet.
+  const localizedTitle = resolveTranslation(result.page.title, result.page.titleTranslations, locale);
   if (settings.siteName) {
-    metadata.title = resolveTranslation(result.page.title, result.page.titleTranslations, locale);
+    metadata.title = localizedTitle;
   }
 
   const seoMeta = (result.page.seoMeta as PageSeoMeta | null) ?? null;
-  if (seoMeta?.description) {
-    metadata.description = resolveTranslation(seoMeta.description, seoMeta.descriptionTranslations, locale);
+  const localizedDescription = seoMeta?.description
+    ? resolveTranslation(seoMeta.description, seoMeta.descriptionTranslations, locale)
+    : undefined;
+  if (localizedDescription) {
+    metadata.description = localizedDescription;
   }
+
+  // The self-URL for the locale actually being rendered — kept byte-for-byte
+  // identical to this locale's hreflang entry below so canonical and
+  // hreflang never contradict. getCurrentLocale() has already collapsed an
+  // unknown / stale ?lang= to defaultLocale, so "?lang=xx" and "?lang=en"
+  // both canonicalise to the bare path here (audit fixes C1 + C2).
+  const headersList = await headers();
+  const base = `https://${headersList.get("host")}`;
+  const selfUrl =
+    locale === settings.defaultLocale ? `${base}${urlPath}` : `${base}${urlPath}?lang=${locale}`;
 
   // US-VMAS-SEO-03 — hreflang alternates, only when there's more than one
   // declared language (zero <head> change for a single-language site). The
   // default locale maps to the bare URL, every other locale to ?lang={code}
   // on the same path — matching the site's existing query-param language
   // scheme; there is no path-based i18n routing to point at instead.
+  let languages: Record<string, string> | undefined;
   if (availableLocales.length > 1) {
-    const headersList = await headers();
-    const base = `https://${headersList.get("host")}`;
-    const languages: Record<string, string> = {};
+    languages = {};
     for (const l of availableLocales) {
       languages[l] = l === settings.defaultLocale ? `${base}${urlPath}` : `${base}${urlPath}?lang=${l}`;
     }
     languages["x-default"] = `${base}${urlPath}`;
-    metadata.alternates = { languages };
   }
+
+  // Audit fix C1 — every page/locale gets an explicit self-referencing
+  // canonical. Without it, "?lang=" parameter URLs are prone to being
+  // folded onto "/" as duplicate parameter variants and dropped from the
+  // index.
+  metadata.alternates = { canonical: selfUrl, ...(languages ? { languages } : {}) };
+
+  // Audit fix H2 — Open Graph + og:locale / og:locale:alternate, per
+  // locale. Language-only OG values (see lib/og-locale.ts): a hint, not a
+  // geo-targeting directive.
+  metadata.openGraph = {
+    type: "website",
+    url: selfUrl,
+    title: localizedTitle,
+    ...(localizedDescription ? { description: localizedDescription } : {}),
+    ...(settings.siteName ? { siteName: settings.siteName } : {}),
+    ...(settings.logoUrl ? { images: [settings.logoUrl] } : {}),
+    locale: ogLocale(locale),
+    ...(availableLocales.length > 1
+      ? { alternateLocale: availableLocales.filter((l) => l !== locale).map(ogLocale) }
+      : {}),
+  };
+  metadata.twitter = {
+    card: settings.logoUrl ? "summary" : "summary_large_image",
+    title: localizedTitle,
+    ...(localizedDescription ? { description: localizedDescription } : {}),
+    ...(settings.logoUrl ? { images: [settings.logoUrl] } : {}),
+  };
 
   return metadata;
 }

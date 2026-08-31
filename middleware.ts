@@ -10,13 +10,25 @@ import { NextResponse, type NextRequest } from "next/server";
 // without repeating the query param on every href.
 const LANG_HEADER = "x-cellpy-lang";
 const LANG_COOKIE = "cellpy_lang";
+const PATH_HEADER = "x-pathname";
+
+// Multilingual SEO audit (2026-08-31), fix C2 — a coarse BCP-47 shape gate
+// so an arbitrary ?lang= value ("xx", "<script>", "../../etc") never
+// becomes a persisted cookie or an x-cellpy-lang header. This is only the
+// syntactic filter; lib/locale.ts still validates the value against the
+// site's actually-declared languages before it affects any rendered URL.
+const LANG_TAG_RE = /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/;
 
 export function middleware(req: NextRequest) {
-  const queryLang = req.nextUrl.searchParams.get("lang");
+  const rawQueryLang = req.nextUrl.searchParams.get("lang");
+  const queryLang = rawQueryLang && LANG_TAG_RE.test(rawQueryLang) ? rawQueryLang : null;
   const lang = queryLang || req.cookies.get(LANG_COOKIE)?.value;
 
   const requestHeaders = new Headers(req.headers);
   if (lang) requestHeaders.set(LANG_HEADER, lang);
+  // So server components / lib/seo.ts can build absolute self-URLs and
+  // JSON-LD without next/navigation's client-only usePathname.
+  requestHeaders.set(PATH_HEADER, req.nextUrl.pathname);
 
   const res = NextResponse.next({ request: { headers: requestHeaders } });
 

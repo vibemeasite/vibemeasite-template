@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { getMenu, getSiteSettings } from "../lib/queries";
 import { getContainerContent } from "../lib/cellpy-block";
-import { getCurrentLocale, resolveTranslation } from "../lib/locale";
+import { getCurrentLocale, resolveTranslation, isRtlLocale } from "../lib/locale";
 import { CellpyBlock } from "../components/CellpyBlock";
 import { StagingBanner } from "../components/StagingBanner";
 import { MobileNav } from "../components/MobileNav";
@@ -158,11 +158,56 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     ? await getContainerContent(ACCOUNT_SLUG, COOKIE_BANNER_CONTAINER_SLUG, locale)
     : null;
 
+  // Audit fix M2 — RTL languages (ar/he/fa/…) need dir="rtl" on <html>,
+  // not just lang. Every other locale stays explicitly "ltr".
+  const dir = isRtlLocale(locale) ? "rtl" : "ltr";
+
+  // Audit fix H4 — JSON-LD (Organization + WebSite site-wide, WebPage per
+  // request with `inLanguage` = the locale actually rendered). URLs are
+  // built from the request's own Host header (same rationale as
+  // app/sitemap.ts) and the x-pathname header middleware.ts adds. Gated on
+  // siteName so a site that hasn't run set_branding yet emits nothing new,
+  // matching how the <title> override is gated.
+  const hdrs = await headers();
+  const base = `https://${hdrs.get("host")}`;
+  const pathname = hdrs.get("x-pathname") || "/";
+  const jsonLd = settings.siteName
+    ? [
+        {
+          "@context": "https://schema.org",
+          "@type": "Organization",
+          name: settings.siteName,
+          url: base,
+          ...(settings.logoUrl ? { logo: new URL(settings.logoUrl, base).toString() } : {}),
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          name: settings.siteName,
+          url: base,
+          inLanguage: settings.defaultLocale,
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "WebPage",
+          url: `${base}${pathname}${locale === settings.defaultLocale ? "" : `?lang=${locale}`}`,
+          inLanguage: locale,
+          isPartOf: { "@type": "WebSite", url: base, name: settings.siteName },
+        },
+      ]
+    : null;
+
   return (
-    <html lang={locale}>
+    <html lang={locale} dir={dir}>
       <head>
         {settings.faviconUrl ? <link rel="icon" type="image/x-icon" href={settings.faviconUrl} /> : null}
         {searchConsoleVerification ? <meta name="google-site-verification" content={searchConsoleVerification} /> : null}
+        {jsonLd ? (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          />
+        ) : null}
         {headStyle ? <style>{headStyle}</style> : null}
         {gtmId ? (
           <script
