@@ -216,6 +216,15 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html lang={locale} dir={dir}>
       <head>
+        {/* No-flash gate for the "select" language switcher — a synchronous
+            (non-deferred) marker so globals.css can paint the switcher in
+            its collapsed resting state from the first frame, instead of
+            briefly showing the full expanded language list before deferred
+            lang-switcher.js collapses it. JS disabled → class never added →
+            the expanded-row fallback is untouched. */}
+        {langSwitcherStyle === "select" && availableLocales.length > 1 ? (
+          <script dangerouslySetInnerHTML={{ __html: "document.documentElement.classList.add('js')" }} />
+        ) : null}
         {settings.faviconUrl ? <link rel="icon" type="image/x-icon" href={settings.faviconUrl} /> : null}
         {searchConsoleVerification ? <meta name="google-site-verification" content={searchConsoleVerification} /> : null}
         {jsonLd ? (

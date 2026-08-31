@@ -241,6 +241,23 @@ a { color: var(--color-primary, inherit); }
 .lang-switcher-menu[hidden] {
   display: none !important;
 }
+/* No-flash: when JS is available (html.js — set by a synchronous marker in
+   app/layout.tsx's <head>) the switcher renders collapsed from the first
+   paint — toggle shown, list hidden — matching lang-switcher.js's enhanced
+   resting state, so the full expanded language list never flashes before
+   the deferred script runs. Without html.js the expanded-row fallback
+   above is left exactly as-is. lang-switcher.js still drives open/close by
+   toggling the `hidden` attribute; `:not([hidden])` re-shows the list when
+   it does. */
+.js .lang-switcher-toggle {
+  display: flex;
+}
+.js .lang-switcher-menu {
+  display: none;
+}
+.js .lang-switcher-menu:not([hidden]) {
+  display: flex;
+}
 .lang-switcher-menu a {
   display: flex;
   align-items: center;
