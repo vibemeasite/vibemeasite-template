@@ -53,7 +53,13 @@ a { color: var(--color-primary, inherit); }
    down (width:auto follows proportionally) below ~640px instead of
    overflowing — see the nav-brand comment above. */
 .nav-logo { height: clamp(20px, 5vw, 32px); width: auto; display: block; }
-.nav-logo-svg { display: inline-flex; align-items: center; height: clamp(20px, 5vw, 32px); }
+/* direction: ltr — the injected wordmark <svg> has an authored-for-LTR
+   coordinate system (e.g. <text x="35">). On an RTL page it would
+   otherwise inherit direction: rtl from <html dir="rtl"> (see M2), which
+   flows the <text> leftward off the viewBox and clips the wordmark to a
+   stray glyph. A logo whose own text is genuinely RTL can set direction
+   inside its SVG markup. */
+.nav-logo-svg { display: inline-flex; align-items: center; height: clamp(20px, 5vw, 32px); direction: ltr; }
 .nav-logo-svg svg { height: 100%; width: auto; display: block; }
 /* Tier 2 — the logo is wrapped in an <a> (logo_href). Keep it laid out
    exactly like the bare logo was: an inline flex box with no link chrome. */
