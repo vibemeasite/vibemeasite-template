@@ -1,7 +1,10 @@
 import { unstable_cache } from "next/cache";
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import { db } from "../db/index";
-import { pages, menuItems, containers, siteSettings, floatingWidgets } from "../db/schema";
+import { pages, menuItems, containers, siteSettings, floatingWidgets, entities, entries } from "../db/schema";
+import {
+  buildEntriesWhere, resolveOrderBy, type EntityLite, type EntityFieldLite,
+} from "./entries-query";
 
 // Tag-based revalidation (US-VMAS-MUTATE-01) only works for cached
 // functions wrapped in unstable_cache (or fetch() calls with { next: { tags } }
@@ -159,5 +162,107 @@ export function getPageBySlug(slug: string) {
     },
     ["page", slug],
     { tags: ["pages", `page-${slug}`] }
+  )();
+}
+
+// ─── BSA Phase 16 — structured entities ─────────────────────────────────
+
+function toEntityLite(row: typeof entities.$inferSelect): EntityLite {
+  return {
+    slug: row.slug,
+    name: row.name,
+    pluralLabel: row.pluralLabel,
+    fields: ((row.fields as EntityFieldLite[]) ?? []).filter(
+      (f) => f && typeof f.key === "string" && typeof f.type === "string",
+    ),
+    layout: row.layout,
+    defaultSort: row.defaultSort,
+    pageSize: row.pageSize,
+    template: row.template,
+  };
+}
+
+// The entity definition for a mount marker's slug. Tagged `entity-{slug}`
+// so update_entity's revalidate call busts it.
+export function getEntity(slug: string) {
+  return unstable_cache(
+    async (): Promise<EntityLite | null> => {
+      const [row] = await db.select().from(entities).where(eq(entities.slug, slug)).limit(1);
+      return row ? toEntityLite(row) : null;
+    },
+    ["entity", slug],
+    { tags: [`entity-${slug}`] },
+  )();
+}
+
+export interface EntriesPageArgs {
+  entity: EntityLite;
+  q: string | undefined;
+  facets: Record<string, string>;
+  sort: string;
+  page: number;
+  pageSize: number;
+}
+
+export interface EntriesPageResult {
+  rows: Array<{ id: string; dataJson: unknown; createdAt: string }>;
+  hasMore: boolean;
+}
+
+// One paginated slice. The WHERE/ORDER BY come entirely from
+// lib/entries-query.ts (schema-derived keys, bound values). Fetches
+// pageSize + 1 to know whether a "more" link is needed. Tagged
+// `entity-{slug}` — every add/update/delete/approve of an entry revalidates
+// that tag from the vibemeasite-mcp side.
+export function getEntriesPage(args: EntriesPageArgs): Promise<EntriesPageResult> {
+  const { entity, q, facets, sort, page, pageSize } = args;
+  const cacheKey = JSON.stringify({ q: q ?? "", facets, sort, page, pageSize });
+  return unstable_cache(
+    async (): Promise<EntriesPageResult> => {
+      const where = buildEntriesWhere(entity, q, facets);
+      const orderBy = resolveOrderBy(entity, sort);
+      const rows = await db
+        .select({ id: entries.id, dataJson: entries.dataJson, createdAt: entries.createdAt })
+        .from(entries)
+        .where(where)
+        .orderBy(orderBy)
+        .limit(pageSize + 1)
+        .offset((page - 1) * pageSize);
+      const hasMore = rows.length > pageSize;
+      return {
+        rows: rows.slice(0, pageSize).map((r) => ({
+          id: r.id,
+          dataJson: r.dataJson,
+          createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+        })),
+        hasMore,
+      };
+    },
+    ["entries-page", entity.slug, cacheKey],
+    { tags: [`entity-${entity.slug}`] },
+  )();
+}
+
+// Distinct values present for one filterable field, for the facet <select>.
+// `fieldKey` is always one of the entity's own field keys (the caller only
+// asks for filterable fields), so it's safe in the JSON path.
+export function getFacetValues(slug: string, fieldKey: string, isTags: boolean) {
+  return unstable_cache(
+    async (): Promise<string[]> => {
+      const expr = isTags
+        ? sql<string>`jsonb_array_elements_text(${entries.dataJson} -> ${fieldKey})`
+        : sql<string>`${entries.dataJson} ->> ${fieldKey}`;
+      const rows = await db
+        .selectDistinct({ v: expr.as("v") })
+        .from(entries)
+        .where(
+          sql`${entries.entitySlug} = ${slug} and ${entries.status} = 'published' and jsonb_exists(${entries.dataJson}, ${fieldKey})`,
+        )
+        .orderBy(sql`v`)
+        .limit(60);
+      return rows.map((r) => r.v).filter((v): v is string => typeof v === "string" && v.length > 0);
+    },
+    ["facet-values", slug, fieldKey],
+    { tags: [`entity-${slug}`] },
   )();
 }

@@ -203,3 +203,56 @@ export const floatingWidgets = pgTable("floating_widgets", {
   enabled: boolean("enabled").notNull().default(true),
   sortOrder: integer("sort_order").notNull().default(0),
 });
+
+// ─── Structured entities (BSA Phase 16) ──────────────────────────────────
+// Owner-defined structured content types for member-built directories
+// (people, businesses, jobs, services, opportunities…). This table is a
+// RENDER MIRROR only — the authoritative copy is vibemeasite-mcp's
+// `draft_entities`, and it's written here solely by go-live seeding and
+// update_entity's live push. Nothing in this template writes it at runtime.
+//
+// `fields` is Array<{ key, label, type, required?, max_length?, options?,
+// role?, searchable?, filterable? }>, validated on the vibemeasite-mcp side.
+// `template` is a nullable HTML override; v1 renders through the preset
+// renderer (lib/entry-render.ts) keyed off each field's type + role.
+export const entities = pgTable("entities", {
+  slug: text("slug").primaryKey(),
+  name: text("name").notNull(),
+  pluralLabel: text("plural_label"),
+  fields: jsonb("fields").notNull().default([]),
+  layout: text("layout").notNull().default("card"), // "card" | "row" | "profile" | "media"
+  template: text("template"),
+  pageSize: integer("page_size").notNull().default(24),
+  defaultSort: text("default_sort").notNull().default("newest"), // "newest" | "oldest" | <field key>
+  onePerUser: boolean("one_per_user").notNull().default(false),
+  moderation: boolean("moderation").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Member-contributed rows. Written by vibemeasite-mcp's add_entry /
+// update_entry / delete_entry directly over this DB's connection string,
+// and read here by <EntityList> / /api/entries/[slug] through
+// lib/entries-query.ts (the ONE place a query against this table is built —
+// every ORDER BY / data_json key comes from the entity's own field schema,
+// never from request input; every value is a bound parameter).
+//
+// `search_text` is a lowercased concat of the entity's `searchable` field
+// values, maintained on write, with a GIN trigram index for ILIKE. `lang`
+// ships but is not filtered on yet (v1). `created_by_user_id` is a
+// vibemeasite-mcp user id — there is no users table here, so the byline
+// shows only a date.
+export const entries = pgTable("entries", {
+  id: text("id").primaryKey(),
+  entitySlug: text("entity_slug")
+    .notNull()
+    .references(() => entities.slug, { onDelete: "cascade" }),
+  dataJson: jsonb("data_json").notNull().default({}),
+  searchText: text("search_text").notNull().default(""),
+  status: text("status").notNull().default("published"), // "published" | "pending" | "hidden"
+  createdByUserId: text("created_by_user_id"),
+  submitterEmail: text("submitter_email"), // reserved for a future public web form; unused in v1
+  lang: text("lang").notNull().default("en"),
+  sortIndex: integer("sort_index"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});

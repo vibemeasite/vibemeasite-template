@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getPageBySlug, getSiteSettings } from "../lib/queries";
 import { getContainerContent, type CellpyBlockContent } from "../lib/cellpy-block";
 import { getCurrentLocale } from "../lib/locale";
+import type { SearchParamsRecord } from "../lib/entries-query";
 import { CellpyBlock } from "./CellpyBlock";
 
 // Set on the Vercel project at provisioning time (US-VMAS-DEPLOY-04) —
@@ -46,7 +47,7 @@ async function loadBlocks(
   );
 }
 
-export async function SitePage({ slug }: { slug: string }) {
+export async function SitePage({ slug, searchParams }: { slug: string; searchParams?: SearchParamsRecord }) {
   const [result, settings] = await Promise.all([getPageBySlug(slug), getSiteSettings()]);
   if (!result) notFound();
 
@@ -80,13 +81,17 @@ export async function SitePage({ slug }: { slug: string }) {
   const hasToggle = blocks.some((b) => b.content?.html.includes("data-set"));
   const hasCopy = blocks.some((b) => b.content?.html.includes("data-copy"));
   const hasModal = blocks.some((b) => b.content?.html.includes("data-modal-open"));
+  // BSA Phase 16 — an entity-directory mount marker; directory.js adds the
+  // instant client filter + infinite scroll on top of the server-rendered list.
+  const hasEntityList = blocks.some((b) => b.content?.html.includes("data-entity="));
 
   return (
     <>
       {blocks.map((b) => (
-        <CellpyBlock key={b.slug} containerSlug={b.slug} content={b.content} />
+        <CellpyBlock key={b.slug} containerSlug={b.slug} content={b.content} searchParams={searchParams} />
       ))}
       {hasForm && <script src="/forms.js" defer {...recaptchaScriptAttrs()} />}
+      {hasEntityList && <script src="/directory.js" defer />}
       {hasLightbox && <script src="/lightbox.js" defer />}
       {hasBooking && <script src="/booking.js" defer />}
       {hasCountdown && <script src="/countdown.js" defer />}
@@ -108,7 +113,7 @@ export interface ScrollSection {
 // anchor target, instead of SitePage's single-page rendering. forms.js is
 // included at most once for the whole concatenated page — including it per
 // section would re-run its form-binding init code once per <script> tag.
-export async function ScrollPage({ sections }: { sections: ScrollSection[] }) {
+export async function ScrollPage({ sections, searchParams }: { sections: ScrollSection[]; searchParams?: SearchParamsRecord }) {
   const settings = await getSiteSettings();
   const locale = await getCurrentLocale(settings.defaultLocale, (settings.availableLocales as string[] | null) ?? []);
   const rendered = await Promise.all(
@@ -130,17 +135,19 @@ export async function ScrollPage({ sections }: { sections: ScrollSection[] }) {
   const hasToggle = rendered.some((s) => s.blocks.some((b) => b.content?.html.includes("data-set")));
   const hasCopy = rendered.some((s) => s.blocks.some((b) => b.content?.html.includes("data-copy")));
   const hasModal = rendered.some((s) => s.blocks.some((b) => b.content?.html.includes("data-modal-open")));
+  const hasEntityList = rendered.some((s) => s.blocks.some((b) => b.content?.html.includes("data-entity=")));
 
   return (
     <>
       {rendered.map((s) => (
         <section key={s.slug} id={s.slug}>
           {s.blocks.map((b) => (
-            <CellpyBlock key={b.slug} containerSlug={b.slug} content={b.content} />
+            <CellpyBlock key={b.slug} containerSlug={b.slug} content={b.content} searchParams={searchParams} />
           ))}
         </section>
       ))}
       {hasForm && <script src="/forms.js" defer {...recaptchaScriptAttrs()} />}
+      {hasEntityList && <script src="/directory.js" defer />}
       {hasLightbox && <script src="/lightbox.js" defer />}
       {hasBooking && <script src="/booking.js" defer />}
       {hasCountdown && <script src="/countdown.js" defer />}

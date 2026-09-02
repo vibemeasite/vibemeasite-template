@@ -23,6 +23,7 @@ export const dynamic = "force-dynamic";
 
 interface RouteCtx {
   params: Promise<{ path?: string[] }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 async function resolve(pathSegs: string[]) {
@@ -47,8 +48,9 @@ export async function generateMetadata({ params }: RouteCtx): Promise<Metadata> 
   return pageMetadata(slug, urlPath);
 }
 
-export default async function SiteRoute({ params }: RouteCtx) {
+export default async function SiteRoute({ params, searchParams }: RouteCtx) {
   const { path } = await params;
+  const sp = await searchParams;
   const pathSegs = path ?? [];
   const { settings, availableLocales, locale, isPrefixed, slug } = await resolve(pathSegs);
   const defaultLocale = settings.defaultLocale;
@@ -91,7 +93,7 @@ export default async function SiteRoute({ params }: RouteCtx) {
     // "/" (and "/{locale}") render every in-scroll page's sections
     // concatenated with anchor targets, same as the old app/page.tsx.
     if (slug === "home") {
-      return <ScrollPage sections={await getScrollPages()} />;
+      return <ScrollPage sections={await getScrollPages()} searchParams={sp} />;
     }
     // A direct hit on an in-scroll page's own URL redirects to its anchor
     // on the (locale-appropriate) home page instead of rendering twice.
@@ -100,5 +102,5 @@ export default async function SiteRoute({ params }: RouteCtx) {
     }
   }
 
-  return <SitePage slug={slug} />;
+  return <SitePage slug={slug} searchParams={sp} />;
 }

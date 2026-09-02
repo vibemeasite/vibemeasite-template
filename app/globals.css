@@ -607,3 +607,120 @@ a { color: var(--color-primary, inherit); }
   opacity: 0.6;
 }
 .cellpy-modal-close:hover { opacity: 1; }
+
+/* ─── BSA Phase 16 — entity directories (EntityList / entry-render) ─────────
+   Trusted-CSS-against-a-fixed-class-contract, same posture as the booking
+   widget / cookie banner. A site's own colours come through the
+   --color-* custom properties set on :root in app/layout.tsx. */
+.entry-list-wrap { margin: 24px 0; }
+.entry-search {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.entry-search__q {
+  flex: 1 1 220px;
+  min-width: 0;
+  padding: 9px 12px;
+  font: inherit;
+  color: var(--color-text, inherit);
+  background: var(--color-background, #fff);
+  border: 1px solid color-mix(in srgb, var(--color-text, #888) 25%, transparent);
+  border-radius: 8px;
+}
+.entry-search__facet {
+  padding: 9px 10px;
+  font: inherit;
+  color: var(--color-text, inherit);
+  background: var(--color-background, #fff);
+  border: 1px solid color-mix(in srgb, var(--color-text, #888) 25%, transparent);
+  border-radius: 8px;
+}
+.entry-search__go {
+  padding: 9px 16px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  color: #fff;
+  background: var(--color-primary, #1d4ed8);
+  border: 0;
+  border-radius: 8px;
+}
+
+.entry-list {
+  display: grid;
+  gap: 16px;
+}
+.entry-list--card { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.entry-list--media { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+.entry-list--row,
+.entry-list--profile { grid-template-columns: 1fr; }
+
+.entry {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid color-mix(in srgb, var(--color-text, #888) 14%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-text, #888) 3%, var(--color-background, #fff));
+}
+.entry-list--row .entry,
+.entry-list--profile .entry { flex-direction: row; align-items: flex-start; }
+.entry__media {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 8px;
+}
+.entry-list--row .entry__media,
+.entry-list--profile .entry__media { width: 120px; flex: 0 0 120px; aspect-ratio: 1; }
+.entry__text { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.entry__title { margin: 0; font-size: 1.1rem; line-height: 1.25; }
+.entry__body { margin: 0; opacity: 0.85; }
+.entry__meta { display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; }
+.entry__meta-row { display: flex; gap: 6px; }
+.entry__meta-label { font-weight: 600; opacity: 0.7; }
+.entry__meta-value { min-width: 0; word-break: break-word; }
+.entry__tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.entry__tag {
+  font-size: 0.8rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary, #1d4ed8) 12%, transparent);
+  color: var(--color-primary, #1d4ed8);
+}
+.entry__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px; }
+.entry__action {
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 8px;
+  text-decoration: none;
+  border: 1px solid color-mix(in srgb, var(--color-primary, #1d4ed8) 40%, transparent);
+  color: var(--color-primary, #1d4ed8);
+}
+.entry__byline { margin: 0; font-size: 0.78rem; opacity: 0.55; }
+
+.entry-empty { opacity: 0.7; font-style: italic; padding: 12px 0; }
+.entry-error {
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: color-mix(in srgb, #d33 12%, transparent);
+  color: #b02a2a;
+}
+.entry-more-wrap { margin-top: 20px; text-align: center; }
+.entry-more {
+  display: inline-block;
+  padding: 9px 20px;
+  font-weight: 600;
+  border-radius: 8px;
+  text-decoration: none;
+  border: 1px solid color-mix(in srgb, var(--color-text, #888) 25%, transparent);
+  color: var(--color-text, inherit);
+}
