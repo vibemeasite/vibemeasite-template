@@ -72,6 +72,10 @@ export async function SitePage({ slug, searchParams }: { slug: string; searchPar
   // skeleton always carries this data attribute (lib/booking-widget-template.ts
   // on the vibemeasite-mcp side), same conditional-enqueue pattern as forms/lightbox.
   const hasBooking = blocks.some((b) => b.content?.html.includes("data-cellpy-booking-widget"));
+  // BSA Phase 17 (US-VMAS-REVIEW-06) — the Google reviews widget block's
+  // fixed skeleton always carries this attribute; google-reviews.js fetches
+  // the cached reviews and renders the cards.
+  const hasReviews = blocks.some((b) => b.content?.html.includes("data-cellpy-google-reviews"));
   // Host scripts that hydrate static block markup the block-validator won't
   // let a block script itself — a <span data-countdown> live timer and a
   // <div class="video-embed" data-youtube/data-vimeo> click-to-load player.
@@ -94,6 +98,7 @@ export async function SitePage({ slug, searchParams }: { slug: string; searchPar
       {hasEntityList && <script src="/directory.js" defer />}
       {hasLightbox && <script src="/lightbox.js" defer />}
       {hasBooking && <script src="/booking.js" defer />}
+      {hasReviews && <script src="/google-reviews.js" defer />}
       {hasCountdown && <script src="/countdown.js" defer />}
       {hasVideoEmbed && <script src="/video-embed.js" defer />}
       {hasCopy && <script src="/copy-button.js" defer />}
@@ -126,6 +131,9 @@ export async function ScrollPage({ sections, searchParams }: { sections: ScrollS
   const hasBooking = rendered.some((s) =>
     s.blocks.some((b) => b.content?.html.includes("data-cellpy-booking-widget"))
   );
+  const hasReviews = rendered.some((s) =>
+    s.blocks.some((b) => b.content?.html.includes("data-cellpy-google-reviews"))
+  );
   const hasCountdown = rendered.some((s) =>
     s.blocks.some((b) => b.content?.html.includes("data-countdown"))
   );
@@ -150,6 +158,7 @@ export async function ScrollPage({ sections, searchParams }: { sections: ScrollS
       {hasEntityList && <script src="/directory.js" defer />}
       {hasLightbox && <script src="/lightbox.js" defer />}
       {hasBooking && <script src="/booking.js" defer />}
+      {hasReviews && <script src="/google-reviews.js" defer />}
       {hasCountdown && <script src="/countdown.js" defer />}
       {hasVideoEmbed && <script src="/video-embed.js" defer />}
       {hasCopy && <script src="/copy-button.js" defer />}
