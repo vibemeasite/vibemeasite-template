@@ -108,26 +108,28 @@ function matchSection(tpl: string, kw: "each" | "if"): { before: string; arg: st
 function renderMustache(tpl: string, ctx: Ctx, depth: number): string {
   if (depth > MUSTACHE_MAX_DEPTH) throw new Error("template too deeply nested");
 
-  // #each (outermost first)
-  const each = matchSection(tpl, "each");
-  if (each) {
-    const list = ctx[each.arg];
-    let mid = "";
-    if (Array.isArray(list)) {
-      list.forEach((el, idx) => {
-        mid += renderMustache(each.body, { ...ctx, this: el, ".": el, "@index": idx }, depth + 1);
-      });
-    }
-    const out = renderMustache(each.before, ctx, depth + 1) + mid + renderMustache(each.after, ctx, depth + 1);
-    if (out.length > MUSTACHE_MAX_OUTPUT) throw new Error("template output too large");
-    return out;
-  }
+  // Process whichever section keyword opens FIRST in the string — an #each
+  // nested inside an #if (or vice versa) would otherwise split the outer
+  // block's opener from its closer and look "unbalanced".
+  const eachAt = tpl.search(/\{\{#each\s+[a-z][a-z0-9_]*\}\}/i);
+  const ifAt = tpl.search(/\{\{#if\s+[a-z][a-z0-9_]*\}\}/i);
+  const kw: "each" | "if" | null =
+    eachAt === -1 && ifAt === -1 ? null : eachAt !== -1 && (ifAt === -1 || eachAt < ifAt) ? "each" : "if";
 
-  // #if
-  const iff = matchSection(tpl, "if");
-  if (iff) {
-    const mid = isTruthy(ctx[iff.arg]) ? renderMustache(iff.body, ctx, depth + 1) : "";
-    const out = renderMustache(iff.before, ctx, depth + 1) + mid + renderMustache(iff.after, ctx, depth + 1);
+  if (kw) {
+    const sec = matchSection(tpl, kw)!;
+    let mid = "";
+    if (kw === "each") {
+      const list = ctx[sec.arg];
+      if (Array.isArray(list)) {
+        list.forEach((el, idx) => {
+          mid += renderMustache(sec.body, { ...ctx, this: el, ".": el, "@index": idx }, depth + 1);
+        });
+      }
+    } else {
+      mid = isTruthy(ctx[sec.arg]) ? renderMustache(sec.body, ctx, depth + 1) : "";
+    }
+    const out = renderMustache(sec.before, ctx, depth + 1) + mid + renderMustache(sec.after, ctx, depth + 1);
     if (out.length > MUSTACHE_MAX_OUTPUT) throw new Error("template output too large");
     return out;
   }

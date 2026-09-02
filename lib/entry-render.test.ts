@@ -64,6 +64,17 @@ describe("entity.template override", () => {
     expect(html).not.toContain("<script>");
   });
 
+  it("handles an #each nested inside an #if (and vice versa)", () => {
+    const tpl = `<div>{{#if tags}}<p>Looking for: {{#each tags}}<span>{{this}}</span> {{/each}}</p>{{/if}}</div>`;
+    expect(renderEntry(withTpl(tpl), row({ headline: "x", tags: ["a", "b"] }))).toBe(
+      `<div><p>Looking for: <span>a</span> <span>b</span> </p></div>`,
+    );
+    expect(renderEntry(withTpl(tpl), row({ headline: "x" }))).toBe(`<div></div>`);
+
+    const tpl2 = `<ul>{{#each tags}}<li>{{#if headline}}{{headline}}: {{/if}}{{this}}</li>{{/each}}</ul>`;
+    expect(renderEntry(withTpl(tpl2), row({ headline: "M", tags: ["a"] }))).toBe(`<ul><li>M: a</li></ul>`);
+  });
+
   it("omits an #if block when the field is falsy/empty", () => {
     const html = renderEntry(withTpl(`<div>{{headline}}{{#if bio}}[{{bio}}]{{/if}}</div>`), row({ headline: "x" }));
     expect(html).toBe(`<div>x</div>`);
