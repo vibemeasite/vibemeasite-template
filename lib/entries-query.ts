@@ -38,8 +38,10 @@ export type SearchParamsRecord = Record<string, string | string[] | undefined>;
 const FACET_PREFIX = "f_";
 
 export function clampPage(raw: unknown): number {
-  const n = Number.parseInt(String(raw ?? "1"), 10);
-  return Number.isInteger(n) && n >= 1 && n <= 10000 ? n : 1;
+  const s = String(raw ?? "1").trim();
+  if (!/^\d{1,5}$/.test(s)) return 1; // reject "1e9", "3; drop…", etc. outright
+  const n = Number.parseInt(s, 10);
+  return n >= 1 && n <= 10000 ? n : 1;
 }
 
 function firstStr(v: string | string[] | undefined): string | undefined {
