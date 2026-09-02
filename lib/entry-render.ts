@@ -45,6 +45,103 @@ function monthYear(iso: string): string {
   return d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
 }
 
+// ─── optional entity.template renderer (escaped mustache-subset) ──────────
+// {{key}} / {{this}} / {{.}} / {{@index}}  — escaped scalar (arrays join ", ")
+// {{#each key}}…{{/each}}                   — iterate an array field
+// {{#if key}}…{{/if}}                        — render when the field is truthy
+// Validated on the vibemeasite-mcp side (lib/entry-template.ts) before it's
+// ever stored; this renderer still hard-caps output and depth and throws on
+// anything unexpected, so renderEntry falls back to the preset on any miss.
+
+type Ctx = Record<string, unknown>;
+
+const MUSTACHE_MAX_DEPTH = 8;
+const MUSTACHE_MAX_OUTPUT = 16000;
+
+function isTruthy(v: unknown): boolean {
+  if (Array.isArray(v)) return v.length > 0;
+  if (typeof v === "number") return Number.isFinite(v) && v !== 0;
+  if (typeof v === "string") return v.trim() !== "";
+  return Boolean(v);
+}
+
+function scalar(v: unknown): string {
+  if (v === undefined || v === null) return "";
+  if (Array.isArray(v)) return v.map((x) => String(x)).join(", ");
+  if (typeof v === "object") return "";
+  return String(v);
+}
+
+// First balanced {{#kw arg}} … {{/kw}} section, honouring nesting of the
+// same keyword. Returns null when there's no opener.
+function matchSection(tpl: string, kw: "each" | "if"): { before: string; arg: string; body: string; after: string } | null {
+  const openRe = new RegExp(`\\{\\{#${kw}\\s+([a-z][a-z0-9_]*)\\}\\}`, "g");
+  const open = openRe.exec(tpl);
+  if (!open) return null;
+  const close = `{{/${kw}}}`;
+  const openTag = `{{#${kw} `;
+  let depth = 1;
+  let i = openRe.lastIndex;
+  while (i < tpl.length) {
+    const nextOpen = tpl.indexOf(openTag, i);
+    const nextClose = tpl.indexOf(close, i);
+    if (nextClose === -1) throw new Error("unbalanced section");
+    if (nextOpen !== -1 && nextOpen < nextClose) {
+      depth++;
+      i = nextOpen + openTag.length;
+    } else {
+      depth--;
+      if (depth === 0) {
+        return {
+          before: tpl.slice(0, open.index),
+          arg: open[1],
+          body: tpl.slice(openRe.lastIndex, nextClose),
+          after: tpl.slice(nextClose + close.length),
+        };
+      }
+      i = nextClose + close.length;
+    }
+  }
+  throw new Error("unbalanced section");
+}
+
+function renderMustache(tpl: string, ctx: Ctx, depth: number): string {
+  if (depth > MUSTACHE_MAX_DEPTH) throw new Error("template too deeply nested");
+
+  // #each (outermost first)
+  const each = matchSection(tpl, "each");
+  if (each) {
+    const list = ctx[each.arg];
+    let mid = "";
+    if (Array.isArray(list)) {
+      list.forEach((el, idx) => {
+        mid += renderMustache(each.body, { ...ctx, this: el, ".": el, "@index": idx }, depth + 1);
+      });
+    }
+    const out = renderMustache(each.before, ctx, depth + 1) + mid + renderMustache(each.after, ctx, depth + 1);
+    if (out.length > MUSTACHE_MAX_OUTPUT) throw new Error("template output too large");
+    return out;
+  }
+
+  // #if
+  const iff = matchSection(tpl, "if");
+  if (iff) {
+    const mid = isTruthy(ctx[iff.arg]) ? renderMustache(iff.body, ctx, depth + 1) : "";
+    const out = renderMustache(iff.before, ctx, depth + 1) + mid + renderMustache(iff.after, ctx, depth + 1);
+    if (out.length > MUSTACHE_MAX_OUTPUT) throw new Error("template output too large");
+    return out;
+  }
+
+  // scalars — {{key}} / {{this}} / {{.}} / {{@index}}
+  return tpl.replace(/\{\{\s*([a-z][a-z0-9_]*|this|\.|@index)\s*\}\}/gi, (_m, key) => esc(scalar(ctx[key])));
+}
+
+function renderWithTemplate(template: string, ctx: Ctx): string {
+  const out = renderMustache(template, ctx, 0);
+  if (out.length > MUSTACHE_MAX_OUTPUT) throw new Error("template output too large");
+  return out;
+}
+
 export interface EntryRow {
   id: string;
   dataJson: Record<string, unknown> | unknown;
@@ -53,6 +150,19 @@ export interface EntryRow {
 
 export function renderEntry(entity: EntityLite, row: EntryRow): string {
   const data = (row.dataJson && typeof row.dataJson === "object" ? row.dataJson : {}) as Record<string, unknown>;
+  const created = monthYear(typeof row.createdAt === "string" ? row.createdAt : row.createdAt.toISOString());
+
+  // Optional author HTML override. Validated on the vibemeasite-mcp side;
+  // any render-time miss falls back to the preset renderer below.
+  if (typeof entity.template === "string" && entity.template.trim()) {
+    try {
+      const html = renderWithTemplate(entity.template, { ...data, added: created, id: row.id });
+      if (html.trim()) return html;
+    } catch {
+      /* fall through to preset */
+    }
+  }
+
   let firstTextSeen = false;
 
   const title: string[] = [];
@@ -117,7 +227,6 @@ export function renderEntry(entity: EntityLite, row: EntryRow): string {
     );
   }
 
-  const created = monthYear(typeof row.createdAt === "string" ? row.createdAt : row.createdAt.toISOString());
   const byline = created ? `<p class="entry__byline">Added ${esc(created)}</p>` : "";
 
   return (
