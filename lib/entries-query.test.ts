@@ -141,6 +141,17 @@ describe("buildEntriesWhere", () => {
     const { params } = render(buildEntriesWhere(entity, undefined, { headline: "x", nope: "y" }));
     expect(params).toEqual(["people", "published"]);
   });
+
+  it("lang is an optional bound clause right after status", () => {
+    const { sql, params } = render(buildEntriesWhere(entity, undefined, {}, "uk"));
+    expect(params).toEqual(["people", "published", "uk"]);
+    expect(sql).not.toMatch(/uk/); // value is a param, not inlined
+  });
+
+  it("no lang arg -> no lang clause (back-compat)", () => {
+    const { params } = render(buildEntriesWhere(entity, undefined, {}));
+    expect(params).toEqual(["people", "published"]);
+  });
 });
 
 describe("resolveOrderBy", () => {

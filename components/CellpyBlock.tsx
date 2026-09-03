@@ -10,6 +10,11 @@ interface CellpyBlockProps {
   // the route). Only used when this block's HTML carries a
   // `<div data-entity="…">` mount marker.
   searchParams?: SearchParamsRecord;
+  // Multi-language entries (v22) — the page's resolved locale + the site
+  // default, forwarded to <EntityList> so a directory shows the right
+  // language's rows.
+  locale?: string;
+  defaultLocale?: string;
 }
 
 // Matches an empty <div data-entity="slug" [data-page-size="N"]
@@ -29,7 +34,7 @@ function attr(tag: string, name: string): string | undefined {
 // <cellpy-block> custom element (which always creates its own Shadow DOM
 // and can only render content it fetched itself — it cannot attach
 // behavior to already-rendered markup, so it has no role in this template).
-export async function CellpyBlock({ containerSlug, content, searchParams }: CellpyBlockProps) {
+export async function CellpyBlock({ containerSlug, content, searchParams, locale, defaultLocale }: CellpyBlockProps) {
   if (!content) return null;
 
   // Slugs are already constrained to /^[a-z0-9-]{1,64}$/ (US-VMAS-CHAT-03 /
@@ -115,6 +120,8 @@ export async function CellpyBlock({ containerSlug, content, searchParams }: Cell
               pageSize={p.pageSize}
               sort={p.sort}
               searchParams={searchParams ?? {}}
+              locale={locale}
+              defaultLocale={defaultLocale}
             />
           );
         })}

@@ -37,6 +37,13 @@ export type SearchParamsRecord = Record<string, string | string[] | undefined>;
 
 const FACET_PREFIX = "f_";
 
+// A syntactically-plausible language tag (2–3 letter subtag + optional
+// region/script). Used to sanity-check a `?lang=` value arriving at
+// /api/entries/[slug] before it becomes a bound parameter — the value is
+// still only ever compared against `entries.lang`, never interpolated into
+// SQL text, but rejecting garbage early keeps the cache key space small.
+export const LOCALE_RE = /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,4})?$/;
+
 export function clampPage(raw: unknown): number {
   const s = String(raw ?? "1").trim();
   if (!/^\d{1,5}$/.test(s)) return 1; // reject "1e9", "3; drop…", etc. outright
@@ -80,11 +87,21 @@ export function facetParamName(key: string): string {
   return FACET_PREFIX + key;
 }
 
-export function buildEntriesWhere(entity: EntityLite, q: string | undefined, facets: Record<string, string>): SQL {
+export function buildEntriesWhere(
+  entity: EntityLite,
+  q: string | undefined,
+  facets: Record<string, string>,
+  // Multi-language entries (v22) — when set, only rows filed in this
+  // language show. Resolved upstream (EntityList / the route) to a language
+  // that actually has rows, so this never silently blanks a directory.
+  lang?: string,
+): SQL {
   const clauses: (SQL | undefined)[] = [
     eq(entries.entitySlug, entity.slug),
     eq(entries.status, "published"),
   ];
+
+  if (lang) clauses.push(eq(entries.lang, lang));
 
   if (q) {
     // Escape LIKE metacharacters so a literal % / _ / \ in the query isn't

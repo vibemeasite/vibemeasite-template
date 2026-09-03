@@ -1,4 +1,4 @@
-import { getEntity, getEntriesPage, getFacetValues } from "../lib/queries";
+import { getEntity, getEntriesPage, getFacetValues, getEntryLangs, resolveEntryLang } from "../lib/queries";
 import {
   clampPage, readQ, readFacets, facetParamName, withParams,
   type SearchParamsRecord, type EntityLite,
@@ -18,6 +18,11 @@ interface Props {
   pageSize?: number;
   sort?: string;
   searchParams: SearchParamsRecord;
+  // Multi-language entries (v22) — the page's resolved locale and the
+  // site's default. The directory shows rows filed in `locale`, falling
+  // back to `defaultLocale` (then to all languages) when `locale` has none.
+  locale?: string;
+  defaultLocale?: string;
 }
 
 function resolveSort(entity: EntityLite, sp: SearchParamsRecord, markerDefault?: string): string {
@@ -27,9 +32,18 @@ function resolveSort(entity: EntityLite, sp: SearchParamsRecord, markerDefault?:
   return entity.fields.some((f) => f.key === candidate) ? candidate : "newest";
 }
 
-export async function EntityList({ slug, pageSize: markerPageSize, sort: markerSort, searchParams }: Props) {
+export async function EntityList({
+  slug, pageSize: markerPageSize, sort: markerSort, searchParams,
+  locale = "en", defaultLocale = "en",
+}: Props) {
   const entity = await getEntity(slug);
   if (!entity) return null;
+
+  // Resolve the visitor's locale to one that actually has rows (see
+  // resolveEntryLang) — `undefined` means "no language has rows yet", in
+  // which case nothing is filtered.
+  const availableLangs = await getEntryLangs(slug);
+  const lang = resolveEntryLang(availableLangs, locale, defaultLocale);
 
   const page = clampPage(searchParams.page);
   const q = readQ(searchParams);
@@ -37,7 +51,7 @@ export async function EntityList({ slug, pageSize: markerPageSize, sort: markerS
   const facets = readFacets(entity, searchParams);
   const pageSize = Math.min(Math.max(markerPageSize ?? entity.pageSize ?? 24, 1), 100);
 
-  const { rows, hasMore } = await getEntriesPage({ entity, q, facets, sort, page, pageSize });
+  const { rows, hasMore } = await getEntriesPage({ entity, q, facets, sort, page, pageSize, lang });
 
   const facetFields = entity.fields.filter(
     (f) => f.filterable && (f.type === "select" || f.type === "text" || f.type === "tags"),
@@ -47,7 +61,7 @@ export async function EntityList({ slug, pageSize: markerPageSize, sort: markerS
       const values =
         f.type === "select" && Array.isArray(f.options) && f.options.length
           ? f.options
-          : await getFacetValues(slug, f.key, f.type === "tags");
+          : await getFacetValues(slug, f.key, f.type === "tags", lang);
       return { field: f, values };
     }),
   );
@@ -56,7 +70,11 @@ export async function EntityList({ slug, pageSize: markerPageSize, sort: markerS
   const moreHref = withParams(searchParams, { page: page + 1 });
 
   return (
-    <div className={`entry-list-wrap entry-list-wrap--${entity.layout}`} data-entry-list={slug}>
+    <div
+      className={`entry-list-wrap entry-list-wrap--${entity.layout}`}
+      data-entry-list={slug}
+      data-lang={lang ?? undefined}
+    >
       <form className="entry-search" method="get" role="search" aria-label={`Search ${heading}`}>
         <input
           type="search"
@@ -103,7 +121,7 @@ export async function EntityList({ slug, pageSize: markerPageSize, sort: markerS
           <a className="entry-more" href={moreHref}>
             Show more
           </a>
-          <div data-entry-sentinel data-slug={slug} data-next={page + 1} hidden />
+          <div data-entry-sentinel data-slug={slug} data-next={page + 1} data-lang={lang ?? undefined} hidden />
         </div>
       )}
     </div>

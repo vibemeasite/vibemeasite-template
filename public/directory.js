@@ -77,6 +77,11 @@
 
 			var params = new URLSearchParams( window.location.search );
 			params.set( 'page', next );
+			// Multi-language entries (v22) — the directory's resolved language
+			// isn't in the page URL (it comes from a "/uk/" path prefix or a
+			// cookie), so carry it explicitly from the wrap's data-lang.
+			var lang = sentinel.getAttribute( 'data-lang' ) || wrap.getAttribute( 'data-lang' );
+			if ( lang ) params.set( 'lang', lang );
 
 			fetch( '/api/entries/' + encodeURIComponent( slug ) + '?' + params.toString(), {
 				headers: { 'Accept': 'text/html' },

@@ -195,6 +195,39 @@ export function getEntity(slug: string) {
   )();
 }
 
+// Distinct languages that currently have at least one PUBLISHED row for
+// this entity. EntityList / the pager route use it to resolve the visitor's
+// locale to one that actually has content (falling back to the site
+// default, then to showing everything) so a partly-translated directory
+// never renders empty. Tagged `entity-{slug}` like every other entry read.
+export function getEntryLangs(slug: string) {
+  return unstable_cache(
+    async (): Promise<string[]> => {
+      const rows = await db
+        .selectDistinct({ lang: entries.lang })
+        .from(entries)
+        .where(sql`${entries.entitySlug} = ${slug} and ${entries.status} = 'published'`);
+      return rows.map((r) => r.lang).filter((l): l is string => typeof l === "string" && l.length > 0);
+    },
+    ["entry-langs", slug],
+    { tags: [`entity-${slug}`] },
+  )();
+}
+
+// Given the visitor's locale + the site default, pick the language whose
+// rows should show: the visitor's own if it has any, else the default's,
+// else undefined (no filter — show every language's rows rather than a
+// blank directory).
+export function resolveEntryLang(
+  available: string[],
+  locale: string,
+  defaultLocale: string,
+): string | undefined {
+  if (available.includes(locale)) return locale;
+  if (available.includes(defaultLocale)) return defaultLocale;
+  return undefined;
+}
+
 export interface EntriesPageArgs {
   entity: EntityLite;
   q: string | undefined;
@@ -202,6 +235,7 @@ export interface EntriesPageArgs {
   sort: string;
   page: number;
   pageSize: number;
+  lang?: string;
 }
 
 export interface EntriesPageResult {
@@ -215,11 +249,11 @@ export interface EntriesPageResult {
 // `entity-{slug}` — every add/update/delete/approve of an entry revalidates
 // that tag from the vibemeasite-mcp side.
 export function getEntriesPage(args: EntriesPageArgs): Promise<EntriesPageResult> {
-  const { entity, q, facets, sort, page, pageSize } = args;
-  const cacheKey = JSON.stringify({ q: q ?? "", facets, sort, page, pageSize });
+  const { entity, q, facets, sort, page, pageSize, lang } = args;
+  const cacheKey = JSON.stringify({ q: q ?? "", facets, sort, page, pageSize, lang: lang ?? "" });
   return unstable_cache(
     async (): Promise<EntriesPageResult> => {
-      const where = buildEntriesWhere(entity, q, facets);
+      const where = buildEntriesWhere(entity, q, facets, lang);
       const orderBy = resolveOrderBy(entity, sort);
       const rows = await db
         .select({ id: entries.id, dataJson: entries.dataJson, createdAt: entries.createdAt })
@@ -246,23 +280,24 @@ export function getEntriesPage(args: EntriesPageArgs): Promise<EntriesPageResult
 // Distinct values present for one filterable field, for the facet <select>.
 // `fieldKey` is always one of the entity's own field keys (the caller only
 // asks for filterable fields), so it's safe in the JSON path.
-export function getFacetValues(slug: string, fieldKey: string, isTags: boolean) {
+export function getFacetValues(slug: string, fieldKey: string, isTags: boolean, lang?: string) {
   return unstable_cache(
     async (): Promise<string[]> => {
       const expr = isTags
         ? sql<string>`jsonb_array_elements_text(${entries.dataJson} -> ${fieldKey})`
         : sql<string>`${entries.dataJson} ->> ${fieldKey}`;
+      const langClause = lang ? sql` and ${entries.lang} = ${lang}` : sql``;
       const rows = await db
         .selectDistinct({ v: expr.as("v") })
         .from(entries)
         .where(
-          sql`${entries.entitySlug} = ${slug} and ${entries.status} = 'published' and jsonb_exists(${entries.dataJson}, ${fieldKey})`,
+          sql`${entries.entitySlug} = ${slug} and ${entries.status} = 'published' and jsonb_exists(${entries.dataJson}, ${fieldKey})${langClause}`,
         )
         .orderBy(sql`v`)
         .limit(60);
       return rows.map((r) => r.v).filter((v): v is string => typeof v === "string" && v.length > 0);
     },
-    ["facet-values", slug, fieldKey],
+    ["facet-values", slug, fieldKey, lang ?? ""],
     { tags: [`entity-${slug}`] },
   )();
 }

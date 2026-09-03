@@ -92,7 +92,14 @@ export async function SitePage({ slug, searchParams }: { slug: string; searchPar
   return (
     <>
       {blocks.map((b) => (
-        <CellpyBlock key={b.slug} containerSlug={b.slug} content={b.content} searchParams={searchParams} />
+        <CellpyBlock
+          key={b.slug}
+          containerSlug={b.slug}
+          content={b.content}
+          searchParams={searchParams}
+          locale={locale}
+          defaultLocale={settings.defaultLocale}
+        />
       ))}
       {hasForm && <script src="/forms.js" defer {...recaptchaScriptAttrs()} />}
       {hasEntityList && <script src="/directory.js" defer />}
@@ -150,7 +157,14 @@ export async function ScrollPage({ sections, searchParams }: { sections: ScrollS
       {rendered.map((s) => (
         <section key={s.slug} id={s.slug}>
           {s.blocks.map((b) => (
-            <CellpyBlock key={b.slug} containerSlug={b.slug} content={b.content} searchParams={searchParams} />
+            <CellpyBlock
+              key={b.slug}
+              containerSlug={b.slug}
+              content={b.content}
+              searchParams={searchParams}
+              locale={locale}
+              defaultLocale={settings.defaultLocale}
+            />
           ))}
         </section>
       ))}
