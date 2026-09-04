@@ -548,6 +548,13 @@
 					}
 
 					var payload = collectFields( form );
+					// The submitting page's own resolved language (set correctly on
+					// <html lang> per-locale — see app/layout.tsx). Most receivers
+					// (a plain lead-capture inbox) just ignore this extra field; the
+					// event-signup receiver reads it to send its confirmation email
+					// in the same language the visitor was looking at — see
+					// vibemeasite-mcp's lib/event-signup.ts / lib/email.ts.
+					payload._lang = document.documentElement.lang || '';
 					if ( attachmentResult.attachments.length > 0 ) {
 						payload._attachments = attachmentResult.attachments.map( function ( a ) {
 							return { filename: a.filename, contentType: a.contentType, key: a.key };

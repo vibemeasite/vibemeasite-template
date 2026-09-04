@@ -408,7 +408,7 @@ async function postWebhook(
 // kept in sync by hand, same as forms.js documents doing for its own logic.
 function formatEmailHtml(pageTitle: string, pageUrl: string, fields: Record<string, unknown>): string {
   const rows = Object.entries(fields)
-    .filter(([k]) => k !== "_hp")
+    .filter(([k]) => k !== "_hp" && k !== "_lang")
     .map(
       ([k, v], i) =>
         `<tr style="background:${i % 2 === 0 ? "#ffffff" : "#f8fafc"}">
@@ -443,7 +443,7 @@ function formatEmailHtml(pageTitle: string, pageUrl: string, fields: Record<stri
 
 function formatEmailText(fields: Record<string, unknown>): string {
   return Object.entries(fields)
-    .filter(([k]) => k !== "_hp")
+    .filter(([k]) => k !== "_hp" && k !== "_lang")
     .map(([k, v]) => `${k}: ${v}`)
     .join("\n");
 }
