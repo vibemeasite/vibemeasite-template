@@ -8,8 +8,9 @@ interface PageSeoMeta {
   description?: string;
   descriptionTranslations?: Record<string, string>;
   // A private, link-only page: not in the menu, not in the sitemap (see
-  // app/sitemap.ts), noindex, and served in exactly one language — the
-  // site default — regardless of ?lang= (see components/SitePage.tsx).
+  // app/sitemap.ts), noindex, and its hreflang alternates dropped (moot —
+  // a noindex page's alternates aren't crawled). Does NOT restrict which
+  // language it renders in; see components/SitePage.tsx.
   unlisted?: boolean;
 }
 
@@ -28,13 +29,14 @@ export async function pageMetadata(slug: string, urlPath: string): Promise<Metad
   const requestedLocale = await getCurrentLocale(settings.defaultLocale, availableLocales);
 
   const seoMeta = (result.page.seoMeta as PageSeoMeta | null) ?? null;
-  // seo_meta.unlisted — a private, link-only page has exactly one version,
-  // in the site's default language. Pin the locale here so its <title>,
-  // description, canonical and Open Graph never vary by ?lang=; the
-  // hreflang alternates are dropped and a noindex robots tag is added
-  // below, and SitePage renders the default-locale content to match.
+  // seo_meta.unlisted only adds a noindex robots tag and drops hreflang
+  // alternates below (an unindexed page's alternates are moot). <title>,
+  // description, canonical and Open Graph all follow the ACTUAL requested
+  // locale, same as any other page — SitePage renders that same locale's
+  // content, so this must match or canonical/OG would describe content
+  // other than what's on the page.
   const isUnlisted = seoMeta?.unlisted === true;
-  const locale = isUnlisted ? settings.defaultLocale : requestedLocale;
+  const locale = requestedLocale;
 
   const metadata: Metadata = {};
 

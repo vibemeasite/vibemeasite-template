@@ -51,14 +51,16 @@ export async function SitePage({ slug, searchParams }: { slug: string; searchPar
   const [result, settings] = await Promise.all([getPageBySlug(slug), getSiteSettings()]);
   if (!result) notFound();
 
-  // seo_meta.unlisted — a private, link-only page is served in exactly one
-  // language (the site default), regardless of ?lang= / the cellpy_lang
-  // cookie. lib/seo.ts pins the same locale for its <title>/canonical and
-  // marks it noindex; app/sitemap.ts leaves it out of the sitemap.
-  const unlisted = (result.page.seoMeta as { unlisted?: boolean } | null)?.unlisted === true;
-  const locale = unlisted
-    ? settings.defaultLocale
-    : await getCurrentLocale(settings.defaultLocale, (settings.availableLocales as string[] | null) ?? []);
+  // seo_meta.unlisted (see lib/seo.ts) only controls the page's SEO
+  // surface — kept out of the sitemap, noindex, no hreflang alternates.
+  // It does NOT pin the rendered language: an unlisted page (e.g. an event
+  // signup landing page, BSA Phase 15) can have real per-language content
+  // published via generate_block same as any other page, and a visitor on
+  // "/en/…" should see it. Content always follows the visitor's actual
+  // locale — fixed 2026-09-04 after event-signup translations went live
+  // but were never rendered (the old blanket pin bundled "don't index this"
+  // with "don't let a human pick a language", which are unrelated).
+  const locale = await getCurrentLocale(settings.defaultLocale, (settings.availableLocales as string[] | null) ?? []);
   const blocks = await loadBlocks(result.containers, locale);
 
   // forms.js and lightbox.js are each only a few KB, but there's no reason
