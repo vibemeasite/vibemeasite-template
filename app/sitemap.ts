@@ -35,6 +35,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   });
 
   const paths = ["/", ...otherPages.map((p) => `/${p.slug}`)];
+  const multiLocale = availableLocales.length > 1;
 
   // Audit fix C3 — every listed URL carries the full hreflang alternate
   // set (default locale = bare path, others = "/{locale}" prefix on the
@@ -45,15 +46,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const localeUrl = (l: string, urlPath: string) =>
     l === defaultLocale ? `${base}${urlPath}` : `${base}/${l}${urlPath === "/" ? "" : urlPath}`;
   const alternatesFor = (urlPath: string): MetadataRoute.Sitemap[number]["alternates"] => {
-    if (availableLocales.length <= 1) return undefined;
+    if (!multiLocale) return undefined;
     const languages: Record<string, string> = {};
     for (const l of availableLocales) languages[l] = localeUrl(l, urlPath);
     languages["x-default"] = `${base}${urlPath}`;
     return { languages };
   };
 
-  return paths.map((urlPath) => ({
-    url: `${base}${urlPath}`,
-    alternates: alternatesFor(urlPath),
-  }));
+  // Audit follow-up — emit every localized URL as its own <url> entry with
+  // its own <loc>, each carrying the identical full xhtml:link alternate set
+  // (all locales + x-default). This is the symmetric form Google's
+  // hreflang-in-sitemap docs specify: each language version self-references
+  // and lists every other, so GSC's "Discovered URLs" count matches the real
+  // localized page count and there's no ambiguity about which URL is the
+  // indexable one per language. A single-language site still emits one plain
+  // <url> per path.
+  return paths.flatMap((urlPath) => {
+    if (!multiLocale) return [{ url: `${base}${urlPath}` }];
+    const alternates = alternatesFor(urlPath);
+    return availableLocales.map((l) => ({ url: localeUrl(l, urlPath), alternates }));
+  });
 }
