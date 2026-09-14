@@ -10,12 +10,20 @@ import { NextRequest, NextResponse } from "next/server";
 const SHOPPER_AUTH_BASE = "https://mcp.vibemeasite.com/api/shopper-auth/";
 
 export async function POST(req: NextRequest) {
-  let body: unknown;
+  let body: Record<string, unknown>;
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ ok: false, message: "Invalid request." }, { status: 400 });
   }
+
+  // Forwards this browser's anonymous cart_token cookie (if any) alongside
+  // the verify-code body so vibemeasite-mcp can merge it into the shopper's
+  // account cart on successful login (US-VMAS-CART-01 AC3) — the control
+  // plane never reads this template's cookies directly, only what's handed
+  // to it here.
+  const cartToken = req.cookies.get("vms_cart_token")?.value;
+  if (cartToken) body.cartToken = cartToken;
 
   try {
     const upstream = await fetch(`${SHOPPER_AUTH_BASE}verify-code`, {
