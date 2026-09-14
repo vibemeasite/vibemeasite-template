@@ -65,8 +65,9 @@
 
 	function setupWidget( wrapper ) {
 		var shopId = wrapper.getAttribute( 'data-cellpy-shop-widget' );
+		var shopAuthId = wrapper.getAttribute( 'data-cellpy-shop-auth' );
 		var mount = wrapper.querySelector( '[data-vms-shop-mount]' );
-		if ( ! shopId || ! mount ) return;
+		if ( ! shopId || ! shopAuthId || ! mount ) return;
 
 		mount.innerHTML = '';
 
@@ -209,7 +210,7 @@
 				function submitCode() {
 					var code = boxes.map( function ( b ) { return b.value; } ).join( '' );
 					if ( code.length !== 6 ) return;
-					postJson( VERIFY_CODE_ENDPOINT, { shopAuthPublicId: shopId, email: email, code: code } ).then( function ( r ) {
+					postJson( VERIFY_CODE_ENDPOINT, { shopAuthPublicId: shopAuthId, email: email, code: code } ).then( function ( r ) {
 						if ( r.json && r.json.ok ) {
 							document.body.removeChild( overlay );
 							onSuccess();
@@ -234,7 +235,7 @@
 				if ( ! email ) return;
 				status.textContent = 'Sending…';
 				status.style.color = '';
-				postJson( REQUEST_CODE_ENDPOINT, { shopAuthPublicId: shopId, email: email } ).then( function ( r ) {
+				postJson( REQUEST_CODE_ENDPOINT, { shopAuthPublicId: shopAuthId, email: email } ).then( function ( r ) {
 					if ( r.json && r.json.ok ) {
 						showCodeStep( email );
 					} else {
