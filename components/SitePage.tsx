@@ -83,6 +83,9 @@ export async function SitePage({ slug, searchParams }: { slug: string; searchPar
   // modal (a shopper only ever needs it mid-checkout, so it isn't a
   // separate conditionally-loaded script).
   const hasShop = blocks.some((b) => b.content?.html.includes("data-cellpy-shop-widget"));
+  // BSA Phase 21 — the carousel widget's fixed skeleton always carries this
+  // attribute; carousel.js fetches the resolved slide list and renders it.
+  const hasCarousel = blocks.some((b) => b.content?.html.includes("data-cellpy-carousel"));
   // Host scripts that hydrate static block markup the block-validator won't
   // let a block script itself — a <span data-countdown> live timer and a
   // <div class="video-embed" data-youtube/data-vimeo> click-to-load player.
@@ -114,6 +117,7 @@ export async function SitePage({ slug, searchParams }: { slug: string; searchPar
       {hasBooking && <script src="/booking.js" defer />}
       {hasReviews && <script src="/google-reviews.js" defer />}
       {hasShop && <script src="/shop.js" defer />}
+      {hasCarousel && <script src="/carousel.js" defer />}
       {hasCountdown && <script src="/countdown.js" defer />}
       {hasVideoEmbed && <script src="/video-embed.js" defer />}
       {hasCopy && <script src="/copy-button.js" defer />}
@@ -152,6 +156,9 @@ export async function ScrollPage({ sections, searchParams }: { sections: ScrollS
   const hasShop = rendered.some((s) =>
     s.blocks.some((b) => b.content?.html.includes("data-cellpy-shop-widget"))
   );
+  const hasCarousel = rendered.some((s) =>
+    s.blocks.some((b) => b.content?.html.includes("data-cellpy-carousel"))
+  );
   const hasCountdown = rendered.some((s) =>
     s.blocks.some((b) => b.content?.html.includes("data-countdown"))
   );
@@ -185,6 +192,7 @@ export async function ScrollPage({ sections, searchParams }: { sections: ScrollS
       {hasBooking && <script src="/booking.js" defer />}
       {hasReviews && <script src="/google-reviews.js" defer />}
       {hasShop && <script src="/shop.js" defer />}
+      {hasCarousel && <script src="/carousel.js" defer />}
       {hasCountdown && <script src="/countdown.js" defer />}
       {hasVideoEmbed && <script src="/video-embed.js" defer />}
       {hasCopy && <script src="/copy-button.js" defer />}

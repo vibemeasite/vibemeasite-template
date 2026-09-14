@@ -724,3 +724,27 @@ a { color: var(--color-primary, inherit); }
   border: 1px solid color-mix(in srgb, var(--color-text, #888) 25%, transparent);
   color: var(--color-text, inherit);
 }
+
+/* BSA Phase 21 — breadcrumbs, side menu, and the two-column layout that
+   holds the side menu next to <main>. Sensible unstyled-but-usable
+   defaults; a Site Owner customizes further via set_branding's body_css
+   (the only free-form CSS surface these chrome elements have, same as
+   any other header/body-level styling). */
+.vms-breadcrumbs { padding: 10px 24px 0; }
+.vms-breadcrumbs__list { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 0.85rem; opacity: 0.75; }
+.vms-breadcrumbs__item { display: flex; align-items: center; gap: 6px; }
+.vms-breadcrumbs__link { color: inherit; text-decoration: none; }
+.vms-breadcrumbs__link:hover { text-decoration: underline; }
+.vms-breadcrumbs__current { font-weight: 600; }
+.vms-breadcrumbs__separator { opacity: 0.6; }
+
+.vms-content-layout { display: flex; gap: 32px; align-items: flex-start; }
+.vms-content-layout main { flex: 1; min-width: 0; }
+.vms-side-menu { flex: 0 0 220px; }
+.vms-side-menu__list { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.vms-side-menu__link { display: block; padding: 8px 12px; border-radius: 8px; color: inherit; text-decoration: none; }
+.vms-side-menu__link:hover { background: color-mix(in srgb, var(--color-primary, #1d4ed8) 10%, transparent); }
+@media (max-width: 720px) {
+  .vms-content-layout { flex-direction: column; }
+  .vms-side-menu { flex-basis: auto; width: 100%; }
+}

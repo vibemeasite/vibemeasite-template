@@ -180,6 +180,27 @@ export const siteSettings = pgTable("site_settings", {
   // (migrations 0010/0011) — dropped in 0012 once the block-based rebuild
   // replaced them, before any live site had adopted it.
   cookieBannerEnabled: boolean("cookie_banner_enabled").notNull().default(false),
+  // Breadcrumbs & side menu (Phase 21) — set via vibemeasite-mcp's
+  // set_breadcrumbs/set_side_menu, pushed live the same way branding/menu
+  // are (never written from within this app). sideMenuPages holds either a
+  // string[] of page slugs or the literal "all" — jsonb rather than a typed
+  // column since it's one of two shapes.
+  breadcrumbsEnabled: boolean("breadcrumbs_enabled").notNull().default(false),
+  breadcrumbsStyle: text("breadcrumbs_style").notNull().default("chevron"), // "chevron" | "slash"
+  sideMenuEnabled: boolean("side_menu_enabled").notNull().default(false),
+  sideMenuPages: jsonb("side_menu_pages").notNull().default([]), // string[] | "all"
+});
+
+// Side menu items (Phase 21) — wholesale-replaced by vibemeasite-mcp's
+// set_side_menu, same "delete + reinsert" convention as menuItems. `kind` is
+// "page" | "entity" | "url"; `target` holds the resolved page slug, entity
+// slug, or URL depending on kind.
+export const sideMenuItems = pgTable("side_menu_items", {
+  id: text("id").primaryKey(),
+  label: text("label").notNull(),
+  kind: text("kind").notNull(),
+  target: text("target").notNull(),
+  position: integer("position").notNull(),
 });
 
 // Floating widgets — fixed-position buttons/popup-triggers, multiple per
@@ -226,6 +247,11 @@ export const entities = pgTable("entities", {
   defaultSort: text("default_sort").notNull().default("newest"), // "newest" | "oldest" | <field key>
   onePerUser: boolean("one_per_user").notNull().default(false),
   moderation: boolean("moderation").notNull().default(false),
+  // Phase 21 — which page shows this entity's directory (set via
+  // vibemeasite-mcp's bind_entity_page, mirrored here the same way every
+  // other entity field is). Lets the breadcrumb component append this
+  // entity's name on its mount page with no second lookup.
+  mountPageSlug: text("mount_page_slug"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

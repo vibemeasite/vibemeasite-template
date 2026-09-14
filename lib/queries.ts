@@ -1,7 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { asc, eq, sql } from "drizzle-orm";
 import { db } from "../db/index";
-import { pages, menuItems, containers, siteSettings, floatingWidgets, entities, entries } from "../db/schema";
+import { pages, menuItems, containers, siteSettings, floatingWidgets, entities, entries, sideMenuItems } from "../db/schema";
 import {
   buildEntriesWhere, resolveOrderBy, type EntityLite, type EntityFieldLite,
 } from "./entries-query";
@@ -64,12 +64,58 @@ export const getSiteSettings = unstable_cache(
         metaPixelId: null,
         searchConsoleVerification: null,
         cookieBannerEnabled: false,
+        breadcrumbsEnabled: false,
+        breadcrumbsStyle: "chevron" as const,
+        sideMenuEnabled: false,
+        sideMenuPages: [] as string[] | "all",
       }
     );
   },
   ["site-settings"],
   { tags: ["settings"] }
 );
+
+// Phase 21 — the side menu's ordered item list, cache-tagged separately so
+// set_side_menu's revalidate(["side-menu"]) doesn't need to also bust
+// "settings" (which every other branding/analytics/etc. field shares).
+export const getSideMenuItems = unstable_cache(
+  async () => {
+    return db.select().from(sideMenuItems).orderBy(asc(sideMenuItems.position));
+  },
+  ["side-menu-items"],
+  { tags: ["side-menu"] }
+);
+
+// Phase 21 — resolves an entity-kind side-menu item's target (an entity
+// slug) to that entity's mount page, so the item can link somewhere real.
+// A side-menu item for an entity with no mount page yet is skipped by the
+// caller (SideMenu rendering in app/layout.tsx) rather than linking nowhere.
+export function getEntityMountPageBySlug(entitySlug: string) {
+  return unstable_cache(
+    async () => {
+      const [row] = await db.select({ mountPageSlug: entities.mountPageSlug }).from(entities).where(eq(entities.slug, entitySlug)).limit(1);
+      return row?.mountPageSlug ?? null;
+    },
+    ["entity-mount-page", entitySlug],
+    { tags: [`entity-${entitySlug}`] },
+  )();
+}
+
+// Phase 21 — the one entity (if any) mounted on this page, for the
+// breadcrumb component's optional "Home > Entity Name > Page" segment.
+// Cache-tagged per page since bind_entity_page's revalidate call already
+// includes `page-${page_slug}`, same parameterized-cache shape as
+// getPageBySlug above.
+export function getEntityByMountPage(pageSlug: string) {
+  return unstable_cache(
+    async () => {
+      const rows = await db.select({ slug: entities.slug, name: entities.name }).from(entities).where(eq(entities.mountPageSlug, pageSlug)).limit(1);
+      return rows[0] ?? null;
+    },
+    ["entity-by-mount-page", pageSlug],
+    { tags: [`page-${pageSlug}`] }
+  )();
+}
 
 export interface ScrollPageSection {
   slug: string;

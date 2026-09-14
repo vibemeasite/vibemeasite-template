@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { cookies, headers } from "next/headers";
-import { getMenu, getSiteSettings } from "../lib/queries";
+import { getMenu, getSiteSettings, getSideMenuItems, getEntityByMountPage, getEntityMountPageBySlug } from "../lib/queries";
 import { getContainerContent } from "../lib/cellpy-block";
 import { getCurrentLocale, resolveTranslation, isRtlLocale } from "../lib/locale";
 import { CellpyBlock } from "../components/CellpyBlock";
 import { StagingBanner } from "../components/StagingBanner";
 import { MobileNav } from "../components/MobileNav";
 import { FloatingWidgets } from "../components/FloatingWidgets";
+import { Breadcrumbs, type BreadcrumbItem } from "../components/Breadcrumbs";
+import { SideMenu, type SideMenuLink } from "../components/SideMenu";
 import "./globals.css";
 
 // Dynamic (not a static `export const metadata`) so it can read the site's
@@ -187,6 +189,46 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       : rawPath;
   const localePrefix = locale === settings.defaultLocale ? "" : `/${locale}`;
   const pageUrl = `${base}${localePrefix}${currentPath === "/" ? (localePrefix ? "" : "/") : currentPath}`;
+
+  // Same slug-from-path convention as app/[[...path]]/page.tsx's own
+  // `slugSegs.length ? slugSegs.join("/") : "home"`.
+  const currentSlug = currentPath === "/" ? "home" : currentPath.replace(/^\//, "");
+  const withLocalePath = (path: string) => (localePrefix ? `${localePrefix}${path === "/" ? "" : path}` : path);
+  const pagePath = (slug: string) => (slug === "home" ? "/" : `/${slug}`);
+
+  // BSA Phase 21 — breadcrumbs: [Home, current page], with the entity name
+  // inserted when this page is entity-bound (bind_entity_page). A lone
+  // "Home" crumb on the home page itself isn't useful, so nothing renders
+  // there even when enabled.
+  const mountedEntity = settings.breadcrumbsEnabled && currentSlug !== "home" ? await getEntityByMountPage(currentSlug) : null;
+  const homeLabel = localizedMenu.find((m) => m.pageSlug === "home")?.label ?? "Home";
+  const currentPageLabel = localizedMenu.find((m) => m.pageSlug === currentSlug)?.label ?? currentSlug;
+  const breadcrumbItems: BreadcrumbItem[] =
+    currentSlug === "home"
+      ? []
+      : [
+          { label: homeLabel, href: withLocalePath("/") },
+          ...(mountedEntity ? [{ label: mountedEntity.name }] : []),
+          { label: currentPageLabel },
+        ];
+
+  // BSA Phase 21 — side menu: shown per settings.sideMenuPages ("all" or a
+  // page-slug allowlist). An entity-kind item with no mount page yet is
+  // skipped (Promise.all + filter) rather than linking nowhere.
+  const sideMenuPages = settings.sideMenuPages as string[] | "all";
+  const showSideMenu = Boolean(settings.sideMenuEnabled) && (sideMenuPages === "all" || (Array.isArray(sideMenuPages) && sideMenuPages.includes(currentSlug)));
+  const sideMenuLinks: SideMenuLink[] = showSideMenu
+    ? (
+        await Promise.all(
+          (await getSideMenuItems()).map(async (item): Promise<SideMenuLink | null> => {
+            if (item.kind === "url") return { label: item.label, href: item.target };
+            if (item.kind === "page") return { label: item.label, href: withLocalePath(pagePath(item.target)) };
+            const mountPage = await getEntityMountPageBySlug(item.target);
+            return mountPage ? { label: item.label, href: withLocalePath(pagePath(mountPage)) } : null;
+          })
+        )
+      ).filter((l): l is SideMenuLink => l !== null)
+    : [];
   const jsonLd = settings.siteName
     ? [
         {
@@ -309,7 +351,11 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               langSwitcherLabels={langSwitcherLabels}
             />
           </div>
-          <main>{children}</main>
+          <Breadcrumbs enabled={Boolean(settings.breadcrumbsEnabled)} style={(settings.breadcrumbsStyle as "chevron" | "slash" | null) ?? "chevron"} items={breadcrumbItems} />
+          <div className={showSideMenu ? "vms-content-layout" : undefined}>
+            {showSideMenu ? <SideMenu items={sideMenuLinks} /> : null}
+            <main>{children}</main>
+          </div>
         </div>
         <CellpyBlock containerSlug={FOOTER_CONTAINER_SLUG} content={footerContent} />
         {/* Only the "select" presentation needs JS — "buttons" is plain
