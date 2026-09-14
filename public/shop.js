@@ -261,7 +261,7 @@
 
 		function doCheckout() {
 			showMessage( 'Starting checkout…' );
-			postJson( CHECKOUT_ENDPOINT, {} ).then( function ( r ) {
+			postJson( CHECKOUT_ENDPOINT, { shop: shopId } ).then( function ( r ) {
 				if ( r.json && r.json.ok && r.json.checkoutUrl ) {
 					window.location.href = r.json.checkoutUrl;
 				} else if ( r.json && r.json.requiresLogin ) {
