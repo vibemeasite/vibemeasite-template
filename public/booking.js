@@ -510,7 +510,7 @@
 			state.calendarMonth = today.getMonth() + 1;
 		}
 
-		var wrap = el( 'div', 'vms-booking-widget__calendar-grid' );
+		var wrap = el( 'div' );
 		var nav = el( 'div', 'vms-booking-widget__calendar-nav' );
 		var prevBtn = el( 'button', 'vms-booking-widget__calendar-nav-btn', '‹' );
 		prevBtn.type = 'button';
@@ -546,8 +546,11 @@
 		nav.appendChild( nextBtn );
 		wrap.appendChild( nav );
 
+		var grid = el( 'div', 'vms-booking-widget__calendar-grid' );
+		wrap.appendChild( grid );
+
 		weekdayHeaderLabels().forEach( function ( label ) {
-			wrap.appendChild( el( 'div', 'vms-booking-widget__calendar-grid-weekday', label ) );
+			grid.appendChild( el( 'div', 'vms-booking-widget__calendar-grid-weekday', label ) );
 		} );
 
 		var monthStr = state.calendarYear + '-' + pad2( state.calendarMonth );
@@ -556,7 +559,7 @@
 		var daysInMonth = new Date( Date.UTC( state.calendarYear, state.calendarMonth, 0 ) ).getUTCDate();
 
 		for ( var b = 0; b < leadingBlanks; b++ ) {
-			wrap.appendChild( el( 'div', 'vms-booking-widget__calendar-grid-day vms-booking-widget__calendar-grid-day--other-month' ) );
+			grid.appendChild( el( 'div', 'vms-booking-widget__calendar-grid-day vms-booking-widget__calendar-grid-day--other-month' ) );
 		}
 
 		var dayCells = {};
@@ -576,14 +579,14 @@
 					if ( cell.disabled ) return;
 					state.selectedDate = ds;
 					state.selectedSlot = null;
-					Array.prototype.forEach.call( wrap.querySelectorAll( '.vms-booking-widget__calendar-grid-day' ), function ( c ) {
+					Array.prototype.forEach.call( grid.querySelectorAll( '.vms-booking-widget__calendar-grid-day' ), function ( c ) {
 						c.classList.remove( 'vms-booking-widget__calendar-grid-day--selected' );
 					} );
 					cell.classList.add( 'vms-booking-widget__calendar-grid-day--selected' );
 					renderSlotsForSelectedDate( widgetId, state );
 				} );
 				dayCells[ ds ] = cell;
-				wrap.appendChild( cell );
+				grid.appendChild( cell );
 			} )( d );
 		}
 
