@@ -8,6 +8,16 @@
  * targeting the class-name contract documented alongside that fixed
  * skeleton. Only included on pages that render a booking widget block —
  * see components/SitePage.tsx.
+ *
+ * Calendar View + multi-select item picker — two independent upgrades:
+ *  1. A visitor-facing Strip/Calendar view toggle for picking a date (Strip
+ *     stays the default — today's flat day-button row; Calendar is a real
+ *     month grid with real per-day availability dots).
+ *  2. item_selector_style (from widget-config) controls how a service is
+ *     picked — dropdown/radio/segmented/accordion are single-select,
+ *     checkbox/tiles-multi allow combining several services (capped at
+ *     max_services) into one back-to-back appointment, tiles-single is the
+ *     single-select tile look.
  */
 ( function () {
 	// See forms.js's own comment — Floating Widgets can independently decide
@@ -23,9 +33,11 @@
 	// isn't subject to CORS at all.
 	var CONFIG_ENDPOINT = '/api/booking/widget-config';
 	var AVAILABILITY_ENDPOINT = '/api/booking/availability';
+	var AVAILABILITY_SUMMARY_ENDPOINT = '/api/booking/availability-summary';
 	var REQUEST_ENDPOINT = '/api/booking/request';
 	var CONFIRM_ENDPOINT = '/api/booking/confirm';
 	var DAYS_AHEAD = 14;
+	var VIEW_STORAGE_PREFIX = 'vms_booking_view_';
 
 	// Booking widget translation follow-up — same cellpy_lang cookie
 	// middleware.ts already sets for ordinary block content (non-httpOnly,
@@ -56,6 +68,11 @@
 			appointmentConfirmed: 'Your appointment is confirmed! Check your email for details.',
 			genericError: 'Something went wrong. Please try again.',
 			bookingUnavailable: 'Booking isn\'t available right now.',
+			viewDays: 'Days',
+			viewCalendar: 'Calendar',
+			loadingCalendar: 'Loading calendar…',
+			selectUpToN: 'Select up to {n} services.',
+			summaryTotal: '{list} — {total} min total',
 		},
 		uk: {
 			yourName: 'Ваше ім\'я',
@@ -69,10 +86,19 @@
 			appointmentConfirmed: 'Вашу зустріч підтверджено! Перевірте електронну пошту для деталей.',
 			genericError: 'Щось пішло не так. Спробуйте ще раз.',
 			bookingUnavailable: 'Бронювання зараз недоступне.',
+			viewDays: 'Дні',
+			viewCalendar: 'Календар',
+			loadingCalendar: 'Завантаження календаря…',
+			selectUpToN: 'Виберіть до {n} послуг.',
+			summaryTotal: '{list} — {total} хв всього',
 		},
 	};
 	var T = UI_STRINGS[ currentLang() ] || UI_STRINGS.en;
 	var GENERIC_ERROR = T.genericError;
+
+	// Single-select item_selector_style values keep state.selectedServiceIds
+	// at exactly one entry; the other two allow combining several.
+	var MULTI_SELECT_STYLES = { checkbox: true, 'tiles-multi': true };
 
 	function el( tag, className, text ) {
 		var node = document.createElement( tag );
@@ -132,6 +158,33 @@
 		form.appendChild( el( 'p', 'vms-booking-widget__message', message ) );
 	}
 
+	function safeLocalStorageGet( key ) {
+		try {
+			return window.localStorage.getItem( key );
+		} catch ( e ) {
+			return null;
+		}
+	}
+
+	function safeLocalStorageSet( key, value ) {
+		try {
+			window.localStorage.setItem( key, value );
+		} catch ( e ) {
+			/* private mode / blocked storage — the widget still works, it just won't remember the choice */
+		}
+	}
+
+	function getService( state, id ) {
+		for ( var i = 0; i < state.services.length; i++ ) {
+			if ( state.services[ i ].id === id ) return state.services[ i ];
+		}
+		return null;
+	}
+
+	function joinIds( ids ) {
+		return ids.join( ',' );
+	}
+
 	function setupWidget( wrapper ) {
 		var widgetId = wrapper.getAttribute( 'data-cellpy-booking-widget' );
 		var mount = wrapper.querySelector( '[data-vms-booking-mount]' );
@@ -143,17 +196,23 @@
 			services: [],
 			timezone: 'UTC',
 			customFields: [],
+			itemSelectorStyle: 'dropdown',
+			maxServices: 1,
 			// Booking widget translation follow-up — id, not name: the display
 			// name varies by visitor language, id doesn't. Used for every
 			// availability/request call; the name is only ever shown, never
 			// matched on.
-			selectedServiceId: null,
+			selectedServiceIds: [],
 			selectedDate: null,
 			selectedSlot: null,
 			requestId: null,
+			view: safeLocalStorageGet( VIEW_STORAGE_PREFIX + widgetId ) || 'strip',
+			calendarYear: null,
+			calendarMonth: null, // 1-12
 			// Populated by renderPicker, read by the render* functions below —
 			// kept on state rather than re-queried via the DOM each time, so
 			// rendering order in renderPicker isn't a fragile implicit contract.
+			dateAreaContainer: null,
 			slotsContainer: null,
 			formContainer: null,
 		};
@@ -169,11 +228,13 @@
 				state.services = result.json.services || [];
 				state.timezone = result.json.timezone || 'UTC';
 				state.customFields = result.json.custom_fields || [];
+				state.itemSelectorStyle = result.json.item_selector_style || 'dropdown';
+				state.maxServices = result.json.max_services || 1;
 				if ( 0 === state.services.length ) {
 					renderMessage( mount, T.bookingUnavailable );
 					return;
 				}
-				state.selectedServiceId = state.services[ 0 ].id;
+				state.selectedServiceIds = [ state.services[ 0 ].id ];
 				renderPicker( mount, widgetId, state );
 			} )
 			.catch( function () {
@@ -184,7 +245,90 @@
 	function renderPicker( mount, widgetId, state ) {
 		mount.innerHTML = '';
 
-		if ( state.services.length > 1 ) {
+		renderServicePicker( mount, widgetId, state );
+		renderViewToggle( mount, widgetId, state );
+
+		state.dateAreaContainer = el( 'div' );
+		mount.appendChild( state.dateAreaContainer );
+
+		state.slotsContainer = el( 'div', 'vms-booking-widget__slots' );
+		mount.appendChild( state.slotsContainer );
+
+		state.formContainer = document.createElement( 'div' );
+		mount.appendChild( state.formContainer );
+
+		renderDateArea( widgetId, state );
+	}
+
+	// ─── Service picker (item_selector_style) ──────────────────────────────
+
+	function isMultiSelectStyle( style ) {
+		return !! MULTI_SELECT_STYLES[ style ];
+	}
+
+	function formatSummary( state ) {
+		if ( state.selectedServiceIds.length < 2 ) return '';
+		var parts = [];
+		var total = 0;
+		state.selectedServiceIds.forEach( function ( id ) {
+			var s = getService( state, id );
+			if ( ! s ) return;
+			parts.push( s.name + ' (' + s.duration_minutes + ' min)' );
+			total += s.duration_minutes;
+		} );
+		return T.summaryTotal.replace( '{list}', parts.join( ' + ' ) ).replace( '{total}', String( total ) );
+	}
+
+	function renderServicePicker( mount, widgetId, state ) {
+		if ( state.services.length <= 1 ) return;
+
+		var style = state.itemSelectorStyle;
+		var multi = isMultiSelectStyle( style );
+		var container = 'dropdown' === style ? null : el( 'div', 'vms-booking-widget__services--' + style );
+
+		var summaryEl = el( 'p', 'vms-booking-widget__summary' );
+		summaryEl.hidden = true;
+
+		function refreshSelectedVisuals() {
+			var options = container.querySelectorAll( '[data-vms-service-id]' );
+			Array.prototype.forEach.call( options, function ( optionEl ) {
+				var id = optionEl.getAttribute( 'data-vms-service-id' );
+				var selected = state.selectedServiceIds.indexOf( id ) !== -1;
+				optionEl.classList.toggle( 'vms-booking-widget__service-option--selected', selected );
+				var input = optionEl.querySelector( 'input' );
+				if ( input ) input.checked = selected;
+				if ( multi ) {
+					var atCap = state.selectedServiceIds.length >= state.maxServices;
+					var disable = atCap && ! selected;
+					optionEl.classList.toggle( 'vms-booking-widget__service-option--disabled', disable );
+					if ( input ) input.disabled = disable;
+					else optionEl.disabled = disable;
+				}
+			} );
+			var summary = formatSummary( state );
+			summaryEl.textContent = summary;
+			summaryEl.hidden = ! summary;
+		}
+
+		function handleSelect( id ) {
+			if ( multi ) {
+				var idx = state.selectedServiceIds.indexOf( id );
+				if ( idx !== -1 ) {
+					// Never allow deselecting down to zero — one service must
+					// always be selected, same invariant single-select styles get
+					// for free from radio/select semantics.
+					if ( state.selectedServiceIds.length > 1 ) state.selectedServiceIds.splice( idx, 1 );
+				} else if ( state.selectedServiceIds.length < state.maxServices ) {
+					state.selectedServiceIds.push( id );
+				}
+			} else {
+				state.selectedServiceIds = [ id ];
+			}
+			refreshSelectedVisuals();
+			onServiceSelectionChanged( widgetId, state );
+		}
+
+		if ( 'dropdown' === style ) {
 			var select = document.createElement( 'select' );
 			select.className = 'vms-booking-widget__services';
 			state.services.forEach( function ( s ) {
@@ -193,16 +337,132 @@
 				opt.textContent = s.name;
 				select.appendChild( opt );
 			} );
-			select.value = state.selectedServiceId;
+			select.value = state.selectedServiceIds[ 0 ];
 			select.addEventListener( 'change', function () {
-				state.selectedServiceId = select.value;
-				state.selectedSlot = null;
-				renderSlotsForSelectedDate( widgetId, state );
+				handleSelect( select.value );
 			} );
 			mount.appendChild( select );
+			mount.appendChild( summaryEl );
+			return;
 		}
 
-		var calendar = el( 'div', 'vms-booking-widget__calendar' );
+		if ( 'radio' === style || 'checkbox' === style ) {
+			state.services.forEach( function ( s ) {
+				var label = el( 'label', 'vms-booking-widget__service-option' );
+				label.setAttribute( 'data-vms-service-id', s.id );
+				var input = document.createElement( 'input' );
+				input.type = 'radio' === style ? 'radio' : 'checkbox';
+				input.name = 'vms-service-' + widgetId;
+				input.value = s.id;
+				input.addEventListener( 'change', function () {
+					handleSelect( s.id );
+				} );
+				label.appendChild( input );
+				label.appendChild( document.createTextNode( ' ' + s.name + ' (' + s.duration_minutes + ' min)' ) );
+				container.appendChild( label );
+			} );
+		} else if ( 'tiles-single' === style || 'tiles-multi' === style ) {
+			state.services.forEach( function ( s ) {
+				var tile = el( 'button', 'vms-booking-widget__service-option' );
+				tile.type = 'button';
+				tile.setAttribute( 'data-vms-service-id', s.id );
+				tile.appendChild( el( 'span', null, s.name ) );
+				tile.appendChild( el( 'span', null, s.duration_minutes + ' min' ) );
+				tile.addEventListener( 'click', function () {
+					if ( tile.disabled ) return;
+					handleSelect( s.id );
+				} );
+				container.appendChild( tile );
+			} );
+		} else if ( 'segmented' === style ) {
+			state.services.forEach( function ( s ) {
+				var seg = el( 'button', 'vms-booking-widget__service-option', s.name );
+				seg.type = 'button';
+				seg.setAttribute( 'data-vms-service-id', s.id );
+				seg.addEventListener( 'click', function () {
+					handleSelect( s.id );
+				} );
+				container.appendChild( seg );
+			} );
+		} else if ( 'accordion' === style ) {
+			state.services.forEach( function ( s ) {
+				var item = el( 'div', 'vms-booking-widget__service-option' );
+				item.setAttribute( 'data-vms-service-id', s.id );
+				var header = el( 'button', null, s.name + ' — ' + s.duration_minutes + ' min' );
+				header.type = 'button';
+				header.setAttribute( 'aria-expanded', 'false' );
+				header.addEventListener( 'click', function () {
+					handleSelect( s.id );
+				} );
+				item.appendChild( header );
+				container.appendChild( item );
+			} );
+		}
+
+		mount.appendChild( container );
+		mount.appendChild( summaryEl );
+		refreshSelectedVisuals();
+	}
+
+	function onServiceSelectionChanged( widgetId, state ) {
+		state.selectedSlot = null;
+		state.formContainer.innerHTML = '';
+		if ( 'calendar' === state.view ) {
+			renderCalendarPicker( widgetId, state );
+		} else if ( state.selectedDate ) {
+			renderSlotsForSelectedDate( widgetId, state );
+		} else {
+			state.slotsContainer.innerHTML = '';
+		}
+	}
+
+	// ─── Strip/Calendar view toggle ─────────────────────────────────────────
+
+	function renderViewToggle( mount, widgetId, state ) {
+		var container = el( 'div', 'vms-booking-widget__view-toggle' );
+
+		function makeButton( view, label ) {
+			var btn = el( 'button', 'vms-booking-widget__view-toggle-btn', label );
+			btn.type = 'button';
+			btn.setAttribute( 'aria-pressed', String( state.view === view ) );
+			if ( state.view === view ) btn.classList.add( 'vms-booking-widget__view-toggle-btn--active' );
+			btn.addEventListener( 'click', function () {
+				if ( state.view === view ) return;
+				state.view = view;
+				safeLocalStorageSet( VIEW_STORAGE_PREFIX + widgetId, view );
+				Array.prototype.forEach.call( container.querySelectorAll( '.vms-booking-widget__view-toggle-btn' ), function ( b ) {
+					b.classList.remove( 'vms-booking-widget__view-toggle-btn--active' );
+					b.setAttribute( 'aria-pressed', 'false' );
+				} );
+				btn.classList.add( 'vms-booking-widget__view-toggle-btn--active' );
+				btn.setAttribute( 'aria-pressed', 'true' );
+				renderDateArea( widgetId, state );
+			} );
+			return btn;
+		}
+
+		container.appendChild( makeButton( 'strip', T.viewDays ) );
+		container.appendChild( makeButton( 'calendar', T.viewCalendar ) );
+		mount.appendChild( container );
+	}
+
+	function renderDateArea( widgetId, state ) {
+		state.dateAreaContainer.innerHTML = '';
+		state.selectedDate = null;
+		state.selectedSlot = null;
+		state.slotsContainer.innerHTML = '';
+		state.formContainer.innerHTML = '';
+		if ( 'calendar' === state.view ) {
+			renderCalendarPicker( widgetId, state );
+		} else {
+			renderStripPicker( widgetId, state );
+		}
+	}
+
+	// ─── Strip view (today's flat day-button row) ──────────────────────────
+
+	function renderStripPicker( widgetId, state ) {
+		var strip = el( 'div', 'vms-booking-widget__calendar' );
 		var today = new Date();
 		for ( var i = 0; i < DAYS_AHEAD; i++ ) {
 			( function ( dayDate ) {
@@ -213,33 +473,153 @@
 				dayBtn.addEventListener( 'click', function () {
 					state.selectedDate = ds;
 					state.selectedSlot = null;
-					Array.prototype.forEach.call( calendar.querySelectorAll( '.vms-booking-widget__calendar-day' ), function ( b ) {
+					Array.prototype.forEach.call( strip.querySelectorAll( '.vms-booking-widget__calendar-day' ), function ( b ) {
 						b.classList.remove( 'vms-booking-widget__calendar-day--selected' );
 					} );
 					dayBtn.classList.add( 'vms-booking-widget__calendar-day--selected' );
 					renderSlotsForSelectedDate( widgetId, state );
 				} );
-				calendar.appendChild( dayBtn );
+				strip.appendChild( dayBtn );
 			} )( new Date( today.getTime() + i * 24 * 60 * 60 * 1000 ) );
 		}
-		mount.appendChild( calendar );
+		state.dateAreaContainer.appendChild( strip );
 
-		state.slotsContainer = el( 'div', 'vms-booking-widget__slots' );
-		mount.appendChild( state.slotsContainer );
-
-		state.formContainer = document.createElement( 'div' );
-		mount.appendChild( state.formContainer );
-
-		var firstDayBtn = calendar.querySelector( '.vms-booking-widget__calendar-day' );
+		var firstDayBtn = strip.querySelector( '.vms-booking-widget__calendar-day' );
 		if ( firstDayBtn ) {
 			firstDayBtn.click();
 		}
 	}
 
+	// ─── Calendar view (month grid with real per-day availability) ─────────
+
+	function weekdayHeaderLabels() {
+		// 2023-01-01 was a Sunday — used only as a stable reference to name
+		// the 7 weekdays in the visitor's own locale/short form, matching the
+		// dayOfWeek convention (0 = Sunday) used everywhere else.
+		var labels = [];
+		for ( var i = 0; i < 7; i++ ) {
+			labels.push( new Date( Date.UTC( 2023, 0, 1 + i ) ).toLocaleDateString( undefined, { weekday: 'short', timeZone: 'UTC' } ) );
+		}
+		return labels;
+	}
+
+	function renderCalendarPicker( widgetId, state ) {
+		var today = new Date();
+		if ( null === state.calendarYear ) {
+			state.calendarYear = today.getFullYear();
+			state.calendarMonth = today.getMonth() + 1;
+		}
+
+		var wrap = el( 'div', 'vms-booking-widget__calendar-grid' );
+		var nav = el( 'div', 'vms-booking-widget__calendar-nav' );
+		var prevBtn = el( 'button', 'vms-booking-widget__calendar-nav-btn', '‹' );
+		prevBtn.type = 'button';
+		var isCurrentMonth = state.calendarYear === today.getFullYear() && state.calendarMonth === today.getMonth() + 1;
+		prevBtn.disabled = isCurrentMonth;
+		var monthLabel = el( 'span', 'vms-booking-widget__calendar-month-label',
+			new Date( state.calendarYear, state.calendarMonth - 1, 1 ).toLocaleDateString( undefined, { month: 'long', year: 'numeric' } ) );
+		var nextBtn = el( 'button', 'vms-booking-widget__calendar-nav-btn', '›' );
+		nextBtn.type = 'button';
+
+		prevBtn.addEventListener( 'click', function () {
+			if ( prevBtn.disabled ) return;
+			state.calendarMonth -= 1;
+			if ( state.calendarMonth < 1 ) { state.calendarMonth = 12; state.calendarYear -= 1; }
+			state.selectedDate = null;
+			state.selectedSlot = null;
+			state.slotsContainer.innerHTML = '';
+			state.formContainer.innerHTML = '';
+			renderCalendarPicker( widgetId, state );
+		} );
+		nextBtn.addEventListener( 'click', function () {
+			state.calendarMonth += 1;
+			if ( state.calendarMonth > 12 ) { state.calendarMonth = 1; state.calendarYear += 1; }
+			state.selectedDate = null;
+			state.selectedSlot = null;
+			state.slotsContainer.innerHTML = '';
+			state.formContainer.innerHTML = '';
+			renderCalendarPicker( widgetId, state );
+		} );
+
+		nav.appendChild( prevBtn );
+		nav.appendChild( monthLabel );
+		nav.appendChild( nextBtn );
+		wrap.appendChild( nav );
+
+		weekdayHeaderLabels().forEach( function ( label ) {
+			wrap.appendChild( el( 'div', 'vms-booking-widget__calendar-grid-weekday', label ) );
+		} );
+
+		var monthStr = state.calendarYear + '-' + pad2( state.calendarMonth );
+		var firstOfMonth = new Date( Date.UTC( state.calendarYear, state.calendarMonth - 1, 1 ) );
+		var leadingBlanks = firstOfMonth.getUTCDay();
+		var daysInMonth = new Date( Date.UTC( state.calendarYear, state.calendarMonth, 0 ) ).getUTCDate();
+
+		for ( var b = 0; b < leadingBlanks; b++ ) {
+			wrap.appendChild( el( 'div', 'vms-booking-widget__calendar-grid-day vms-booking-widget__calendar-grid-day--other-month' ) );
+		}
+
+		var dayCells = {};
+		var loading = el( 'p', 'vms-booking-widget__message', T.loadingCalendar );
+		state.dateAreaContainer.innerHTML = '';
+		state.dateAreaContainer.appendChild( wrap );
+		state.dateAreaContainer.appendChild( loading );
+
+		for ( var d = 1; d <= daysInMonth; d++ ) {
+			( function ( dayNum ) {
+				var ds = monthStr + '-' + pad2( dayNum );
+				var cell = el( 'button', 'vms-booking-widget__calendar-grid-day', String( dayNum ) );
+				cell.type = 'button';
+				cell.disabled = true; // enabled once the summary fetch resolves this day as available
+				cell.setAttribute( 'data-date', ds );
+				cell.addEventListener( 'click', function () {
+					if ( cell.disabled ) return;
+					state.selectedDate = ds;
+					state.selectedSlot = null;
+					Array.prototype.forEach.call( wrap.querySelectorAll( '.vms-booking-widget__calendar-grid-day' ), function ( c ) {
+						c.classList.remove( 'vms-booking-widget__calendar-grid-day--selected' );
+					} );
+					cell.classList.add( 'vms-booking-widget__calendar-grid-day--selected' );
+					renderSlotsForSelectedDate( widgetId, state );
+				} );
+				dayCells[ ds ] = cell;
+				wrap.appendChild( cell );
+			} )( d );
+		}
+
+		var url = AVAILABILITY_SUMMARY_ENDPOINT +
+			'?widget=' + encodeURIComponent( widgetId ) +
+			'&service=' + encodeURIComponent( joinIds( state.selectedServiceIds ) ) +
+			'&month=' + encodeURIComponent( monthStr );
+
+		fetchJson( url )
+			.then( function ( result ) {
+				loading.remove();
+				if ( 200 !== result.status || ! result.json.ok ) {
+					renderMessage( state.dateAreaContainer, ( result.json && result.json.message ) || GENERIC_ERROR );
+					return;
+				}
+				var days = result.json.days || {};
+				Object.keys( dayCells ).forEach( function ( ds ) {
+					var cell = dayCells[ ds ];
+					var available = !! days[ ds ];
+					cell.disabled = ! available;
+					cell.classList.toggle( 'vms-booking-widget__calendar-grid-day--available', available );
+					cell.classList.toggle( 'vms-booking-widget__calendar-grid-day--unavailable', ! available );
+				} );
+			} )
+			.catch( function () {
+				loading.remove();
+				renderMessage( state.dateAreaContainer, GENERIC_ERROR );
+			} );
+	}
+
+	// ─── Time slots + request/confirm forms ─────────────────────────────────
+
 	function renderSlotsForSelectedDate( widgetId, state ) {
 		var slotsContainer = state.slotsContainer;
 		state.formContainer.innerHTML = '';
-		if ( ! state.selectedDate || ! state.selectedServiceId ) {
+		if ( ! state.selectedDate || 0 === state.selectedServiceIds.length ) {
 			slotsContainer.innerHTML = '';
 			return;
 		}
@@ -248,7 +628,7 @@
 
 		var url = AVAILABILITY_ENDPOINT +
 			'?widget=' + encodeURIComponent( widgetId ) +
-			'&service=' + encodeURIComponent( state.selectedServiceId ) +
+			'&service=' + encodeURIComponent( joinIds( state.selectedServiceIds ) ) +
 			'&date=' + encodeURIComponent( state.selectedDate );
 
 		fetchJson( url )
@@ -342,7 +722,7 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify( {
 					widget_public_id: widgetId,
-					service: state.selectedServiceId,
+					service_ids: state.selectedServiceIds,
 					start_iso: state.selectedSlot.startIso,
 					visitor_name: nameInput.value,
 					visitor_email: emailInput.value,
