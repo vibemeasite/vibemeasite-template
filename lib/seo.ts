@@ -7,6 +7,16 @@ import { ogLocale } from "./og-locale";
 interface PageSeoMeta {
   description?: string;
   descriptionTranslations?: Record<string, string>;
+  // Page-level SEO controls follow-up — set via vibemeasite-mcp's
+  // (extended) set_page_seo. `title`, when present, renders as the page's
+  // EXACT <title> (see the `{ absolute: ... }` override below), bypassing
+  // the root layout's "%s | {siteName}" template entirely. `image`
+  // overrides the site logo as the Open Graph / Twitter Card preview image
+  // for this one page; never localized (a social preview image isn't
+  // language-specific).
+  title?: string;
+  titleTranslations?: Record<string, string>;
+  image?: string;
   // A private, link-only page: not in the menu, not in the sitemap (see
   // app/sitemap.ts), noindex, and its hreflang alternates dropped (moot —
   // a noindex page's alternates aren't crawled). Does NOT restrict which
@@ -59,9 +69,21 @@ export async function pageMetadata(slug: string, urlPath: string): Promise<Metad
   const isHomeWithConventionTitle = slug === "home" && rawLocalizedTitle === result.page.title;
   const brandedFallbackTitle =
     [settings.siteName, settings.tagline].filter(Boolean).join(" — ") || rawLocalizedTitle;
-  const localizedTitle = isHomeWithConventionTitle ? brandedFallbackTitle : rawLocalizedTitle;
 
-  if (settings.siteName && !isHomeWithConventionTitle) {
+  // Page-level SEO controls — an explicit seo_meta.title wins over
+  // everything above, including the home-page branded fallback: it's an
+  // exact opt-out of the site-name-appending "%s | {siteName}" template
+  // (app/layout.tsx's generateMetadata), via Next's `{ absolute: ... }`
+  // title form, which a plain string title can never express since the
+  // parent layout's template always applies to it.
+  const seoTitleOverride = seoMeta?.title
+    ? resolveTranslation(seoMeta.title, seoMeta.titleTranslations, locale)
+    : undefined;
+  const localizedTitle = seoTitleOverride ?? (isHomeWithConventionTitle ? brandedFallbackTitle : rawLocalizedTitle);
+
+  if (seoTitleOverride) {
+    metadata.title = { absolute: seoTitleOverride };
+  } else if (settings.siteName && !isHomeWithConventionTitle) {
     metadata.title = rawLocalizedTitle;
   }
 
@@ -71,6 +93,10 @@ export async function pageMetadata(slug: string, urlPath: string): Promise<Metad
   if (localizedDescription) {
     metadata.description = localizedDescription;
   }
+
+  // Per-page social preview image — falls back to the site logo (pre-
+  // existing behavior) when unset. Never localized (see PageSeoMeta.image).
+  const socialImage = seoMeta?.image || settings.logoUrl;
 
   // The self-URL for the locale actually being rendered — kept byte-for-byte
   // identical to this locale's hreflang entry below so canonical and
@@ -113,17 +139,19 @@ export async function pageMetadata(slug: string, urlPath: string): Promise<Metad
     title: localizedTitle,
     ...(localizedDescription ? { description: localizedDescription } : {}),
     ...(settings.siteName ? { siteName: settings.siteName } : {}),
-    ...(settings.logoUrl ? { images: [settings.logoUrl] } : {}),
+    ...(socialImage ? { images: [socialImage] } : {}),
     locale: ogLocale(locale),
     ...(availableLocales.length > 1 && !isUnlisted
       ? { alternateLocale: availableLocales.filter((l) => l !== locale).map(ogLocale) }
       : {}),
   };
   metadata.twitter = {
-    card: settings.logoUrl ? "summary" : "summary_large_image",
+    // A real per-page social image (seoMeta.image) is treated as large-format
+    // regardless of the logo fallback's own "summary" sizing below.
+    card: seoMeta?.image ? "summary_large_image" : settings.logoUrl ? "summary" : "summary_large_image",
     title: localizedTitle,
     ...(localizedDescription ? { description: localizedDescription } : {}),
-    ...(settings.logoUrl ? { images: [settings.logoUrl] } : {}),
+    ...(socialImage ? { images: [socialImage] } : {}),
   };
 
   return metadata;
