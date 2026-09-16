@@ -4,11 +4,66 @@ import { useEffect, useState } from "react";
 import { flagSymbolForLocale, flagSpriteFile } from "../lib/lang-flags";
 import { langLabel, type LangLabelStyle } from "../lib/lang-names";
 
+// Multi-level header menu — pageSlug/inScroll are null for a category-
+// header item (has children, no page of its own; see lib/queries.ts's
+// MenuNode). children is always an array (empty for a leaf item).
 interface MenuItem {
   id: string;
   label: string;
-  pageSlug: string;
-  inScroll: boolean;
+  pageSlug: string | null;
+  inScroll: boolean | null;
+  children: MenuItem[];
+}
+
+function menuItemHref(item: MenuItem, isOnePage: boolean): string | null {
+  if (!item.pageSlug) return null;
+  if (isOnePage && item.inScroll) return `/#${item.pageSlug}`;
+  return item.pageSlug === "home" ? "/" : `/${item.pageSlug}`;
+}
+
+// One menu item, recursing into its own children (up to 3 levels, capped
+// by set_menu_structure at write time — this just renders whatever tree
+// it's given). A leaf item (no children) is a plain <a> exactly as
+// before; a parent item adds a .nav-caret toggle (click/tap — desktop's
+// wide top-nav also opens on :hover, purely via CSS, see globals.css) and
+// a nested .submenu. A parent with no pageSlug renders as a
+// non-clickable .nav-label (a pure dropdown trigger) instead of an <a>.
+function NavItem({
+  item, isOnePage, inCurrentLocale, openIds, toggleOpen,
+}: {
+  item: MenuItem;
+  isOnePage: boolean;
+  inCurrentLocale: (path: string) => string;
+  openIds: Set<string>;
+  toggleOpen: (id: string) => void;
+}) {
+  const href = menuItemHref(item, isOnePage);
+  if (item.children.length === 0) {
+    return href ? <a href={inCurrentLocale(href)}>{item.label}</a> : null;
+  }
+  const isOpen = openIds.has(item.id);
+  return (
+    <div className="nav-item has-children" data-open={isOpen}>
+      <span className="nav-item-row">
+        {href ? <a href={inCurrentLocale(href)}>{item.label}</a> : <span className="nav-label">{item.label}</span>}
+        <button
+          type="button"
+          className="nav-caret"
+          aria-expanded={isOpen}
+          aria-label={`${isOpen ? "Collapse" : "Expand"} ${item.label}`}
+          onClick={(e) => {
+            e.preventDefault();
+            toggleOpen(item.id);
+          }}
+        />
+      </span>
+      <div className="submenu">
+        {item.children.map((child) => (
+          <NavItem key={child.id} item={child} isOnePage={isOnePage} inCurrentLocale={inCurrentLocale} openIds={openIds} toggleOpen={toggleOpen} />
+        ))}
+      </div>
+    </div>
+  );
 }
 
 interface CustomLink {
@@ -20,6 +75,11 @@ interface MobileNavProps {
   isSideNav: boolean;
   isOnePage: boolean;
   menu: MenuItem[];
+  // Multi-level header menu — how a submenu presents in THIS component's
+  // own rendering (the side-nav layout, at any width, and the collapsed
+  // mobile panel for the top-nav layout). The wide desktop top-nav bar
+  // ignores this entirely — always a hover+click flyout, see globals.css.
+  submenuMobileStyle: "accordion" | "flyout";
   phone: string | null;
   email: string | null;
   customLinks: CustomLink[];
@@ -75,10 +135,23 @@ function FlagIcon({ code }: { code: string }) {
 // Desktop layout is unaffected: .nav-links-top/.nav-links-side/.nav-extras
 // are only ever hidden by the "is-open" gate inside a max-width media query.
 export function MobileNav({
-  isSideNav, isOnePage, menu, phone, email, customLinks, headerCta, locale, defaultLocale, currentPath, availableLocales,
+  isSideNav, isOnePage, menu, submenuMobileStyle, phone, email, customLinks, headerCta, locale, defaultLocale, currentPath, availableLocales,
   langSwitcherStyle, langSwitcherFlags, langSwitcherLabels,
 }: MobileNavProps) {
   const [open, setOpen] = useState(false);
+  // Multi-level header menu — ids of submenu items currently force-shown
+  // via click/tap (independent of any :hover CSS on the wide desktop
+  // top-nav). Not exclusive — opening one branch doesn't close a sibling
+  // already open elsewhere in the tree.
+  const [openIds, setOpenIds] = useState<Set<string>>(new Set());
+  const toggleOpen = (id: string) => {
+    setOpenIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   // Path-prefix i18n (template v15) — put a same-origin path under the
   // "/{targetLocale}" prefix (nothing for the default locale). External /
@@ -136,26 +209,20 @@ export function MobileNav({
       </button>
       <div
         id="site-nav-panel"
-        className={isSideNav ? "nav-panel-side" : "nav-panel-top"}
+        // Multi-level header menu — submenu-accordion/submenu-flyout only
+        // ever matters for .nav-panel-side (always) or a collapsed
+        // .nav-panel-top (narrow viewport); the wide desktop top-nav bar
+        // ignores it (see globals.css's min-width:993px rules).
+        className={`${isSideNav ? "nav-panel-side" : "nav-panel-top"} submenu-${submenuMobileStyle}`}
         data-open={open}
         onClick={(e) => {
           if ((e.target as HTMLElement).tagName === "A") setOpen(false);
         }}
       >
         <nav className={isSideNav ? "nav-links-side" : "nav-links-top"}>
-          {menu.map((item) => {
-            const barePath =
-              isOnePage && item.inScroll
-                ? `/#${item.pageSlug}`
-                : item.pageSlug === "home"
-                ? "/"
-                : `/${item.pageSlug}`;
-            return (
-              <a key={item.id} href={inCurrentLocale(barePath)}>
-                {item.label}
-              </a>
-            );
-          })}
+          {menu.map((item) => (
+            <NavItem key={item.id} item={item} isOnePage={isOnePage} inCurrentLocale={inCurrentLocale} openIds={openIds} toggleOpen={toggleOpen} />
+          ))}
         </nav>
         {hasExtras && (
           <div className="nav-extras">

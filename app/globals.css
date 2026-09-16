@@ -171,6 +171,35 @@ a { color: var(--color-primary, inherit); }
 .layout-top .nav-extras { display: flex; gap: 16px; margin-left: auto; }
 .layout-top .nav-extras a { color: var(--color-primary, #1a5f4a); }
 
+/* Multi-level header menu — a menu item with children (.has-children)
+   renders its own label (a link if it has a page, a plain non-clickable
+   .nav-label if it's a category header) plus a .submenu of nested items,
+   up to 3 levels deep. .nav-caret is the click/tap toggle (for touch and
+   keyboard); [data-open="true"] is set by that toggle. On the wide
+   top-nav bar specifically (>=993px, below), it ALSO opens on hover — see
+   that rule for why this is unconditional here at every width/layout
+   instead. */
+.nav-item.has-children { display: inline-flex; align-items: center; }
+.nav-item-row { display: inline-flex; align-items: center; gap: 4px; }
+.nav-label { cursor: default; }
+.nav-caret {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
+  flex-shrink: 0;
+  border-radius: 0;
+  background: none;
+  padding: 4px;
+  margin: 0;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: transform 0.15s ease;
+}
+.nav-item[data-open="true"] > .nav-item-row > .nav-caret { transform: rotate(180deg); }
+
 /* Side nav (site_settings.nav_position = "side") */
 .layout-side { display: flex; min-height: 100vh; }
 .nav-side {
@@ -187,6 +216,66 @@ a { color: var(--color-primary, inherit); }
 .nav-links-side { display: flex; flex-direction: column; gap: 16px; }
 .layout-side .nav-extras { display: flex; flex-direction: column; gap: 8px; }
 .layout-side main { flex: 1; min-width: 0; }
+
+/* Desktop TOP nav only (>=993px, below the mobile-rollup query) — hover
+   AND click/tap both open a submenu as a flyout panel: hover for desktop
+   pointer users, [data-open] (the .nav-caret toggle) for touch/keyboard.
+   Deliberately unconditional (not governed by submenu_mobile_style) — the
+   wide top-nav bar is always a flyout dropdown regardless of that site
+   setting, which only governs the side-nav layout and the collapsed
+   mobile panel (see .nav-panel-side/.nav-panel-top rules below/in the
+   max-width query). Nested (3rd-level) flyouts cascade sideways
+   (.submenu .submenu) rather than downward, so they don't overlap their
+   own parent item. */
+@media (min-width: 993px) {
+  .nav-links-top .nav-item.has-children { position: relative; }
+  .nav-links-top .submenu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    flex-direction: column;
+    min-width: 200px;
+    background: var(--color-background, #ffffff);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    padding: 6px 0;
+    z-index: 20;
+  }
+  .nav-links-top .submenu .submenu { top: -6px; left: 100%; }
+  .nav-links-top .nav-item.has-children:hover > .submenu,
+  .nav-links-top .nav-item.has-children[data-open="true"] > .submenu {
+    display: flex;
+  }
+  .nav-links-top .submenu .nav-item-row { width: 100%; justify-content: space-between; padding: 8px 14px; }
+  .nav-links-top .submenu a, .nav-links-top .submenu .nav-label { white-space: nowrap; }
+}
+
+/* Side-nav layout's own submenus — .nav-links-side is always the vertical,
+   "mobile-shaped" list (220px sidebar on wide screens, a collapsed top
+   panel on narrow ones — see the max-width query), so this applies at
+   every viewport width, unlike the top-nav flyout above. Style follows
+   site_settings.submenu_mobile_style ("accordion", the default, or
+   "flyout" — set via set_menu_structure's submenu_style param): touch/
+   click-toggled only via [data-open], no :hover rule, since a permanent
+   sidebar is as much a touch surface as a phone panel. */
+.nav-panel-side .submenu { display: none; flex-direction: column; }
+.nav-panel-side.submenu-accordion .nav-item[data-open="true"] > .submenu { display: flex; }
+.nav-panel-side.submenu-accordion .submenu { padding-left: 16px; }
+.nav-panel-side.submenu-flyout .nav-item.has-children { position: relative; }
+.nav-panel-side.submenu-flyout .nav-item[data-open="true"] > .submenu {
+  display: flex;
+  position: absolute;
+  top: 0;
+  left: 100%;
+  min-width: 200px;
+  background: var(--color-background, #ffffff);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 6px 0;
+  z-index: 20;
+}
+.nav-panel-side.submenu-flyout .submenu .nav-item-row { padding: 8px 14px; }
 
 /* Header language switcher's "select" presentation (site_settings.lang_
    switcher_style — see MobileNav.tsx). A real <select> can't hold flag
@@ -581,6 +670,28 @@ a { color: var(--color-primary, inherit); }
   .nav-links-top { flex-direction: column; flex: none; gap: 4px; }
   .layout-top .nav-extras { flex-direction: column; align-items: flex-start; gap: 4px; margin-left: 0; }
 
+  /* Collapsed hamburger panel — same submenu_mobile_style-driven
+     accordion/flyout as .nav-panel-side (above, outside this query),
+     touch/click-toggled only. The wide-desktop hover+click flyout rules
+     above (min-width:993px) don't apply here at all. */
+  .nav-panel-top .submenu { display: none; flex-direction: column; }
+  .nav-panel-top.submenu-accordion .nav-item[data-open="true"] > .submenu { display: flex; }
+  .nav-panel-top.submenu-accordion .submenu { padding-left: 16px; }
+  .nav-panel-top.submenu-flyout .nav-item.has-children { position: relative; }
+  .nav-panel-top.submenu-flyout .nav-item[data-open="true"] > .submenu {
+    display: flex;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    min-width: 200px;
+    background: var(--color-background, #ffffff);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    padding: 6px 0;
+    z-index: 20;
+  }
+  .nav-panel-top.submenu-flyout .submenu .nav-item-row { padding: 8px 14px; }
+
   /* Side nav becomes a horizontal top bar with the same dropdown pattern —
      a permanent 220px sidebar would eat well over half of a phone screen. */
   .layout-side { flex-direction: column; min-height: 0; }
@@ -610,7 +721,8 @@ a { color: var(--color-primary, inherit); }
 
   /* Larger tap targets for stacked links (WCAG 2.5.5 / mobile best
      practice targets ~44px) — desktop rows rely on gap alone. */
-  .nav-panel-top a, .nav-panel-side a {
+  .nav-panel-top a, .nav-panel-side a,
+  .nav-panel-top .nav-label, .nav-panel-side .nav-label {
     display: block;
     padding: 10px 4px;
   }

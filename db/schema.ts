@@ -1,4 +1,4 @@
-import { pgTable, text, integer, jsonb, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, jsonb, boolean, timestamp, type AnyPgColumn } from "drizzle-orm/pg-core";
 
 // Per-site schema, matching vibemeasite/docs/bsa-documentation-vibemeasite-service.md's
 // US-VMAS-DEPLOY-03 Data model. This is the ONE canonical copy of a given
@@ -29,13 +29,21 @@ export const pages = pgTable("pages", {
 export const menuItems = pgTable("menu_items", {
   id: text("id").primaryKey(),
   label: text("label").notNull(),
-  pageId: text("page_id")
-    .notNull()
-    .references(() => pages.id, { onDelete: "cascade" }),
+  // Nullable as of the multi-level header menu follow-up: an item with
+  // children and no pageId is a non-clickable category header (a pure
+  // dropdown trigger). An item with neither pageId nor children is
+  // rejected at the tool layer — never a valid state to store.
+  pageId: text("page_id").references(() => pages.id, { onDelete: "cascade" }),
   order: integer("order").notNull().default(0),
   // Header translation follow-up to Phase 24 — { [lang]: label }, same
   // pattern as pages.titleTranslations.
   labelTranslations: jsonb("label_translations"),
+  // Multi-level header menu follow-up — self-reference for up to 3 levels
+  // (top-level items have parentId null). `order` is scoped per parent,
+  // same "order among siblings" meaning it already had among top-level
+  // items. set_menu_structure still deletes + reinserts the whole table,
+  // same convention as before, just walking the tree depth-first now.
+  parentId: text("parent_id").references((): AnyPgColumn => menuItems.id, { onDelete: "cascade" }),
 });
 
 export const templates = pgTable("templates", {
@@ -137,6 +145,15 @@ export const siteSettings = pgTable("site_settings", {
   // stored independently of style so toggling style back and forth doesn't
   // lose the flags preference.
   langSwitcherStyle: text("lang_switcher_style").notNull().default("buttons"),
+  // Multi-level header menu follow-up — how a submenu (a menu item with
+  // children) presents in the side-nav layout and the mobile hamburger
+  // panel. "accordion" expands/collapses children inline under their
+  // parent (the natural fit for a narrow vertical list); "flyout" pops
+  // children out beside/below their parent, same interaction family as
+  // the desktop top-nav dropdown. Desktop top-nav is unaffected by this
+  // setting — it's always a hover+click flyout regardless. Set via
+  // set_menu_structure's submenu_style param.
+  submenuMobileStyle: text("submenu_mobile_style").notNull().default("accordion"),
   langSwitcherFlags: boolean("lang_switcher_flags").notNull().default(false),
   // How each language is labelled in the "select" switcher — "code" ("EN",
   // the default / original behavior), "native" ("Español"), or

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { cookies, headers } from "next/headers";
-import { getMenu, getSiteSettings, getSideMenuItems, getEntityByMountPage, getEntityMountPageBySlug } from "../lib/queries";
+import { getMenu, getSiteSettings, getSideMenuItems, getEntityByMountPage, getEntityMountPageBySlug, type MenuNode } from "../lib/queries";
 import { getContainerContent } from "../lib/cellpy-block";
 import { getCurrentLocale, resolveTranslation, isRtlLocale } from "../lib/locale";
 import { CellpyBlock } from "../components/CellpyBlock";
@@ -110,10 +110,27 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     ...link,
     label: resolveTranslation(link.label, link.labelTranslations, locale),
   }));
-  const localizedMenu = menu.map((item) => ({
-    ...item,
-    label: resolveTranslation(item.label, item.labelTranslations, locale),
-  }));
+  // Multi-level header menu — resolve translations depth-first so nested
+  // items (up to 3 levels) get the same per-locale label resolution as
+  // top-level ones.
+  const localizeMenuTree = (items: MenuNode[]): MenuNode[] =>
+    items.map((item) => ({
+      ...item,
+      label: resolveTranslation(item.label, item.labelTranslations, locale),
+      children: localizeMenuTree(item.children),
+    }));
+  const localizedMenu = localizeMenuTree(menu);
+  // Same depth-first walk, used below to find a (possibly nested) page's
+  // label for the breadcrumb trail — a plain top-level .find() would miss
+  // a page mounted under a submenu.
+  const findMenuLabel = (items: MenuNode[], pageSlug: string): string | undefined => {
+    for (const item of items) {
+      if (item.pageSlug === pageSlug) return item.label;
+      const found = findMenuLabel(item.children, pageSlug);
+      if (found) return found;
+    }
+    return undefined;
+  };
   const colors = sanitizeColors(settings.colors);
   const colorVars = Object.entries(colors)
     .map(([key, value]) => `--color-${key}: ${value};`)
@@ -201,8 +218,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   // "Home" crumb on the home page itself isn't useful, so nothing renders
   // there even when enabled.
   const mountedEntity = settings.breadcrumbsEnabled && currentSlug !== "home" ? await getEntityByMountPage(currentSlug) : null;
-  const homeLabel = localizedMenu.find((m) => m.pageSlug === "home")?.label ?? "Home";
-  const currentPageLabel = localizedMenu.find((m) => m.pageSlug === currentSlug)?.label ?? currentSlug;
+  const homeLabel = findMenuLabel(localizedMenu, "home") ?? "Home";
+  const currentPageLabel = findMenuLabel(localizedMenu, currentSlug) ?? currentSlug;
   const breadcrumbItems: BreadcrumbItem[] =
     currentSlug === "home"
       ? []
@@ -338,6 +355,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               isSideNav={isSideNav}
               isOnePage={isOnePage}
               menu={localizedMenu}
+              submenuMobileStyle={(settings.submenuMobileStyle as "accordion" | "flyout" | null) ?? "accordion"}
               phone={settings.phone}
               email={settings.email}
               customLinks={customLinks}

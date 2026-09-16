@@ -11,21 +11,52 @@ import {
 // options) — plain drizzle queries aren't automatically cache-tagged just
 // because @neondatabase/serverless happens to use fetch() internally.
 
+// Multi-level header menu — a menu item's pageId is nullable (a
+// category-header item with children and no page of its own), so this is
+// a leftJoin now, not an innerJoin. pageSlug/inScroll come back null for
+// those rows.
+export interface MenuNode {
+  id: string;
+  label: string;
+  labelTranslations: unknown;
+  pageSlug: string | null;
+  inScroll: boolean | null;
+  children: MenuNode[];
+}
+
+// Builds the (up to 3-level) tree from a flat, parentId-linked row set.
+// Depth isn't enforced here — set_menu_structure caps it at write time —
+// this just nests whatever's actually stored, so a stray deeper row (there
+// never should be one) still renders instead of vanishing silently.
+function buildMenuTree(rows: Array<Omit<MenuNode, "children"> & { parentId: string | null }>): MenuNode[] {
+  const byId = new Map<string, MenuNode>();
+  for (const r of rows) byId.set(r.id, { ...r, children: [] });
+  const roots: MenuNode[] = [];
+  for (const r of rows) {
+    const node = byId.get(r.id)!;
+    const parent = r.parentId ? byId.get(r.parentId) : undefined;
+    if (parent) parent.children.push(node);
+    else roots.push(node);
+  }
+  return roots;
+}
+
 // labelTranslations is returned raw (not locale-resolved here) — the
 // underlying data is identical regardless of visitor language, so
 // resolving it per-locale doesn't need its own cache entry per language;
 // callers (app/layout.tsx) resolve it via resolveTranslation() after the
 // single cached fetch, the same way customLinks labels are resolved.
 export const getMenu = unstable_cache(
-  async () => {
-    return db
+  async (): Promise<MenuNode[]> => {
+    const rows = await db
       .select({
         id: menuItems.id, label: menuItems.label, labelTranslations: menuItems.labelTranslations,
-        pageSlug: pages.slug, inScroll: pages.inScroll,
+        pageSlug: pages.slug, inScroll: pages.inScroll, parentId: menuItems.parentId,
       })
       .from(menuItems)
-      .innerJoin(pages, eq(menuItems.pageId, pages.id))
+      .leftJoin(pages, eq(menuItems.pageId, pages.id))
       .orderBy(asc(menuItems.order));
+    return buildMenuTree(rows);
   },
   ["menu"],
   { tags: ["menu"] }
