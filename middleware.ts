@@ -86,7 +86,16 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Skip static assets and Next internals — no reason to run this on every
-  // request for /_next/*, favicon, etc.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // Skip API routes, static assets and Next internals. /api must be
+  // excluded, not just skipped-by-convention: "api" itself is 3 lowercase
+  // letters, so it satisfies LOCALE_SEG_RE and was being treated as a
+  // locale-shaped path segment. A request like
+  // "/api/booking/widget-config?lang=fr" hit the legacy ?lang= redirect
+  // branch above, which replaced the leading segment with the locale —
+  // "api" was dropped, not reordered — producing "/fr/booking/widget-config"
+  // (a nonexistent page, not the real API route) and cascading into a 404
+  // once Next's own default-locale handling stripped the "fr" prefix again.
+  // No API route reads x-cellpy-lang/x-pathname or the cellpy_lang cookie,
+  // so excluding /api entirely is safe.
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
 };
