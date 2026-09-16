@@ -485,57 +485,179 @@ a { color: var(--color-primary, inherit); }
   display: none !important;
 }
 
-/* Booking widget Calendar View + multi-select item picker — bare-bones
-   structural layout ONLY (no color/spacing polish) for the new UI surfaces
+/* Booking widget Calendar View + multi-select item picker — a real default
+   design (not just structural layout) for the new UI surfaces
    public/booking.js can render, so a site that runs upgrade_site_template
-   looks functional immediately even before its LLM-authored CSS (published
-   via add_booking_widget/update_booking_config's `css` param) is
-   regenerated to add branding for these class names. Unlike the cookie
-   banner rule above, this isn't a LAYOUT_ESCAPE exemption — booking_widget's
-   container_slot varies per site (unlike cookie banner's fixed slug), so
-   these selectors target the widget's own stable `.vms-booking-widget`
-   class directly rather than a `.cellpy-block-{slug}` wrapper. Colors/
-   spacing stay entirely the Site Owner's CSS's job, targeting these same
-   class names (BOOKING_WIDGET_CSS_CLASS_CONTRACT in vibemeasite-mcp's
-   lib/booking-widget-template.ts) — keep both in sync. */
+   looks good immediately, before its LLM-authored CSS (published via
+   add_booking_widget's `css` param) is ever regenerated for these class
+   names. Same "trusted-CSS-against-a-fixed-class-contract" posture as the
+   entity-directory rules above, using the same --color-* custom properties
+   (set on :root in app/layout.tsx) so it reads as on-brand on every site
+   without per-site authoring. Unlike the cookie banner rule further up,
+   this isn't a LAYOUT_ESCAPE exemption — booking_widget's container_slot
+   varies per site (unlike cookie banner's fixed slug), so these selectors
+   target the widget's own stable `.vms-booking-widget` class directly
+   rather than a `.cellpy-block-{slug}` wrapper. A Site Owner's own CSS
+   targeting these same class names (BOOKING_WIDGET_CSS_CLASS_CONTRACT in
+   vibemeasite-mcp's lib/booking-widget-template.ts — keep both in sync)
+   still wins on tie-break (it loads after this stylesheet), so this is a
+   default to override, not a ceiling. */
+.vms-booking-widget .vms-booking-widget__services {
+  padding: 10px 14px;
+  font: inherit;
+  color: var(--color-text, inherit);
+  background: var(--color-background, #fff);
+  border: 1px solid color-mix(in srgb, var(--color-text, #888) 25%, transparent);
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
 .vms-booking-widget .vms-booking-widget__services--radio,
 .vms-booking-widget .vms-booking-widget__services--checkbox,
-.vms-booking-widget .vms-booking-widget__services--tiles,
 .vms-booking-widget .vms-booking-widget__services--accordion {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  margin-bottom: 12px;
 }
-.vms-booking-widget .vms-booking-widget__services--tiles {
-  flex-direction: row;
-  flex-wrap: wrap;
-}
+.vms-booking-widget .vms-booking-widget__services--tiles,
 .vms-booking-widget .vms-booking-widget__services--segmented {
   display: flex;
   flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.vms-booking-widget .vms-booking-widget__service-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  font: inherit;
+  text-align: left;
+  color: var(--color-text, inherit);
+  background: var(--color-background, #fff);
+  border: 1px solid color-mix(in srgb, var(--color-text, #888) 22%, transparent);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.vms-booking-widget .vms-booking-widget__services--tiles .vms-booking-widget__service-option {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 140px;
+}
+.vms-booking-widget .vms-booking-widget__services--segmented .vms-booking-widget__service-option {
+  border-radius: 999px;
+  padding: 8px 16px;
+}
+.vms-booking-widget .vms-booking-widget__service-option:hover {
+  border-color: color-mix(in srgb, var(--color-primary, #1d4ed8) 45%, transparent);
+}
+.vms-booking-widget .vms-booking-widget__service-option--selected {
+  border-color: var(--color-primary, #1d4ed8);
+  background: color-mix(in srgb, var(--color-primary, #1d4ed8) 10%, var(--color-background, #fff));
+  color: var(--color-primary, #1d4ed8);
 }
 .vms-booking-widget .vms-booking-widget__service-option[disabled],
 .vms-booking-widget .vms-booking-widget__service-option--disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
 }
+.vms-booking-widget .vms-booking-widget__summary {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-primary, #1d4ed8) 8%, transparent);
+  color: var(--color-text, inherit);
+}
 .vms-booking-widget .vms-booking-widget__view-toggle {
-  display: flex;
-  gap: 4px;
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  margin-bottom: 16px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-text, #888) 8%, transparent);
+}
+.vms-booking-widget .vms-booking-widget__view-toggle-btn {
+  padding: 6px 16px;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text, inherit);
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.vms-booking-widget .vms-booking-widget__view-toggle-btn--active {
+  background: var(--color-background, #fff);
+  color: var(--color-primary, #1d4ed8);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-text, #000) 15%, transparent);
 }
 .vms-booking-widget .vms-booking-widget__calendar-nav {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  margin-bottom: 10px;
+}
+.vms-booking-widget .vms-booking-widget__calendar-nav-btn {
+  width: 32px;
+  height: 32px;
+  font: inherit;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--color-text, inherit);
+  background: var(--color-background, #fff);
+  border: 1px solid color-mix(in srgb, var(--color-text, #888) 25%, transparent);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.vms-booking-widget .vms-booking-widget__calendar-nav-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.vms-booking-widget .vms-booking-widget__calendar-month-label {
+  font-weight: 600;
 }
 .vms-booking-widget .vms-booking-widget__calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 4px;
 }
+.vms-booking-widget .vms-booking-widget__calendar-grid-weekday {
+  padding: 4px 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: center;
+  text-transform: uppercase;
+  opacity: 0.55;
+}
+.vms-booking-widget .vms-booking-widget__calendar-grid-day {
+  aspect-ratio: 1;
+  font: inherit;
+  color: var(--color-text, inherit);
+  background: var(--color-background, #fff);
+  border: 1px solid color-mix(in srgb, var(--color-text, #888) 14%, transparent);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.vms-booking-widget .vms-booking-widget__calendar-grid-day--other-month {
+  visibility: hidden;
+}
+.vms-booking-widget .vms-booking-widget__calendar-grid-day--available {
+  border-color: color-mix(in srgb, var(--color-primary, #1d4ed8) 45%, transparent);
+}
+.vms-booking-widget .vms-booking-widget__calendar-grid-day--available:hover {
+  background: color-mix(in srgb, var(--color-primary, #1d4ed8) 10%, var(--color-background, #fff));
+}
+.vms-booking-widget .vms-booking-widget__calendar-grid-day--selected {
+  background: var(--color-primary, #1d4ed8);
+  border-color: var(--color-primary, #1d4ed8);
+  color: #fff;
+}
 .vms-booking-widget .vms-booking-widget__calendar-grid-day[disabled] {
-  opacity: 0.4;
+  opacity: 0.35;
   cursor: not-allowed;
 }
 
