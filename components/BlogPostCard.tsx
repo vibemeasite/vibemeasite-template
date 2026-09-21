@@ -12,12 +12,13 @@ import type { BlogPostRow } from "../lib/blog-query";
 // fallback, e.g. a "Read more" preview, where one extra fetch for one post
 // is cheap.)
 export function BlogPostCard({
-  post, href, locale, categoryNames,
+  post, href, locale, categoryNames, tagNames,
 }: {
   post: BlogPostRow;
   href: string;
   locale?: string;
   categoryNames?: Record<string, string>;
+  tagNames?: Record<string, string>;
 }) {
   const { title } = post;
   const { excerpt, featuredImage, publishedAt, author } = post.post;
@@ -39,7 +40,7 @@ export function BlogPostCard({
             <span key={`c-${c}`} className="blog-chip">{categoryNames?.[c] ?? c}</span>
           ))}
           {tags.map((t) => (
-            <span key={`t-${t}`} className="blog-chip">{t}</span>
+            <span key={`t-${t}`} className="blog-chip">{tagNames?.[t] ?? t}</span>
           ))}
         </div>
       )}

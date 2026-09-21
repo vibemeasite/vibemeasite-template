@@ -3,6 +3,9 @@
 // one rule that must not drift between them: isPublished.
 
 export interface PostMeta {
+  // Tag SLUGS (Phase 22 amendment — resolved to display names via
+  // lib/blog-query.ts's getBlogTags, same as categories below), not raw
+  // display text.
   tags?: string[];
   categories?: string[];
   excerpt?: string;

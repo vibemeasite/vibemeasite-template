@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { getPageBySlug, getSiteSettings } from "./queries";
 import { getCurrentLocale, resolveTranslation } from "./locale";
 import { ogLocale } from "./og-locale";
-import { getBlogCategories } from "./blog-query";
+import { getBlogCategories, getBlogTags } from "./blog-query";
 import { isPublished, type PostMeta } from "./blog-render";
 
 interface PageSeoMeta {
@@ -189,6 +189,9 @@ export async function blogArchiveMetadata(kind: "tag" | "category", value: strin
   if (kind === "category") {
     const categories = await getBlogCategories();
     label = categories.find((c) => c.slug === value)?.name ?? value;
+  } else {
+    const tags = await getBlogTags();
+    label = tags.find((t) => t.slug === value)?.name ?? value;
   }
   const heading = kind === "tag" ? `Tag: ${label}` : label;
   const title = settings.siteName ? `${heading} – Blog | ${settings.siteName}` : `${heading} – Blog`;

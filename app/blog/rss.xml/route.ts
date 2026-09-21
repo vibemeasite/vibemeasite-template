@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import { getPublishedPosts } from "../../../lib/blog-query";
+import { getPublishedPosts, getBlogTags } from "../../../lib/blog-query";
 import { getSiteSettings } from "../../../lib/queries";
 import { buildRssXml } from "../../../lib/blog-render";
 
@@ -14,13 +14,15 @@ import { buildRssXml } from "../../../lib/blog-render";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const [{ rows }, settings, headersList] = await Promise.all([
+  const [{ rows }, settings, tagRows, headersList] = await Promise.all([
     getPublishedPosts({ page: 1, pageSize: 50 }),
     getSiteSettings(),
+    getBlogTags(),
     headers(),
   ]);
   const baseUrl = `https://${headersList.get("host")}`;
   const siteName = settings.siteName || "Blog";
+  const tagNames = Object.fromEntries(tagRows.map((t) => [t.slug, t.name]));
 
   const xml = buildRssXml({
     siteName,
@@ -30,7 +32,10 @@ export async function GET() {
       url: `${baseUrl}/blog/${p.postSlug}`,
       publishedAt: p.post.publishedAt ?? new Date().toISOString(),
       description: p.post.excerpt ?? "",
-      tags: p.post.tags ?? [],
+      // RSS <category> elements should read as real words (WordPress puts
+      // the tag's display NAME here, not its slug) — resolve via the tag
+      // registry, same as every other tag chip in the app.
+      tags: (p.post.tags ?? []).map((slug) => tagNames[slug] ?? slug),
     })),
   });
 

@@ -1,4 +1,4 @@
-import { getPublishedPosts, getBlogCategories } from "../lib/blog-query";
+import { getPublishedPosts, getBlogCategories, getBlogTags } from "../lib/blog-query";
 import { getSiteSettings } from "../lib/queries";
 import { getCurrentLocale } from "../lib/locale";
 import { clampPage, type SearchParamsRecord } from "../lib/entries-query";
@@ -17,14 +17,17 @@ export async function BlogArchive({
   searchParams: SearchParamsRecord;
 }) {
   const page = clampPage(searchParams.page);
-  const [{ rows, hasMore }, settings, categories] = await Promise.all([
+  const [{ rows, hasMore }, settings, categories, tags] = await Promise.all([
     getPublishedPosts(kind === "tag" ? { page, pageSize: 12, tag: value } : { page, pageSize: 12, category: value }),
     getSiteSettings(),
     getBlogCategories(),
+    getBlogTags(),
   ]);
   const locale = await getCurrentLocale(settings.defaultLocale, (settings.availableLocales as string[] | null) ?? []);
 
-  const heading = kind === "tag" ? `Tag: ${value}` : (categories.find((c) => c.slug === value)?.name ?? value);
+  const heading = kind === "tag"
+    ? `Tag: ${tags.find((t) => t.slug === value)?.name ?? value}`
+    : (categories.find((c) => c.slug === value)?.name ?? value);
 
   return (
     <div style={{ maxWidth: 1100, margin: "0 auto", padding: "48px 24px" }}>

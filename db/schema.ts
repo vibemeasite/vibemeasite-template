@@ -28,18 +28,29 @@ export const pages = pgTable("pages", {
 
 // BSA Phase 22 — a blog post is a `pages` row above (slug "blog/{post_slug}")
 // carrying an inline `post` object on its existing `seoMeta` column:
-//   { tags?: string[], categories?: string[], excerpt?: string,
-//     featuredImage?: string, publishedAt?: string | null,
-//     status: "draft"|"scheduled"|"published", author?: string }
+//   { tags?: string[] (SLUGS, resolved against blog_tags below),
+//     categories?: string[], excerpt?: string, featuredImage?: string,
+//     publishedAt?: string | null, status: "draft"|"scheduled"|"published",
+//     author?: string }
 // No column change needed for that — seo_meta has existed since migration
-// 0000. `blog_categories` below is the one genuinely new table this phase
-// adds: an owner-managed, one-level taxonomy, control-plane-authoritative
-// (seeded/pushed from vibemeasite-mcp's draft_blog_categories, same as
-// `entities` below is for Phase 16) — read-only at runtime here.
+// 0000. `blog_categories`/`blog_tags` below are the genuinely new tables
+// this phase adds: owner-managed taxonomies, control-plane-authoritative
+// (seeded/pushed from vibemeasite-mcp's draft_blog_categories/draft_blog_tags,
+// same as `entities` below is for Phase 16) — read-only at runtime here.
 export const blogCategories = pgTable("blog_categories", {
   slug: text("slug").primaryKey(),
   name: text("name").notNull(),
   parentSlug: text("parent_slug"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Phase 22 amendment — tags promoted from raw per-post strings to a real
+// taxonomy (same reasoning as blogCategories): a post's seo_meta.post.tags
+// holds SLUGS, resolved to a display `name` here for rendering. Not
+// hierarchical (no parentSlug), auto-created on first use.
+export const blogTags = pgTable("blog_tags", {
+  slug: text("slug").primaryKey(),
+  name: text("name").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

@@ -1,4 +1,4 @@
-import { getBlogCategories, type BlogPostRow } from "../lib/blog-query";
+import { getBlogCategories, getBlogTags, type BlogPostRow } from "../lib/blog-query";
 import { clampPage, withParams, type SearchParamsRecord } from "../lib/entries-query";
 import { BlogPostCard } from "./BlogPostCard";
 
@@ -16,8 +16,9 @@ export async function BlogPostGrid({
   emptyMessage: string;
 }) {
   const page = clampPage(searchParams.page);
-  const categories = await getBlogCategories();
+  const [categories, tags] = await Promise.all([getBlogCategories(), getBlogTags()]);
   const categoryNames = Object.fromEntries(categories.map((c) => [c.slug, c.name]));
+  const tagNames = Object.fromEntries(tags.map((t) => [t.slug, t.name]));
 
   if (rows.length === 0) {
     return <p className="blog-empty">{emptyMessage}</p>;
@@ -27,7 +28,7 @@ export async function BlogPostGrid({
     <div className="blog-list-wrap">
       <div className="blog-list">
         {rows.map((post) => (
-          <BlogPostCard key={post.id} post={post} href={`/blog/${post.postSlug}`} locale={locale} categoryNames={categoryNames} />
+          <BlogPostCard key={post.id} post={post} href={`/blog/${post.postSlug}`} locale={locale} categoryNames={categoryNames} tagNames={tagNames} />
         ))}
       </div>
       {hasMore && (

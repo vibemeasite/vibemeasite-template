@@ -1,7 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { asc, like } from "drizzle-orm";
 import { db } from "../db/index";
-import { pages, blogCategories } from "../db/schema";
+import { pages, blogCategories, blogTags } from "../db/schema";
 import { getPageBySlug } from "./queries";
 import { isPublished, type PostMeta } from "./blog-render";
 
@@ -27,6 +27,15 @@ export const getBlogCategories = unstable_cache(
   async () => db.select().from(blogCategories).orderBy(asc(blogCategories.name)),
   ["blog-categories"],
   { tags: ["blog-categories"] },
+);
+
+// Phase 22 amendment — tags are a real taxonomy now (blog_tags), same shape
+// as getBlogCategories. Used everywhere a tag SLUG (stored on
+// post.tags) needs its display NAME resolved for rendering.
+export const getBlogTags = unstable_cache(
+  async () => db.select().from(blogTags).orderBy(asc(blogTags.name)),
+  ["blog-tags"],
+  { tags: ["blog-tags"] },
 );
 
 // Every "blog/*" page that carries post metadata — small at this platform's
@@ -79,11 +88,4 @@ export async function getPublishedPosts(opts: GetPublishedPostsOpts): Promise<Pu
 // the existing getPageBySlug (Decision 2: no second fetch path for a post).
 export function getPostBySlug(postSlug: string) {
   return getPageBySlug(`blog/${postSlug}`);
-}
-
-export async function getAllBlogTags(): Promise<string[]> {
-  const all = await getAllBlogPostPages();
-  const tags = new Set<string>();
-  for (const p of all) if (isPublished(p.post)) for (const t of p.post.tags ?? []) tags.add(t);
-  return [...tags].sort();
 }

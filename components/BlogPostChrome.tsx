@@ -1,4 +1,4 @@
-import { getBlogCategories } from "../lib/blog-query";
+import { getBlogCategories, getBlogTags } from "../lib/blog-query";
 import { formatPostDate, type PostMeta } from "../lib/blog-render";
 
 // BSA Phase 22 (US-VMAS-BLOG-06 AC1) — wraps a post page's normally-
@@ -16,8 +16,9 @@ export async function BlogPostChrome({
   locale?: string;
   children: React.ReactNode;
 }) {
-  const categories = await getBlogCategories();
+  const [categories, tagRows] = await Promise.all([getBlogCategories(), getBlogTags()]);
   const categoryNames = Object.fromEntries(categories.map((c) => [c.slug, c.name]));
+  const tagNames = Object.fromEntries(tagRows.map((t) => [t.slug, t.name]));
   const tags = post.tags ?? [];
   const postCategories = post.categories ?? [];
 
@@ -36,7 +37,7 @@ export async function BlogPostChrome({
               <a key={`c-${c}`} className="blog-chip" href={`/blog/category/${c}`}>{categoryNames[c] ?? c}</a>
             ))}
             {tags.map((t) => (
-              <a key={`t-${t}`} className="blog-chip" href={`/blog/tag/${t}`}>{t}</a>
+              <a key={`t-${t}`} className="blog-chip" href={`/blog/tag/${t}`}>{tagNames[t] ?? t}</a>
             ))}
           </div>
         )}
