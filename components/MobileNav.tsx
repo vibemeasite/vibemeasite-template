@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { flagSymbolForLocale, flagSpriteFile } from "../lib/lang-flags";
 import { langLabel, type LangLabelStyle } from "../lib/lang-names";
 
@@ -152,6 +152,7 @@ export function MobileNav({
       return next;
     });
   };
+  const navRef = useRef<HTMLDivElement>(null);
 
   // Path-prefix i18n (template v15) — put a same-origin path under the
   // "/{targetLocale}" prefix (nothing for the default locale). External /
@@ -192,6 +193,29 @@ export function MobileNav({
     };
   }, [open]);
 
+  // Multi-level header menu — a click/tap on .nav-caret force-opens a
+  // submenu via [data-open] independent of :hover, so on the wide desktop
+  // top-nav (where hover normally handles open/close) that submenu just
+  // stayed open forever once the pointer moved away — the only way back
+  // was clicking the same caret again. Escape and a click anywhere outside
+  // the nav both clear openIds so a force-opened submenu behaves like a
+  // normal dropdown instead of getting stuck.
+  useEffect(() => {
+    if (openIds.size === 0) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpenIds(new Set());
+    };
+    const onPointerDown = (e: MouseEvent) => {
+      if (navRef.current && !navRef.current.contains(e.target as Node)) setOpenIds(new Set());
+    };
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("mousedown", onPointerDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("mousedown", onPointerDown);
+    };
+  }, [openIds]);
+
   const showLangSwitcher = availableLocales.length > 1;
   const hasExtras = Boolean(phone || email || customLinks.length > 0 || headerCta || showLangSwitcher);
 
@@ -209,6 +233,7 @@ export function MobileNav({
       </button>
       <div
         id="site-nav-panel"
+        ref={navRef}
         // Multi-level header menu — submenu-accordion/submenu-flyout only
         // ever matters for .nav-panel-side (always) or a collapsed
         // .nav-panel-top (narrow viewport); the wide desktop top-nav bar
