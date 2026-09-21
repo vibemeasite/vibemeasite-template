@@ -3,8 +3,12 @@ import { notFound, redirect, permanentRedirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { SitePage, ScrollPage } from "../../components/SitePage";
 import { getSiteSettings, getScrollPages, getPageBySlug } from "../../lib/queries";
-import { pageMetadata } from "../../lib/seo";
-import { splitLocalePath, isLocaleShaped } from "../../lib/locale";
+import { pageMetadata, blogArchiveMetadata } from "../../lib/seo";
+import { splitLocalePath, isLocaleShaped, getCurrentLocale } from "../../lib/locale";
+import { BlogIndexPosts } from "../../components/BlogIndexPosts";
+import { BlogArchive } from "../../components/BlogArchive";
+import { BlogPostChrome } from "../../components/BlogPostChrome";
+import type { PostMeta } from "../../lib/blog-render";
 
 // Path-prefix i18n (template v15) — one optional-catch-all route now serves
 // every page in every language: "/" and "/{slug}" (default locale) plus
@@ -39,12 +43,30 @@ async function resolve(pathSegs: string[]) {
   // The path WITHOUT any locale prefix — what lib/seo.ts / app/sitemap.ts
   // hang the "/{locale}" prefixes off when they build canonical + hreflang.
   const urlPath = slugSegs.length ? `/${slugSegs.join("/")}` : "/";
-  return { settings, availableLocales, locale, isPrefixed, slug, urlPath };
+  return { settings, availableLocales, locale, isPrefixed, slug, slugSegs, urlPath };
+}
+
+// BSA Phase 22 — /blog/tag/{t} and /blog/category/{c} are virtual archive
+// URLs, not `pages` rows (Decision 7/8 in dev-steps-phase22-blog.txt): they
+// have to live inside this SAME locale-stripping catch-all (a second,
+// differently-named dynamic segment can't sit beside this one — the exact
+// constraint that forced path-prefix i18n onto one catch-all to begin
+// with), so "/uk/blog/tag/x" resolves identically to "/blog/tag/x". A bare
+// "/blog/tag" or "/blog/category" (no third segment) falls through to the
+// normal getPageBySlug("blog/tag") lookup below and 404s — nobody links there.
+function matchBlogArchive(slugSegs: string[]): { kind: "tag" | "category"; value: string } | null {
+  if (slugSegs[0] !== "blog") return null;
+  if ((slugSegs[1] === "tag" || slugSegs[1] === "category") && slugSegs[2]) {
+    return { kind: slugSegs[1], value: slugSegs[2] };
+  }
+  return null;
 }
 
 export async function generateMetadata({ params }: RouteCtx): Promise<Metadata> {
   const { path } = await params;
-  const { slug, urlPath } = await resolve(path ?? []);
+  const { slug, slugSegs, urlPath } = await resolve(path ?? []);
+  const archive = matchBlogArchive(slugSegs);
+  if (archive) return blogArchiveMetadata(archive.kind, archive.value, urlPath);
   return pageMetadata(slug, urlPath);
 }
 
@@ -52,9 +74,14 @@ export default async function SiteRoute({ params, searchParams }: RouteCtx) {
   const { path } = await params;
   const sp = await searchParams;
   const pathSegs = path ?? [];
-  const { settings, availableLocales, locale, isPrefixed, slug } = await resolve(pathSegs);
+  const { settings, availableLocales, locale, isPrefixed, slug, slugSegs } = await resolve(pathSegs);
   const defaultLocale = settings.defaultLocale;
   const localePrefix = locale === defaultLocale ? "" : `/${locale}`;
+
+  const archive = matchBlogArchive(slugSegs);
+  if (archive) {
+    return <BlogArchive kind={archive.kind} value={archive.value} searchParams={sp} />;
+  }
 
   // "/en/pricing" — the default locale explicitly prefixed. Its canonical
   // form is the bare path; permanent-redirect there. (middleware leaves
@@ -100,6 +127,31 @@ export default async function SiteRoute({ params, searchParams }: RouteCtx) {
     if (result.page.inScroll) {
       redirect(`${localePrefix}/#${slug}`);
     }
+  }
+
+  // BSA Phase 22 — "blog" is the reserved blog-index page slug
+  // (US-VMAS-BLOG-01); its own sections (an optional owner-authored intro)
+  // render through the normal SitePage pipeline, with the paginated
+  // published-post grid appended after. A "blog/{post_slug}" page carries
+  // `seo_meta.post` and renders wrapped in byline/tag/category chrome
+  // (US-VMAS-BLOG-06 AC1) — still via the same SitePage output for its
+  // sections, unchanged.
+  if (slug === "blog") {
+    return (
+      <>
+        <SitePage slug={slug} searchParams={sp} />
+        <BlogIndexPosts searchParams={sp} />
+      </>
+    );
+  }
+  const postMeta = (result.page.seoMeta as { post?: PostMeta } | null)?.post;
+  if (postMeta) {
+    const postLocale = await getCurrentLocale(defaultLocale, availableLocales);
+    return (
+      <BlogPostChrome title={result.page.title} post={postMeta} locale={postLocale}>
+        <SitePage slug={slug} searchParams={sp} />
+      </BlogPostChrome>
+    );
   }
 
   return <SitePage slug={slug} searchParams={sp} />;

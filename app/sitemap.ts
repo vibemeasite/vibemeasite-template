@@ -1,6 +1,8 @@
 import type { MetadataRoute } from "next";
 import { headers } from "next/headers";
 import { getAllPages, getSiteSettings } from "../lib/queries";
+import { getAllBlogPostPages, getBlogCategories } from "../lib/blog-query";
+import { isPublished, type PostMeta } from "../lib/blog-render";
 
 // No reliable domain env var exists in this template (each site is its own
 // Vercel project, and custom domains vs. the default vercel.app URL both
@@ -29,12 +31,35 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // must not be advertised anywhere a crawler looks. lib/seo.ts also
     // gives it a noindex robots tag and strips its hreflang alternates; a
     // noindex URL has no business being in the sitemap either.
-    const seoMeta = p.seoMeta as { unlisted?: boolean } | null;
+    const seoMeta = p.seoMeta as { unlisted?: boolean; post?: PostMeta } | null;
     if (seoMeta?.unlisted === true) return false;
+    // BSA Phase 22 — a "blog/{post_slug}" page only belongs in the sitemap
+    // once it's actually published; a draft/scheduled post stays out (same
+    // reasoning as unlisted, just time-gated instead of permanent — see
+    // dev-steps-phase22-blog.txt Decided #6).
+    if (seoMeta?.post && !isPublished(seoMeta.post)) return false;
     return true;
   });
 
-  const paths = ["/", ...otherPages.map((p) => `/${p.slug}`)];
+  // BSA Phase 22 (US-VMAS-BLOG-06 AC5) — one archive URL per tag/category
+  // that has at least one published post, carrying the same full hreflang
+  // alternate set as every other page (built below via the same
+  // localeUrl/alternatesFor helpers, byte-identical to lib/seo.ts's
+  // blogArchiveMetadata). Draft/scheduled-only tags/categories are simply
+  // never listed — getAllBlogPostPages + isPublished already excludes them.
+  const publishedPosts = (await getAllBlogPostPages()).filter((p) => isPublished(p.post));
+  const usedTags = new Set<string>();
+  for (const p of publishedPosts) for (const t of p.post.tags ?? []) usedTags.add(t);
+  const categories = await getBlogCategories();
+  const usedCategorySlugs = new Set(
+    categories.map((c) => c.slug).filter((slug) => publishedPosts.some((p) => p.post.categories?.includes(slug))),
+  );
+  const blogArchivePaths = [
+    ...[...usedTags].map((t) => `/blog/tag/${t}`),
+    ...[...usedCategorySlugs].map((c) => `/blog/category/${c}`),
+  ];
+
+  const paths = ["/", ...otherPages.map((p) => `/${p.slug}`), ...blogArchivePaths];
   const multiLocale = availableLocales.length > 1;
 
   // Audit fix C3 — every listed URL carries the full hreflang alternate

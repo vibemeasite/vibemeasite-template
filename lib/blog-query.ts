@@ -1,0 +1,89 @@
+import { unstable_cache } from "next/cache";
+import { asc, like } from "drizzle-orm";
+import { db } from "../db/index";
+import { pages, blogCategories } from "../db/schema";
+import { getPageBySlug } from "./queries";
+import { isPublished, type PostMeta } from "./blog-render";
+
+// BSA Phase 22 — a post is a `pages` row (slug "blog/{post_slug}") with its
+// metadata inline on seo_meta.post (see db/schema.ts's comment). This is
+// the one module that reads/filters/paginates that set — components
+// (BlogIndex, BlogArchive) and the RSS route all go through it so the
+// "published" rule can't drift (dev-steps-phase22-blog.txt Decision 4/10).
+
+export interface BlogPostRow {
+  id: string;
+  slug: string; // "blog/{post_slug}"
+  postSlug: string;
+  title: string;
+  post: PostMeta;
+}
+
+interface PageSeoMetaWithPost {
+  post?: PostMeta;
+}
+
+export const getBlogCategories = unstable_cache(
+  async () => db.select().from(blogCategories).orderBy(asc(blogCategories.name)),
+  ["blog-categories"],
+  { tags: ["blog-categories"] },
+);
+
+// Every "blog/*" page that carries post metadata — small at this platform's
+// scale (a site's whole blog), so filtering/sorting/paginating happens in
+// JS rather than three separate SQL query shapes for plain/tag/category
+// (dev-steps Decision: "keeps ONE code path ... instead of three query
+// variants").
+export const getAllBlogPostPages = unstable_cache(
+  async (): Promise<BlogPostRow[]> => {
+    const rows = await db.select().from(pages).where(like(pages.slug, "blog/%"));
+    const out: BlogPostRow[] = [];
+    for (const row of rows) {
+      const post = (row.seoMeta as PageSeoMetaWithPost | null)?.post;
+      if (!post) continue;
+      out.push({ id: row.id, slug: row.slug, postSlug: row.slug.slice("blog/".length), title: row.title, post });
+    }
+    return out;
+  },
+  ["blog-posts"],
+  { tags: ["pages", "blog-index"] },
+);
+
+export interface GetPublishedPostsOpts {
+  page: number;
+  pageSize: number;
+  tag?: string;
+  category?: string;
+}
+
+export interface PublishedPostsResult {
+  rows: BlogPostRow[];
+  hasMore: boolean;
+}
+
+export async function getPublishedPosts(opts: GetPublishedPostsOpts): Promise<PublishedPostsResult> {
+  const all = await getAllBlogPostPages();
+  let filtered = all.filter((p) => isPublished(p.post));
+  if (opts.tag) filtered = filtered.filter((p) => p.post.tags?.includes(opts.tag!));
+  if (opts.category) filtered = filtered.filter((p) => p.post.categories?.includes(opts.category!));
+
+  filtered.sort((a, b) => new Date(b.post.publishedAt ?? 0).getTime() - new Date(a.post.publishedAt ?? 0).getTime());
+
+  const start = (opts.page - 1) * opts.pageSize;
+  const rows = filtered.slice(start, start + opts.pageSize);
+  const hasMore = start + opts.pageSize < filtered.length;
+  return { rows, hasMore };
+}
+
+// Thin wrapper — a post is a normal page, so its own content/SEO fetch is
+// the existing getPageBySlug (Decision 2: no second fetch path for a post).
+export function getPostBySlug(postSlug: string) {
+  return getPageBySlug(`blog/${postSlug}`);
+}
+
+export async function getAllBlogTags(): Promise<string[]> {
+  const all = await getAllBlogPostPages();
+  const tags = new Set<string>();
+  for (const p of all) if (isPublished(p.post)) for (const t of p.post.tags ?? []) tags.add(t);
+  return [...tags].sort();
+}

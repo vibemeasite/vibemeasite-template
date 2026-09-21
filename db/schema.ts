@@ -26,6 +26,23 @@ export const pages = pgTable("pages", {
   titleTranslations: jsonb("title_translations"),
 });
 
+// BSA Phase 22 — a blog post is a `pages` row above (slug "blog/{post_slug}")
+// carrying an inline `post` object on its existing `seoMeta` column:
+//   { tags?: string[], categories?: string[], excerpt?: string,
+//     featuredImage?: string, publishedAt?: string | null,
+//     status: "draft"|"scheduled"|"published", author?: string }
+// No column change needed for that — seo_meta has existed since migration
+// 0000. `blog_categories` below is the one genuinely new table this phase
+// adds: an owner-managed, one-level taxonomy, control-plane-authoritative
+// (seeded/pushed from vibemeasite-mcp's draft_blog_categories, same as
+// `entities` below is for Phase 16) — read-only at runtime here.
+export const blogCategories = pgTable("blog_categories", {
+  slug: text("slug").primaryKey(),
+  name: text("name").notNull(),
+  parentSlug: text("parent_slug"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const menuItems = pgTable("menu_items", {
   id: text("id").primaryKey(),
   label: text("label").notNull(),

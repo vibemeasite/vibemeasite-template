@@ -3,6 +3,8 @@ import { headers } from "next/headers";
 import { getPageBySlug, getSiteSettings } from "./queries";
 import { getCurrentLocale, resolveTranslation } from "./locale";
 import { ogLocale } from "./og-locale";
+import { getBlogCategories } from "./blog-query";
+import { isPublished, type PostMeta } from "./blog-render";
 
 interface PageSeoMeta {
   description?: string;
@@ -22,6 +24,14 @@ interface PageSeoMeta {
   // a noindex page's alternates aren't crawled). Does NOT restrict which
   // language it renders in; see components/SitePage.tsx.
   unlisted?: boolean;
+  // BSA Phase 22 — set on a "blog/{post_slug}" page only. A draft/scheduled
+  // post (isPublished() false) gets the same noindex/no-alternates
+  // treatment as `unlisted` below, WITHOUT actually being unlisted — it's
+  // still in the menu/sitemap machinery's normal page set, just excluded
+  // from the blog's own listings/sitemap entries/RSS (see lib/blog-query.ts,
+  // app/sitemap.ts, app/blog/rss.xml/route.ts) and marked non-indexable
+  // until it publishes (dev-steps-phase22-blog.txt Decided #6).
+  post?: PostMeta;
 }
 
 // Multilingual & SEO Tooling (Phase 13), US-VMAS-SEO-01/03 — the shared
@@ -45,7 +55,13 @@ export async function pageMetadata(slug: string, urlPath: string): Promise<Metad
   // locale, same as any other page — SitePage renders that same locale's
   // content, so this must match or canonical/OG would describe content
   // other than what's on the page.
-  const isUnlisted = seoMeta?.unlisted === true;
+  // A draft/scheduled post (BSA Phase 22) gets the same noindex + dropped-
+  // alternates treatment as an unlisted page — it's reachable at its real
+  // URL (dev-steps Decided #6: "unlisted until published", not access-
+  // controlled) but shouldn't be indexed or advertise language alternates
+  // for content that isn't live yet.
+  const isUnpublishedPost = !!seoMeta?.post && !isPublished(seoMeta.post);
+  const isUnlisted = seoMeta?.unlisted === true || isUnpublishedPost;
   const locale = requestedLocale;
 
   const metadata: Metadata = {};
@@ -155,4 +171,44 @@ export async function pageMetadata(slug: string, urlPath: string): Promise<Metad
   };
 
   return metadata;
+}
+
+// BSA Phase 22 (US-VMAS-BLOG-06 AC2) — metadata for a tag/category archive
+// URL. Unlike pageMetadata above, there's no `pages` row or seo_meta to
+// read (Decision 7) — just a title built from the tag/category name and
+// the same canonical/hreflang-alternate shape every other page gets, built
+// the same way (base URL from the request Host header, default locale =
+// bare path) rather than importing pageMetadata's internals, matching how
+// app/sitemap.ts already keeps its own copy of this same small helper.
+export async function blogArchiveMetadata(kind: "tag" | "category", value: string, urlPath: string): Promise<Metadata> {
+  const settings = await getSiteSettings();
+  const availableLocales = (settings.availableLocales as string[] | null) ?? [];
+  const locale = await getCurrentLocale(settings.defaultLocale, availableLocales);
+
+  let label = value;
+  if (kind === "category") {
+    const categories = await getBlogCategories();
+    label = categories.find((c) => c.slug === value)?.name ?? value;
+  }
+  const heading = kind === "tag" ? `Tag: ${label}` : label;
+  const title = settings.siteName ? `${heading} – Blog | ${settings.siteName}` : `${heading} – Blog`;
+
+  const headersList = await headers();
+  const base = `https://${headersList.get("host")}`;
+  const localeUrl = (l: string) =>
+    l === settings.defaultLocale ? `${base}${urlPath}` : `${base}/${l}${urlPath === "/" ? "" : urlPath}`;
+  const selfUrl = localeUrl(locale);
+
+  let languages: Record<string, string> | undefined;
+  if (availableLocales.length > 1) {
+    languages = {};
+    for (const l of availableLocales) languages[l] = localeUrl(l);
+    languages["x-default"] = `${base}${urlPath}`;
+  }
+
+  return {
+    title: { absolute: title },
+    alternates: { canonical: selfUrl, ...(languages ? { languages } : {}) },
+    openGraph: { type: "website", url: selfUrl, title, ...(settings.siteName ? { siteName: settings.siteName } : {}), locale: ogLocale(locale) },
+  };
 }
