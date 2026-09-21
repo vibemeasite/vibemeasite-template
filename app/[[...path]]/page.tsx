@@ -121,26 +121,23 @@ export default async function SiteRoute({ params, searchParams }: RouteCtx) {
     notFound();
   }
 
-  if (settings.layoutMode === "one-page") {
-    // "/" (and "/{locale}") render every in-scroll page's sections
-    // concatenated with anchor targets, same as the old app/page.tsx.
-    if (slug === "home") {
-      return <ScrollPage sections={await getScrollPages()} searchParams={sp} />;
-    }
-    // A direct hit on an in-scroll page's own URL redirects to its anchor
-    // on the (locale-appropriate) home page instead of rendering twice.
-    if (result.page.inScroll) {
-      redirect(`${localePrefix}/#${slug}`);
-    }
-  }
-
-  // BSA Phase 22 — "blog" is the reserved blog-index page slug
-  // (US-VMAS-BLOG-01); its own sections (an optional owner-authored intro)
-  // render through the normal SitePage pipeline, with the paginated
-  // published-post grid appended after. A "blog/{post_slug}" page carries
-  // `seo_meta.post` and renders wrapped in byline/tag/category chrome
-  // (US-VMAS-BLOG-06 AC1) — still via the same SitePage output for its
-  // sections, unchanged.
+  // BSA Phase 22 — checked BEFORE the one-page-mode in-scroll redirect
+  // below (an earlier version of this route had it after, which broke the
+  // blog index/posts on any one-page-mode site — "blog"/"blog/{post_slug}"
+  // pages have no in-page anchor to redirect to, so they'd bounce to a dead
+  // "/#blog" fragment on the home page instead of rendering). A blog page
+  // structurally can never be an in-scroll section, regardless of whatever
+  // its own `inScroll` column happens to hold (e.g. a "blog" page that
+  // pre-dated enable_blog, created via the general add_page, defaults to
+  // inScroll: true — enable_blog only adopts such a page's title, per
+  // Decision 11, so this check is the actual authority, not that column).
+  //
+  // "blog" is the reserved blog-index page slug (US-VMAS-BLOG-01); its own
+  // sections (an optional owner-authored intro) render through the normal
+  // SitePage pipeline, with the paginated published-post grid appended
+  // after. A "blog/{post_slug}" page carries `seo_meta.post` and renders
+  // wrapped in byline/tag/category chrome (US-VMAS-BLOG-06 AC1) — still via
+  // the same SitePage output for its sections, unchanged.
   if (slug === "blog") {
     return (
       <>
@@ -157,6 +154,19 @@ export default async function SiteRoute({ params, searchParams }: RouteCtx) {
         <SitePage slug={slug} searchParams={sp} />
       </BlogPostChrome>
     );
+  }
+
+  if (settings.layoutMode === "one-page") {
+    // "/" (and "/{locale}") render every in-scroll page's sections
+    // concatenated with anchor targets, same as the old app/page.tsx.
+    if (slug === "home") {
+      return <ScrollPage sections={await getScrollPages()} searchParams={sp} />;
+    }
+    // A direct hit on an in-scroll page's own URL redirects to its anchor
+    // on the (locale-appropriate) home page instead of rendering twice.
+    if (result.page.inScroll) {
+      redirect(`${localePrefix}/#${slug}`);
+    }
   }
 
   return <SitePage slug={slug} searchParams={sp} />;
