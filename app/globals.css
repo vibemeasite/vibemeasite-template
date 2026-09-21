@@ -1113,7 +1113,13 @@ a { color: var(--color-primary, inherit); }
    Same trusted-CSS-against-a-fixed-class-contract posture as the Phase 16
    entry-directory classes above, and deliberately close to them visually —
    a blog card and a directory card should feel like the same site. */
-.blog-list-wrap { margin: 24px 0; }
+/* Centers the grid as a block on the page — the blog INDEX (BlogIndexPosts)
+   renders this with no outer wrapper of its own, unlike BlogArchive (which
+   already wraps it in a max-width:1100/margin:0 auto div), so without this
+   the grid spanned the full page width and its 1-2 cards sat flush left
+   with a large empty gap beside them. Harmless to nest inside BlogArchive's
+   own wrapper too (same width, just redundant there). */
+.blog-list-wrap { max-width: 1100px; margin: 24px auto; padding: 0 24px; }
 .blog-list {
   display: grid;
   gap: 16px;
