@@ -182,28 +182,38 @@ a { color: var(--color-primary, inherit); }
 .nav-item.has-children { display: inline-flex; align-items: center; }
 .nav-item-row { display: inline-flex; align-items: center; gap: 4px; }
 .nav-label { cursor: default; }
+/* The triangle itself lives on ::after inside a fixed-size flex box,
+   rather than being drawn from the <button>'s own border (as this used
+   to). A <button> carries UA-stylesheet chrome — default padding,
+   min-height, a border — that varies by browser and isn't all reachable
+   through `appearance: none` (that only strips native theming, not
+   ordinary CSS the UA stylesheet set). Any of it leaking through shifted
+   or distorted a border-drawn triangle sitting directly on the button box.
+   A plain ::after has no such chrome to fight: flexbox centers it exactly
+   in the middle of a fixed 16x16 box regardless of browser. */
 .nav-caret {
-  display: block;
-  width: 0;
-  height: 0;
-  /* All four sides set together in one shorthand — a <button> carries its
-     own UA-stylesheet border (e.g. Chrome's default outset border) that
-     `appearance: none` does NOT clear, since it's ordinary CSS rather than
-     native theming. Overriding only border-left/right/top (as this used
-     to) left that default border-bottom in place, drawing a stray line
-     under the triangle and turning it into a lopsided trapezoid instead of
-     a clean arrow. */
-  border-style: solid;
-  border-width: 5px 4px 0 4px;
-  border-color: currentColor transparent transparent transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 0;
   flex-shrink: 0;
   background: none;
-  padding: 4px;
+  padding: 0;
   margin: 0;
   cursor: pointer;
   appearance: none;
   -webkit-appearance: none;
   transition: transform 0.15s ease;
+}
+.nav-caret::after {
+  content: "";
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 5px 4px 0 4px;
+  border-color: currentColor transparent transparent transparent;
 }
 .nav-item[data-open="true"] > .nav-item-row > .nav-caret { transform: rotate(180deg); }
 
