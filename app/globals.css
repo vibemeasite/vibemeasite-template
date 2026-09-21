@@ -286,9 +286,31 @@ a { color: var(--color-primary, inherit); }
      otherwise overflow past the viewport's right edge, since .submenu
      always opened flush with its trigger's left edge. Flipping the last
      item's own dropdown to hang from the right fixes the common case
-     without needing per-site CSS. */
-  .nav-links-top .nav-item.has-children:last-child > .submenu { left: auto; right: 0; }
-  .nav-links-top .nav-item.has-children:last-child > .submenu .submenu { left: auto; right: 100%; }
+     without needing per-site CSS. `>` (direct child of .nav-links-top),
+     not a plain descendant selector — a descendant `:last-child` also
+     matches any nested has-children item that happens to be the last
+     entry inside ITS OWN dropdown (a common shape, not just an edge
+     case), which — being more specific than plain .submenu .submenu
+     below — silently won the cascade and pulled that 3rd-level flyout
+     back to sit on top of its own trigger instead of beside it. Scoping
+     to a direct child keeps this to the top-level bar only, so any
+     3rd-level flyout nested inside it still cascades to the right of its
+     own (2nd-level) parent, per .submenu .submenu above, regardless of
+     which side that 2nd-level box itself hangs from. */
+  .nav-links-top > .nav-item.has-children:last-child > .submenu { left: auto; right: 0; }
+  /* A 2nd-level item that itself has children (opens a 3rd-level flyout)
+     points its caret down at rest like any other trigger, but rotates to
+     point right — the direction its own flyout actually opens — instead
+     of the top-level's rotate(180deg) (which flips a down arrow to point
+     up, appropriate for a menu that opens below it, not beside it). Keyed
+     off :hover to match how .submenu itself opens on hover for desktop
+     pointer users, and [data-open] for the click/tap toggle. More
+     specific than the plain .nav-item[data-open] rule above, so it wins
+     for nested triggers without touching top-level carets. */
+  .nav-links-top .submenu .nav-item.has-children:hover > .nav-item-row > .nav-caret,
+  .nav-links-top .submenu .nav-item.has-children[data-open="true"] > .nav-item-row > .nav-caret {
+    transform: rotate(-90deg);
+  }
 }
 
 /* Side-nav layout's own submenus — .nav-links-side is always the vertical,
