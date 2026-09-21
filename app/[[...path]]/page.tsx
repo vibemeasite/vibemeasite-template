@@ -78,11 +78,6 @@ export default async function SiteRoute({ params, searchParams }: RouteCtx) {
   const defaultLocale = settings.defaultLocale;
   const localePrefix = locale === defaultLocale ? "" : `/${locale}`;
 
-  const archive = matchBlogArchive(slugSegs);
-  if (archive) {
-    return <BlogArchive kind={archive.kind} value={archive.value} searchParams={sp} />;
-  }
-
   // "/en/pricing" — the default locale explicitly prefixed. Its canonical
   // form is the bare path; permanent-redirect there. (middleware leaves
   // this to the route because it doesn't know the site's default locale.)
@@ -101,6 +96,16 @@ export default async function SiteRoute({ params, searchParams }: RouteCtx) {
     if (cookieLang && cookieLang !== defaultLocale && availableLocales.includes(cookieLang)) {
       redirect(`/${cookieLang}${pathSegs.length ? `/${pathSegs.join("/")}` : ""}`);
     }
+  }
+
+  // BSA Phase 22 — checked AFTER the two locale-normalization redirects
+  // above (not before, where an earlier draft of this had it): a virtual
+  // archive URL still needs "/en/blog/tag/x" -> "/blog/tag/x" canonicalization
+  // and the sticky-language-cookie redirect, same as any other page, before
+  // it short-circuits past the getPageBySlug lookup below.
+  const archive = matchBlogArchive(slugSegs);
+  if (archive) {
+    return <BlogArchive kind={archive.kind} value={archive.value} searchParams={sp} />;
   }
 
   const result = await getPageBySlug(slug);
