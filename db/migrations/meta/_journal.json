@@ -148,6 +148,13 @@
       "when": 1790250000000,
       "tag": "0020_blog_tags",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790280000000,
+      "tag": "0021_blog_filter_widget",
+      "breakpoints": true
     }
   ]
 }

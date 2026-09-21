@@ -2,6 +2,16 @@
 // vibemeasite-mcp's lib/blog-format.ts (a different repo/deploy) for the
 // one rule that must not drift between them: isPublished.
 
+// BSA Phase 22 amendment — the blog index's optional search/tag/category
+// filter widget config, mirrored from vibemeasite-mcp's
+// site_settings.blog_filter_config (see lib/queries.ts's getSiteSettings).
+export interface BlogFilterConfig {
+  enabled: boolean;
+  showSearch: boolean;
+  showCategories: boolean;
+  showTags: boolean;
+}
+
 export interface PostMeta {
   // Tag SLUGS (Phase 22 amendment — resolved to display names via
   // lib/blog-query.ts's getBlogTags, same as categories below), not raw

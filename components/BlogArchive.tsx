@@ -1,8 +1,10 @@
 import { getPublishedPosts, getBlogCategories, getBlogTags } from "../lib/blog-query";
 import { getSiteSettings } from "../lib/queries";
 import { getCurrentLocale } from "../lib/locale";
+import type { BlogFilterConfig } from "../lib/blog-render";
 import { clampPage, type SearchParamsRecord } from "../lib/entries-query";
 import { BlogPostGrid } from "./BlogPostGrid";
+import { BlogFilterWidget } from "./BlogFilterWidget";
 
 // BSA Phase 22 (US-VMAS-BLOG-06 AC2/AC3) — a tag or category archive.
 // Unlike the blog index, there's no `pages` row backing this URL (Decision
@@ -24,6 +26,7 @@ export async function BlogArchive({
     getBlogTags(),
   ]);
   const locale = await getCurrentLocale(settings.defaultLocale, (settings.availableLocales as string[] | null) ?? []);
+  const filterConfig = settings.blogFilterConfig as BlogFilterConfig;
 
   const heading = kind === "tag"
     ? `Tag: ${tags.find((t) => t.slug === value)?.name ?? value}`
@@ -32,6 +35,16 @@ export async function BlogArchive({
   return (
     <div style={{ maxWidth: 1100, margin: "0 auto", padding: "48px 24px" }}>
       <h1>{heading}</h1>
+      {/* Phase 22 amendment — pre-filled with the current archive
+          dimension; always submits to /blog (BlogFilterWidget), where
+          this value combines with whatever else the visitor picks. */}
+      <BlogFilterWidget
+        config={filterConfig}
+        categories={categories}
+        tags={tags}
+        defaultTag={kind === "tag" ? value : undefined}
+        defaultCategory={kind === "category" ? value : undefined}
+      />
       <BlogPostGrid
         rows={rows}
         hasMore={hasMore}

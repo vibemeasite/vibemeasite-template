@@ -234,6 +234,10 @@ export const siteSettings = pgTable("site_settings", {
   breadcrumbsStyle: text("breadcrumbs_style").notNull().default("chevron"), // "chevron" | "slash"
   sideMenuEnabled: boolean("side_menu_enabled").notNull().default(false),
   sideMenuPages: jsonb("side_menu_pages").notNull().default([]), // string[] | "all"
+  // BSA Phase 22 amendment — the blog index's optional search/tag/category
+  // filter widget, set via vibemeasite-mcp's set_blog_filter_widget.
+  // { enabled, showSearch, showCategories, showTags }.
+  blogFilterConfig: jsonb("blog_filter_config").notNull().default({ enabled: false, showSearch: true, showCategories: true, showTags: true }),
 });
 
 // Side menu items (Phase 21) — wholesale-replaced by vibemeasite-mcp's

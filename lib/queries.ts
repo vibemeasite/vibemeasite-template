@@ -99,6 +99,7 @@ export const getSiteSettings = unstable_cache(
         breadcrumbsStyle: "chevron" as const,
         sideMenuEnabled: false,
         sideMenuPages: [] as string[] | "all",
+        blogFilterConfig: { enabled: false, showSearch: true, showCategories: true, showTags: true },
       }
     );
   },

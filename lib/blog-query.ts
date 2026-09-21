@@ -63,6 +63,13 @@ export interface GetPublishedPostsOpts {
   pageSize: number;
   tag?: string;
   category?: string;
+  // BSA Phase 22 amendment (blog filter widget) — plain substring match
+  // against title + excerpt, case-insensitive. Posts have no search_text/
+  // pg_trgm column (unlike Phase 16 entries) — this operates on the same
+  // already-cached getAllBlogPostPages() set the tag/category filters use,
+  // which is small at this platform's scale, so a JS .includes() pass
+  // needs no new index/column.
+  q?: string;
 }
 
 export interface PublishedPostsResult {
@@ -75,6 +82,12 @@ export async function getPublishedPosts(opts: GetPublishedPostsOpts): Promise<Pu
   let filtered = all.filter((p) => isPublished(p.post));
   if (opts.tag) filtered = filtered.filter((p) => p.post.tags?.includes(opts.tag!));
   if (opts.category) filtered = filtered.filter((p) => p.post.categories?.includes(opts.category!));
+  const q = opts.q?.trim().toLowerCase();
+  if (q && q.length >= 2 && q.length <= 80) {
+    filtered = filtered.filter(
+      (p) => p.title.toLowerCase().includes(q) || (p.post.excerpt ?? "").toLowerCase().includes(q),
+    );
+  }
 
   filtered.sort((a, b) => new Date(b.post.publishedAt ?? 0).getTime() - new Date(a.post.publishedAt ?? 0).getTime());
 

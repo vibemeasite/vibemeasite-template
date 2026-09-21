@@ -1184,3 +1184,43 @@ a { color: var(--color-primary, inherit); }
 .blog-byline { margin: 0 0 12px; font-size: 0.85rem; opacity: 0.6; }
 .blog-post-footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid color-mix(in srgb, var(--color-text, #888) 14%, transparent); }
 .blog-back-link { text-decoration: none; font-weight: 600; color: var(--color-primary, #1d4ed8); }
+
+/* Phase 22 amendment — the optional blog filter widget (BlogFilterWidget),
+   same contract/tokens as .entry-search above (Phase 16) so a search box
+   reads consistently whether it's filtering a directory or the blog. */
+.blog-filter-widget {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 1100px;
+  margin: 0 auto 24px;
+  padding: 0 24px;
+}
+.blog-filter-widget__q {
+  flex: 1 1 220px;
+  min-width: 0;
+  padding: 9px 12px;
+  font: inherit;
+  color: var(--color-text, inherit);
+  background: var(--color-background, #fff);
+  border: 1px solid color-mix(in srgb, var(--color-text, #888) 25%, transparent);
+  border-radius: 8px;
+}
+.blog-filter-widget__select {
+  padding: 9px 10px;
+  font: inherit;
+  color: var(--color-text, inherit);
+  background: var(--color-background, #fff);
+  border: 1px solid color-mix(in srgb, var(--color-text, #888) 25%, transparent);
+  border-radius: 8px;
+}
+.blog-filter-widget__go {
+  padding: 9px 16px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  color: #fff;
+  background: var(--color-primary, #1d4ed8);
+  border: 0;
+  border-radius: 8px;
+}
