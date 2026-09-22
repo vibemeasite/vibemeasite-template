@@ -1126,8 +1126,6 @@ a { color: var(--color-primary, inherit); }
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
 }
 .blog-card {
-  content-visibility: auto;
-  contain-intrinsic-size: 0 320px;
   display: flex;
   flex-direction: column;
   gap: 10px;
