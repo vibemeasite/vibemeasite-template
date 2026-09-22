@@ -1,5 +1,29 @@
 import { describe, it, expect } from "vitest";
-import { isPublished, plainTextExcerpt, buildRssXml } from "./blog-render";
+import { isPublished, plainTextExcerpt, buildRssXml, buildBlogQueryString } from "./blog-render";
+
+describe("buildBlogQueryString", () => {
+  it("preserves every value of a multi-valued param (the bug withParams had)", () => {
+    const qs = buildBlogQueryString({ tags: ["a", "b", "c"] }, { page: 2 });
+    const params = new URLSearchParams(qs.slice(1));
+    expect(params.getAll("tags")).toEqual(["a", "b", "c"]);
+    expect(params.get("page")).toBe("2");
+  });
+
+  it("an override fully replaces the existing key rather than appending", () => {
+    const qs = buildBlogQueryString({ page: "3" }, { page: 5 });
+    const params = new URLSearchParams(qs.slice(1));
+    expect(params.getAll("page")).toEqual(["5"]);
+  });
+
+  it("drops empty-string values from both source params and overrides", () => {
+    const qs = buildBlogQueryString({ q: "", tags: ["x", ""] }, { category: "" });
+    expect(qs).toBe("?tags=x");
+  });
+
+  it("returns an empty string when there is nothing to encode", () => {
+    expect(buildBlogQueryString({}, {})).toBe("");
+  });
+});
 
 describe("isPublished (must agree with vibemeasite-mcp's lib/blog-format.ts copy)", () => {
   it("draft is never published regardless of publishedAt", () => {

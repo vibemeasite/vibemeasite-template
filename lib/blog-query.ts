@@ -61,8 +61,15 @@ export const getAllBlogPostPages = unstable_cache(
 export interface GetPublishedPostsOpts {
   page: number;
   pageSize: number;
-  tag?: string;
-  category?: string;
+  // Zero or more slugs. Empty/omitted = no filter on that dimension.
+  // Multiple values OR together within a dimension ("tag A or tag B"),
+  // same as tags/categories AND together across dimensions — the
+  // conventional faceted-search shape, and what the chips-style widget
+  // needs (BSA Phase 22 amendment: multiselectable chips, an alternative
+  // to the single-select dropdown). A single-select dropdown just produces
+  // a 0-or-1-length array, so both widget styles feed the same filter.
+  tags?: string[];
+  categories?: string[];
   // BSA Phase 22 amendment (blog filter widget) — plain substring match
   // against title + excerpt, case-insensitive. Posts have no search_text/
   // pg_trgm column (unlike Phase 16 entries) — this operates on the same
@@ -80,8 +87,10 @@ export interface PublishedPostsResult {
 export async function getPublishedPosts(opts: GetPublishedPostsOpts): Promise<PublishedPostsResult> {
   const all = await getAllBlogPostPages();
   let filtered = all.filter((p) => isPublished(p.post));
-  if (opts.tag) filtered = filtered.filter((p) => p.post.tags?.includes(opts.tag!));
-  if (opts.category) filtered = filtered.filter((p) => p.post.categories?.includes(opts.category!));
+  const tags = opts.tags?.filter(Boolean) ?? [];
+  const categories = opts.categories?.filter(Boolean) ?? [];
+  if (tags.length > 0) filtered = filtered.filter((p) => p.post.tags?.some((t) => tags.includes(t)));
+  if (categories.length > 0) filtered = filtered.filter((p) => p.post.categories?.some((c) => categories.includes(c)));
   const q = opts.q?.trim().toLowerCase();
   if (q && q.length >= 2 && q.length <= 80) {
     filtered = filtered.filter(

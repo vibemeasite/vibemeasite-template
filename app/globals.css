@@ -1224,3 +1224,49 @@ a { color: var(--color-primary, inherit); }
   border: 0;
   border-radius: 8px;
 }
+
+/* Multiselectable "chips" style (later same-amendment addition) — a
+   <fieldset> of plain checkboxes, each visually replaced by its own
+   <label> via the adjacent-sibling selector below. No JS: the checkbox
+   itself stays in the DOM, focusable and keyboard-operable, just moved
+   off-screen rather than hidden — this is the standard accessible
+   checkbox-as-chip pattern. */
+.blog-filter-widget__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.blog-chip-option { display: inline-flex; }
+.blog-chip-checkbox {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.blog-chip-toggle {
+  cursor: pointer;
+  user-select: none;
+  font-size: 0.85rem;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--color-text, #888) 25%, transparent);
+  color: var(--color-text, inherit);
+  background: var(--color-background, #fff);
+}
+.blog-chip-checkbox:checked + .blog-chip-toggle {
+  background: var(--color-primary, #1d4ed8);
+  border-color: var(--color-primary, #1d4ed8);
+  color: #fff;
+}
+.blog-chip-checkbox:focus-visible + .blog-chip-toggle {
+  outline: 2px solid var(--color-primary, #1d4ed8);
+  outline-offset: 2px;
+}

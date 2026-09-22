@@ -1,5 +1,6 @@
 import { getBlogCategories, getBlogTags, type BlogPostRow } from "../lib/blog-query";
-import { clampPage, withParams, type SearchParamsRecord } from "../lib/entries-query";
+import { clampPage, type SearchParamsRecord } from "../lib/entries-query";
+import { buildBlogQueryString } from "../lib/blog-render";
 import { BlogPostCard } from "./BlogPostCard";
 
 // BSA Phase 22 — the shared paginated post grid used by both the blog
@@ -33,7 +34,7 @@ export async function BlogPostGrid({
       </div>
       {hasMore && (
         <div className="blog-more-wrap">
-          <a className="blog-more" href={withParams(searchParams, { page: page + 1 })}>Show more</a>
+          <a className="blog-more" href={buildBlogQueryString(searchParams, { page: page + 1 })}>Show more</a>
         </div>
       )}
     </div>

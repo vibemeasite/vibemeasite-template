@@ -5,11 +5,42 @@
 // BSA Phase 22 amendment — the blog index's optional search/tag/category
 // filter widget config, mirrored from vibemeasite-mcp's
 // site_settings.blog_filter_config (see lib/queries.ts's getSiteSettings).
+// categoriesStyle/tagsStyle are a later same-amendment addition — a stored
+// config from before they existed has neither key, so every reader treats
+// a missing value as "dropdown" (see BlogFilterWidget's own default).
 export interface BlogFilterConfig {
   enabled: boolean;
   showSearch: boolean;
   showCategories: boolean;
   showTags: boolean;
+  categoriesStyle?: "dropdown" | "chips";
+  tagsStyle?: "dropdown" | "chips";
+}
+
+type BlogSearchParams = Record<string, string | string[] | undefined>;
+
+// Multi-valued-param-safe query-string builder — lib/entries-query.ts's
+// withParams (Phase 16) only ever keeps the FIRST value of an array-valued
+// param, which silently drops every tag/category past the first when the
+// chips widget selects several ("Show more" would lose them). Used for
+// every blog pagination link once more than one tag/category can be
+// selected at once.
+export function buildBlogQueryString(sp: BlogSearchParams, overrides: Record<string, string | number | undefined>): string {
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(sp)) {
+    if (k in overrides) continue; // overrides replace this key entirely, applied below
+    if (Array.isArray(v)) {
+      for (const item of v) if (item) params.append(k, item);
+    } else if (v) {
+      params.append(k, v);
+    }
+  }
+  for (const [k, v] of Object.entries(overrides)) {
+    if (v === undefined || v === "") continue;
+    params.append(k, String(v));
+  }
+  const qs = params.toString();
+  return qs ? `?${qs}` : "";
 }
 
 export interface PostMeta {

@@ -12,6 +12,15 @@ function firstStr(v: string | string[] | undefined): string | undefined {
   return typeof s === "string" && s.length > 0 ? s : undefined;
 }
 
+// Zero, one, or many — a dropdown submits at most one value for its name;
+// chips (BSA Phase 22 amendment) can submit several, which the browser
+// naturally expresses as repeated same-name query params, and Next's
+// searchParams naturally parses as an array.
+function readMulti(v: string | string[] | undefined): string[] {
+  if (v === undefined) return [];
+  return (Array.isArray(v) ? v : [v]).filter((s) => s.length > 0);
+}
+
 // BSA Phase 22 — the post grid on the blog INDEX page ("/blog"). The
 // page's own sections (an optional owner-authored intro, US-VMAS-BLOG-05
 // AC1) render through the ordinary SitePage pipeline unchanged; this
@@ -19,18 +28,19 @@ function firstStr(v: string | string[] | undefined): string | undefined {
 // there's no need to duplicate SitePage's container/block-loading logic
 // here — "blog" is a page like any other, this just adds the list below it.
 //
-// Phase 22 amendment — also reads ?q=/?tag=/?category= (the optional
+// Phase 22 amendment — also reads ?q=/?tags=/?categories= (the optional
 // filter widget's own query params, BlogFilterWidget) and renders the
 // widget above the grid when the owner has enabled it
-// (settings.blogFilterConfig).
+// (settings.blogFilterConfig). tags/categories are arrays — a dropdown
+// selects at most one, chips can select several.
 export async function BlogIndexPosts({ searchParams }: { searchParams: SearchParamsRecord }) {
   const page = clampPage(searchParams.page);
   const q = firstStr(searchParams.q);
-  const tag = firstStr(searchParams.tag);
-  const category = firstStr(searchParams.category);
+  const tags = readMulti(searchParams.tags);
+  const categories = readMulti(searchParams.categories);
 
-  const [{ rows, hasMore }, settings, categories, tags] = await Promise.all([
-    getPublishedPosts({ page, pageSize: 12, q, tag, category }),
+  const [{ rows, hasMore }, settings, categoryRows, tagRows] = await Promise.all([
+    getPublishedPosts({ page, pageSize: 12, q, tags, categories }),
     getSiteSettings(),
     getBlogCategories(),
     getBlogTags(),
@@ -40,13 +50,13 @@ export async function BlogIndexPosts({ searchParams }: { searchParams: SearchPar
 
   return (
     <>
-      <BlogFilterWidget config={filterConfig} categories={categories} tags={tags} defaultQ={q} defaultTag={tag} defaultCategory={category} />
+      <BlogFilterWidget config={filterConfig} categories={categoryRows} tags={tagRows} defaultQ={q} defaultTags={tags} defaultCategories={categories} />
       <BlogPostGrid
         rows={rows}
         hasMore={hasMore}
         searchParams={searchParams}
         locale={locale}
-        emptyMessage={q || tag || category ? "No posts match." : "Nothing published yet — check back soon."}
+        emptyMessage={q || tags.length > 0 || categories.length > 0 ? "No posts match." : "Nothing published yet — check back soon."}
       />
     </>
   );

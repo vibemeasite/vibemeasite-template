@@ -20,7 +20,7 @@ export async function BlogArchive({
 }) {
   const page = clampPage(searchParams.page);
   const [{ rows, hasMore }, settings, categories, tags] = await Promise.all([
-    getPublishedPosts(kind === "tag" ? { page, pageSize: 12, tag: value } : { page, pageSize: 12, category: value }),
+    getPublishedPosts(kind === "tag" ? { page, pageSize: 12, tags: [value] } : { page, pageSize: 12, categories: [value] }),
     getSiteSettings(),
     getBlogCategories(),
     getBlogTags(),
@@ -42,8 +42,8 @@ export async function BlogArchive({
         config={filterConfig}
         categories={categories}
         tags={tags}
-        defaultTag={kind === "tag" ? value : undefined}
-        defaultCategory={kind === "category" ? value : undefined}
+        defaultTags={kind === "tag" ? [value] : undefined}
+        defaultCategories={kind === "category" ? [value] : undefined}
       />
       <BlogPostGrid
         rows={rows}
