@@ -59,7 +59,7 @@ export function blogStyleVars(config: BlogStyleConfig): Record<string, string> {
   const { gap, padding } = BLOG_SPACING_VALUES[config.spacing] ?? BLOG_SPACING_VALUES.normal;
   const gridTemplate =
     config.columns === "auto" || !config.columns
-      ? "repeat(auto-fill, minmax(280px, 1fr))"
+      ? "repeat(auto-fit, minmax(280px, 1fr))"
       : `repeat(${config.columns}, 1fr)`;
   const border =
     config.cardStyle === "bordered"
