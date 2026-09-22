@@ -5,6 +5,7 @@ import { pages, menuItems, containers, siteSettings, floatingWidgets, entities, 
 import {
   buildEntriesWhere, resolveOrderBy, type EntityLite, type EntityFieldLite,
 } from "./entries-query";
+import { DEFAULT_BLOG_STYLE_CONFIG } from "./blog-render";
 
 // Tag-based revalidation (US-VMAS-MUTATE-01) only works for cached
 // functions wrapped in unstable_cache (or fetch() calls with { next: { tags } }
@@ -100,6 +101,7 @@ export const getSiteSettings = unstable_cache(
         sideMenuEnabled: false,
         sideMenuPages: [] as string[] | "all",
         blogFilterConfig: { enabled: false, showSearch: true, showCategories: true, showTags: true },
+        blogStyleConfig: DEFAULT_BLOG_STYLE_CONFIG,
       }
     );
   },

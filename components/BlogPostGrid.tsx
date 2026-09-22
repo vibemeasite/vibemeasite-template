@@ -1,6 +1,7 @@
+import type { CSSProperties } from "react";
 import { getBlogCategories, getBlogTags, type BlogPostRow } from "../lib/blog-query";
 import { clampPage, type SearchParamsRecord } from "../lib/entries-query";
-import { buildBlogQueryString } from "../lib/blog-render";
+import { buildBlogQueryString, blogStyleVars, DEFAULT_BLOG_STYLE_CONFIG, type BlogStyleConfig } from "../lib/blog-render";
 import { BlogPostCard } from "./BlogPostCard";
 
 // BSA Phase 22 — the shared paginated post grid used by both the blog
@@ -8,13 +9,14 @@ import { BlogPostCard } from "./BlogPostCard";
 // component so "no posts yet" / pagination / card rendering can't drift
 // between the two.
 export async function BlogPostGrid({
-  rows, hasMore, searchParams, locale, emptyMessage,
+  rows, hasMore, searchParams, locale, emptyMessage, styleConfig = DEFAULT_BLOG_STYLE_CONFIG,
 }: {
   rows: BlogPostRow[];
   hasMore: boolean;
   searchParams: SearchParamsRecord;
   locale?: string;
   emptyMessage: string;
+  styleConfig?: BlogStyleConfig;
 }) {
   const page = clampPage(searchParams.page);
   const [categories, tags] = await Promise.all([getBlogCategories(), getBlogTags()]);
@@ -26,10 +28,14 @@ export async function BlogPostGrid({
   }
 
   return (
-    <div className="blog-list-wrap">
+    // set_blog_style's knobs land as CSS custom properties here — every
+    // descendant (.blog-card/.blog-chip/.blog-more in app/globals.css)
+    // reads them via var(), so nothing below needs its own style prop
+    // except BlogPostCard's showImage (a JS conditional, not CSS).
+    <div className="blog-list-wrap" style={blogStyleVars(styleConfig) as CSSProperties}>
       <div className="blog-list">
         {rows.map((post) => (
-          <BlogPostCard key={post.id} post={post} href={`/blog/${post.postSlug}`} locale={locale} categoryNames={categoryNames} tagNames={tagNames} />
+          <BlogPostCard key={post.id} post={post} href={`/blog/${post.postSlug}`} locale={locale} categoryNames={categoryNames} tagNames={tagNames} styleConfig={styleConfig} />
         ))}
       </div>
       {hasMore && (

@@ -238,6 +238,10 @@ export const siteSettings = pgTable("site_settings", {
   // filter widget, set via vibemeasite-mcp's set_blog_filter_widget.
   // { enabled, showSearch, showCategories, showTags }.
   blogFilterConfig: jsonb("blog_filter_config").notNull().default({ enabled: false, showSearch: true, showCategories: true, showTags: true }),
+  // BSA Phase 22 amendment (LLM-customizable blog card/grid) — blog
+  // card/grid appearance, set via vibemeasite-mcp's set_blog_style.
+  // { columns, cardStyle, showImage, borderRadius, accentColor, spacing }.
+  blogStyleConfig: jsonb("blog_style_config").notNull().default({ columns: "auto", cardStyle: "bordered", showImage: true, borderRadius: 12, accentColor: null, spacing: "normal" }),
 });
 
 // Side menu items (Phase 21) — wholesale-replaced by vibemeasite-mcp's

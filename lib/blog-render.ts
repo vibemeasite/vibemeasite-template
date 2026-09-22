@@ -17,6 +17,70 @@ export interface BlogFilterConfig {
   tagsStyle?: "dropdown" | "chips";
 }
 
+// BSA Phase 22 amendment (LLM-customizable blog card/grid) — the blog
+// card/grid's visual knobs, mirrored from vibemeasite-mcp's
+// site_settings.blog_style_config (see lib/queries.ts's getSiteSettings).
+// This exists because generate_block can't reach card/grid markup at
+// all — it's server-rendered straight from live post data on every
+// request (BlogPostCard/BlogPostGrid), not a static Cellpy-block section —
+// so set_blog_style is the only way an owner (or the LLM on their behalf)
+// customizes how it looks.
+export interface BlogStyleConfig {
+  columns: "auto" | 2 | 3 | 4;
+  cardStyle: "bordered" | "flat" | "shadow";
+  showImage: boolean;
+  borderRadius: number;
+  // null means "inherit the site's branding primary color" — resolved at
+  // render time via a CSS var() fallback, not stored/computed here.
+  accentColor: string | null;
+  spacing: "compact" | "normal" | "relaxed";
+}
+
+export const DEFAULT_BLOG_STYLE_CONFIG: BlogStyleConfig = {
+  columns: "auto",
+  cardStyle: "bordered",
+  showImage: true,
+  borderRadius: 12,
+  accentColor: null,
+  spacing: "normal",
+};
+
+const BLOG_SPACING_VALUES: Record<BlogStyleConfig["spacing"], { gap: number; padding: number }> = {
+  compact: { gap: 10, padding: 12 },
+  normal: { gap: 16, padding: 18 },
+  relaxed: { gap: 24, padding: 24 },
+};
+
+// Renders a BlogStyleConfig as CSS custom properties, applied once on the
+// grid wrapper (BlogPostGrid) so .blog-card/.blog-chip/.blog-more in
+// app/globals.css just var()-read them — no need to thread individual
+// style values through every component's props.
+export function blogStyleVars(config: BlogStyleConfig): Record<string, string> {
+  const { gap, padding } = BLOG_SPACING_VALUES[config.spacing] ?? BLOG_SPACING_VALUES.normal;
+  const gridTemplate =
+    config.columns === "auto" || !config.columns
+      ? "repeat(auto-fill, minmax(280px, 1fr))"
+      : `repeat(${config.columns}, 1fr)`;
+  const border =
+    config.cardStyle === "bordered"
+      ? "1px solid color-mix(in srgb, var(--color-text, #888) 14%, transparent)"
+      : "none";
+  const shadow =
+    config.cardStyle === "shadow"
+      ? "0 4px 16px color-mix(in srgb, var(--color-text, #888) 16%, transparent)"
+      : "none";
+  const vars: Record<string, string> = {
+    "--blog-grid-template": gridTemplate,
+    "--blog-gap": `${gap}px`,
+    "--blog-card-padding": `${padding}px`,
+    "--blog-card-radius": `${config.borderRadius ?? 12}px`,
+    "--blog-card-border": border,
+    "--blog-card-shadow": shadow,
+  };
+  if (config.accentColor) vars["--blog-accent"] = config.accentColor;
+  return vars;
+}
+
 type BlogSearchParams = Record<string, string | string[] | undefined>;
 
 // Multi-valued-param-safe query-string builder — lib/entries-query.ts's

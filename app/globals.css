@@ -1122,16 +1122,17 @@ a { color: var(--color-primary, inherit); }
 .blog-list-wrap { max-width: 1100px; margin: 24px auto; padding: 0 24px; }
 .blog-list {
   display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--blog-gap, 16px);
+  grid-template-columns: var(--blog-grid-template, repeat(auto-fill, minmax(280px, 1fr)));
 }
 .blog-card {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 18px;
-  border: 1px solid color-mix(in srgb, var(--color-text, #888) 14%, transparent);
-  border-radius: 12px;
+  padding: var(--blog-card-padding, 18px);
+  border: var(--blog-card-border, 1px solid color-mix(in srgb, var(--color-text, #888) 14%, transparent));
+  border-radius: var(--blog-card-radius, 12px);
+  box-shadow: var(--blog-card-shadow, none);
   background: color-mix(in srgb, var(--color-text, #888) 3%, var(--color-background, #fff));
   text-decoration: none;
   color: inherit;
@@ -1153,8 +1154,8 @@ a { color: var(--color-primary, inherit); }
   padding: 2px 10px;
   border-radius: 999px;
   text-decoration: none;
-  background: color-mix(in srgb, var(--color-primary, #1d4ed8) 12%, transparent);
-  color: var(--color-primary, #1d4ed8);
+  background: color-mix(in srgb, var(--blog-accent, var(--color-primary, #1d4ed8)) 12%, transparent);
+  color: var(--blog-accent, var(--color-primary, #1d4ed8));
 }
 
 .blog-empty { opacity: 0.7; font-style: italic; padding: 12px 0; }

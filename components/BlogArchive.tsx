@@ -1,7 +1,7 @@
 import { getPublishedPosts, getBlogCategories, getBlogTags } from "../lib/blog-query";
 import { getSiteSettings } from "../lib/queries";
 import { getCurrentLocale } from "../lib/locale";
-import type { BlogFilterConfig } from "../lib/blog-render";
+import type { BlogFilterConfig, BlogStyleConfig } from "../lib/blog-render";
 import { clampPage, type SearchParamsRecord } from "../lib/entries-query";
 import { BlogPostGrid } from "./BlogPostGrid";
 import { BlogFilterWidget } from "./BlogFilterWidget";
@@ -27,6 +27,7 @@ export async function BlogArchive({
   ]);
   const locale = await getCurrentLocale(settings.defaultLocale, (settings.availableLocales as string[] | null) ?? []);
   const filterConfig = settings.blogFilterConfig as BlogFilterConfig;
+  const styleConfig = settings.blogStyleConfig as BlogStyleConfig;
 
   const heading = kind === "tag"
     ? `Tag: ${tags.find((t) => t.slug === value)?.name ?? value}`
@@ -51,6 +52,7 @@ export async function BlogArchive({
         searchParams={searchParams}
         locale={locale}
         emptyMessage="No posts here yet."
+        styleConfig={styleConfig}
       />
     </div>
   );

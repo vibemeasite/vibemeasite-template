@@ -1,7 +1,7 @@
 import { getPublishedPosts, getBlogCategories, getBlogTags } from "../lib/blog-query";
 import { getSiteSettings } from "../lib/queries";
 import { getCurrentLocale } from "../lib/locale";
-import type { BlogFilterConfig } from "../lib/blog-render";
+import type { BlogFilterConfig, BlogStyleConfig } from "../lib/blog-render";
 import type { SearchParamsRecord } from "../lib/entries-query";
 import { clampPage } from "../lib/entries-query";
 import { BlogPostGrid } from "./BlogPostGrid";
@@ -47,6 +47,7 @@ export async function BlogIndexPosts({ searchParams }: { searchParams: SearchPar
   ]);
   const locale = await getCurrentLocale(settings.defaultLocale, (settings.availableLocales as string[] | null) ?? []);
   const filterConfig = settings.blogFilterConfig as BlogFilterConfig;
+  const styleConfig = settings.blogStyleConfig as BlogStyleConfig;
 
   return (
     <>
@@ -57,6 +58,7 @@ export async function BlogIndexPosts({ searchParams }: { searchParams: SearchPar
         searchParams={searchParams}
         locale={locale}
         emptyMessage={q || tags.length > 0 || categories.length > 0 ? "No posts match." : "Nothing published yet — check back soon."}
+        styleConfig={styleConfig}
       />
     </>
   );

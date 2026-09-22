@@ -1,4 +1,4 @@
-import { formatPostDate } from "../lib/blog-render";
+import { formatPostDate, DEFAULT_BLOG_STYLE_CONFIG, type BlogStyleConfig } from "../lib/blog-render";
 import type { BlogPostRow } from "../lib/blog-query";
 
 // BSA Phase 22 — one card in the blog index/archive grid. Excerpt is
@@ -12,13 +12,14 @@ import type { BlogPostRow } from "../lib/blog-query";
 // fallback, e.g. a "Read more" preview, where one extra fetch for one post
 // is cheap.)
 export function BlogPostCard({
-  post, href, locale, categoryNames, tagNames,
+  post, href, locale, categoryNames, tagNames, styleConfig = DEFAULT_BLOG_STYLE_CONFIG,
 }: {
   post: BlogPostRow;
   href: string;
   locale?: string;
   categoryNames?: Record<string, string>;
   tagNames?: Record<string, string>;
+  styleConfig?: BlogStyleConfig;
 }) {
   const { title } = post;
   const { excerpt, featuredImage, publishedAt, author } = post.post;
@@ -27,7 +28,7 @@ export function BlogPostCard({
 
   return (
     <a className="blog-card" href={href}>
-      {featuredImage && <img className="blog-card__image" src={featuredImage} alt={title} loading="lazy" />}
+      {styleConfig.showImage && featuredImage && <img className="blog-card__image" src={featuredImage} alt={title} loading="lazy" />}
       <h3 className="blog-card__title">{title}</h3>
       {excerpt && <p className="blog-card__excerpt">{excerpt}</p>}
       <div className="blog-card__meta">
