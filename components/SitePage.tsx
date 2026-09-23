@@ -98,6 +98,11 @@ export async function SitePage({ slug, searchParams }: { slug: string; searchPar
   // BSA Phase 16 — an entity-directory mount marker; directory.js adds the
   // instant client filter + infinite scroll on top of the server-rendered list.
   const hasEntityList = blocks.some((b) => b.content?.html.includes("data-entity="));
+  // Prompt Builder tool (vibemeasite.com marketing page) — the block's fixed
+  // skeleton always carries this attribute; prompt-builder.js assembles the
+  // live text preview from the checkboxes/inputs/textareas inside it. Same
+  // conditional-enqueue pattern as the other widgets above.
+  const hasPromptBuilder = blocks.some((b) => b.content?.html.includes("data-cellpy-prompt-builder"));
 
   return (
     <>
@@ -123,6 +128,7 @@ export async function SitePage({ slug, searchParams }: { slug: string; searchPar
       {hasCopy && <script src="/copy-button.js" defer />}
       {hasModal && <script src="/modal.js" defer />}
       {hasToggle && <script src="/toggle.js" defer />}
+      {hasPromptBuilder && <script src="/prompt-builder.js" defer />}
     </>
   );
 }
@@ -169,6 +175,9 @@ export async function ScrollPage({ sections, searchParams }: { sections: ScrollS
   const hasCopy = rendered.some((s) => s.blocks.some((b) => b.content?.html.includes("data-copy")));
   const hasModal = rendered.some((s) => s.blocks.some((b) => b.content?.html.includes("data-modal-open")));
   const hasEntityList = rendered.some((s) => s.blocks.some((b) => b.content?.html.includes("data-entity=")));
+  const hasPromptBuilder = rendered.some((s) =>
+    s.blocks.some((b) => b.content?.html.includes("data-cellpy-prompt-builder"))
+  );
 
   return (
     <>
@@ -198,6 +207,7 @@ export async function ScrollPage({ sections, searchParams }: { sections: ScrollS
       {hasCopy && <script src="/copy-button.js" defer />}
       {hasModal && <script src="/modal.js" defer />}
       {hasToggle && <script src="/toggle.js" defer />}
+      {hasPromptBuilder && <script src="/prompt-builder.js" defer />}
     </>
   );
 }
