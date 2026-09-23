@@ -18,10 +18,10 @@
  * is the only way they can submit a chip/checkbox selection at all.
  *
  * Free-text search also auto-submits, debounced: once the field holds
- * at least 3 characters (trimmed), a 3-second pause in typing submits
+ * at least 3 characters (trimmed), a 1.5-second pause in typing submits
  * the form. Fewer than 3 characters never auto-submits — Enter (or the
  * button, with JS disabled) still works at any length. Typing more
- * before the 3 seconds is up resets the timer, same as a normal
+ * before the 1.5 seconds is up resets the timer, same as a normal
  * search-as-you-type debounce.
  */
 ( function () {
@@ -29,7 +29,7 @@
 	window.__cellpyBlogFilterAutoSubmitInit = true;
 
 	var SEARCH_MIN_CHARS = 3;
-	var SEARCH_DEBOUNCE_MS = 3000;
+	var SEARCH_DEBOUNCE_MS = 1500;
 
 	function init() {
 		document.querySelectorAll( '.blog-filter-widget--auto' ).forEach( function ( form ) {
