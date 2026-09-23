@@ -1223,6 +1223,13 @@ a { color: var(--color-primary, inherit); }
   border: 0;
   border-radius: 8px;
 }
+/* submit_mode "auto" (public/blog-filter-auto-submit.js): once the
+   script has actually wired up auto-submit, the button is redundant —
+   hide it. Stays visible with JS disabled, since the class is never
+   added and the button is then the only way to submit a selection. */
+.blog-filter-widget--js-ready .blog-filter-widget__go {
+  display: none;
+}
 
 /* Multiselectable "chips" style (later same-amendment addition) — a
    <fieldset> of plain checkboxes, each visually replaced by its own
