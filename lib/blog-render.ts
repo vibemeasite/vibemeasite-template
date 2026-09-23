@@ -15,6 +15,12 @@ export interface BlogFilterConfig {
   showTags: boolean;
   categoriesStyle?: "dropdown" | "chips";
   tagsStyle?: "dropdown" | "chips";
+  // Later same-amendment addition — "button" (default, missing value
+  // reads as this) requires pressing Search; "auto" re-submits the form
+  // the instant a category/tag is selected (progressively enhanced by
+  // public/blog-filter-auto-submit.js — see BlogFilterWidget's own
+  // conditional <script>). Free-text search is unaffected either way.
+  submitMode?: "button" | "auto";
 }
 
 // BSA Phase 22 amendment (LLM-customizable blog card/grid) — the blog

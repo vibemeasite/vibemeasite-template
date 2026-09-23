@@ -38,9 +38,16 @@ export function BlogFilterWidget({
 
   const selectedTags = new Set(defaultTags ?? []);
   const selectedCategories = new Set(defaultCategories ?? []);
+  const autoSubmit = config.submitMode === "auto";
 
   return (
-    <form className="blog-filter-widget" method="get" action="/blog" role="search" aria-label="Search and filter blog posts">
+    <form
+      className={autoSubmit ? "blog-filter-widget blog-filter-widget--auto" : "blog-filter-widget"}
+      method="get"
+      action="/blog"
+      role="search"
+      aria-label="Search and filter blog posts"
+    >
       {showSearch && (
         <input
           type="search"
@@ -95,6 +102,7 @@ export function BlogFilterWidget({
       )}
 
       <button type="submit" className="blog-filter-widget__go">Search</button>
+      {autoSubmit && <script src="/blog-filter-auto-submit.js" defer />}
     </form>
   );
 }
