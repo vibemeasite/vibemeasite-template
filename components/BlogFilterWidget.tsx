@@ -1,4 +1,4 @@
-import type { BlogFilterConfig } from "../lib/blog-render";
+import { sanitizeBlogFilterCss, type BlogFilterConfig } from "../lib/blog-render";
 
 // BSA Phase 22 amendment — the blog index's optional search/tag/category
 // widget. Always submits to /blog (a plain GET form, works with JS
@@ -61,17 +61,17 @@ export function BlogFilterWidget({
 
       {showCategories && (
         config.categoriesStyle === "chips" ? (
-          <fieldset className="blog-filter-widget__chips">
+          <fieldset className="blog-filter-widget__chips blog-filter-widget__chips--categories">
             <legend className="sr-only">Category</legend>
             {categories.map((c) => (
-              <span key={c.slug} className="blog-chip-option">
+              <span key={c.slug} className="blog-chip-option blog-chip-option--categories">
                 <input type="checkbox" id={`fw-cat-${c.slug}`} name="categories" value={c.slug} defaultChecked={selectedCategories.has(c.slug)} className="blog-chip-checkbox" />
-                <label htmlFor={`fw-cat-${c.slug}`} className="blog-chip-toggle">{c.name}</label>
+                <label htmlFor={`fw-cat-${c.slug}`} className="blog-chip-toggle blog-chip-toggle--categories">{c.name}</label>
               </span>
             ))}
           </fieldset>
         ) : (
-          <select name="categories" className="blog-filter-widget__select" defaultValue={defaultCategories?.[0] ?? ""} aria-label="Category">
+          <select name="categories" className="blog-filter-widget__select blog-filter-widget__select--categories" defaultValue={defaultCategories?.[0] ?? ""} aria-label="Category">
             <option value="">All categories</option>
             {categories.map((c) => (
               <option key={c.slug} value={c.slug}>{c.name}</option>
@@ -82,17 +82,17 @@ export function BlogFilterWidget({
 
       {showTags && (
         config.tagsStyle === "chips" ? (
-          <fieldset className="blog-filter-widget__chips">
+          <fieldset className="blog-filter-widget__chips blog-filter-widget__chips--tags">
             <legend className="sr-only">Tag</legend>
             {tags.map((t) => (
-              <span key={t.slug} className="blog-chip-option">
+              <span key={t.slug} className="blog-chip-option blog-chip-option--tags">
                 <input type="checkbox" id={`fw-tag-${t.slug}`} name="tags" value={t.slug} defaultChecked={selectedTags.has(t.slug)} className="blog-chip-checkbox" />
-                <label htmlFor={`fw-tag-${t.slug}`} className="blog-chip-toggle">{t.name}</label>
+                <label htmlFor={`fw-tag-${t.slug}`} className="blog-chip-toggle blog-chip-toggle--tags">{t.name}</label>
               </span>
             ))}
           </fieldset>
         ) : (
-          <select name="tags" className="blog-filter-widget__select" defaultValue={defaultTags?.[0] ?? ""} aria-label="Tag">
+          <select name="tags" className="blog-filter-widget__select blog-filter-widget__select--tags" defaultValue={defaultTags?.[0] ?? ""} aria-label="Tag">
             <option value="">All tags</option>
             {tags.map((t) => (
               <option key={t.slug} value={t.slug}>{t.name}</option>
@@ -103,6 +103,7 @@ export function BlogFilterWidget({
 
       <button type="submit" className="blog-filter-widget__go">Search</button>
       {autoSubmit && <script src="/blog-filter-auto-submit.js" defer />}
+      {config.css && <style>{sanitizeBlogFilterCss(config.css)}</style>}
     </form>
   );
 }

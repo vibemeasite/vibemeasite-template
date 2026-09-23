@@ -21,6 +21,28 @@ export interface BlogFilterConfig {
   // public/blog-filter-auto-submit.js — see BlogFilterWidget's own
   // conditional <script>). Free-text search is unaffected either way.
   submitMode?: "button" | "auto";
+  // Later same-amendment addition — raw CSS targeting the widget's own
+  // fixed class names, same "blocklist, not allowlist" model as
+  // set_branding's header_css/body_css (see sanitizeBlogFilterCss below
+  // and set_blog_filter_widget's own description for the full class
+  // list). Re-sanitized here rather than trusted blindly from the DB —
+  // same defense-in-depth app/layout.tsx applies to headerCss/bodyCss.
+  css?: string;
+}
+
+// Same blocklist as vibemeasite-mcp's set_blog_filter_widget (write-time)
+// and app/layout.tsx's sanitizeHeaderCss (read-time, for header_css/
+// body_css) — @import/javascript:/expression() are the only universally-
+// dangerous constructs; everything else (any selector/property) is
+// intentionally allowed so an owner can freely restyle the widget's
+// layout (flex-direction for row vs. column, width/font-size for
+// smaller/bigger, order to reorder the search box against the chips,
+// etc.) without a template change.
+const BLOG_FILTER_CSS_FORBIDDEN_RE = /@import|javascript:|expression\s*\(/i;
+
+export function sanitizeBlogFilterCss(css: unknown): string {
+  if (typeof css !== "string" || BLOG_FILTER_CSS_FORBIDDEN_RE.test(css)) return "";
+  return css;
 }
 
 // BSA Phase 22 amendment (LLM-customizable blog card/grid) — the blog
