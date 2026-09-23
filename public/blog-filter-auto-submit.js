@@ -17,12 +17,19 @@
  * disabled never gets this class and keeps the visible button, which
  * is the only way they can submit a chip/checkbox selection at all.
  *
- * Free-text search is otherwise untouched: typing doesn't auto-submit
- * on every keystroke.
+ * Free-text search also auto-submits, debounced: once the field holds
+ * at least 3 characters (trimmed), a 3-second pause in typing submits
+ * the form. Fewer than 3 characters never auto-submits — Enter (or the
+ * button, with JS disabled) still works at any length. Typing more
+ * before the 3 seconds is up resets the timer, same as a normal
+ * search-as-you-type debounce.
  */
 ( function () {
 	if ( window.__cellpyBlogFilterAutoSubmitInit ) return;
 	window.__cellpyBlogFilterAutoSubmitInit = true;
+
+	var SEARCH_MIN_CHARS = 3;
+	var SEARCH_DEBOUNCE_MS = 3000;
 
 	function init() {
 		document.querySelectorAll( '.blog-filter-widget--auto' ).forEach( function ( form ) {
@@ -31,6 +38,19 @@
 					form.requestSubmit();
 				} );
 			} );
+
+			var searchInput = form.querySelector( 'input[type="search"]' );
+			if ( searchInput ) {
+				var debounceTimer = null;
+				searchInput.addEventListener( 'input', function () {
+					if ( debounceTimer ) clearTimeout( debounceTimer );
+					if ( searchInput.value.trim().length < SEARCH_MIN_CHARS ) return;
+					debounceTimer = setTimeout( function () {
+						form.requestSubmit();
+					}, SEARCH_DEBOUNCE_MS );
+				} );
+			}
+
 			form.classList.add( 'blog-filter-widget--js-ready' );
 		} );
 	}
