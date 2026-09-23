@@ -19,10 +19,15 @@
  *
  * Free-text search also auto-submits, debounced: once the field holds
  * at least 3 characters (trimmed), a 1.5-second pause in typing submits
- * the form. Fewer than 3 characters never auto-submits — Enter (or the
- * button, with JS disabled) still works at any length. Typing more
- * before the 1.5 seconds is up resets the timer, same as a normal
- * search-as-you-type debounce.
+ * the form. Typing more before the 1.5 seconds is up resets the timer,
+ * same as a normal search-as-you-type debounce. Enter (or the button,
+ * with JS disabled) still works at any length regardless of the above.
+ *
+ * Dropping back below 3 characters (including back to empty, e.g. by
+ * backspacing) does NOT search on that 1-2 character fragment — instead
+ * it debounces submitting an EMPTY query, the same way, so a
+ * previously-applied longer search actually clears instead of staying
+ * stuck once the visitor backs out of it.
  */
 ( function () {
 	if ( window.__cellpyBlogFilterAutoSubmitInit ) return;
@@ -44,7 +49,18 @@
 				var debounceTimer = null;
 				searchInput.addEventListener( 'input', function () {
 					if ( debounceTimer ) clearTimeout( debounceTimer );
-					if ( searchInput.value.trim().length < SEARCH_MIN_CHARS ) return;
+					if ( searchInput.value.trim().length < SEARCH_MIN_CHARS ) {
+						// Below the minimum (including empty) — don't search on a
+						// 1-2 character fragment, but still debounce clearing any
+						// previously-applied longer query. The page navigates
+						// away on submit, so blanking the field here needs no
+						// restore.
+						debounceTimer = setTimeout( function () {
+							searchInput.value = '';
+							form.requestSubmit();
+						}, SEARCH_DEBOUNCE_MS );
+						return;
+					}
 					debounceTimer = setTimeout( function () {
 						form.requestSubmit();
 					}, SEARCH_DEBOUNCE_MS );
