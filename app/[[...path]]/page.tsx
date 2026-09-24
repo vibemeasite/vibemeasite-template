@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { SitePage, ScrollPage } from "../../components/SitePage";
 import { getSiteSettings, getScrollPages, getPageBySlug } from "../../lib/queries";
 import { pageMetadata, blogArchiveMetadata } from "../../lib/seo";
-import { splitLocalePath, isLocaleShaped, getCurrentLocale } from "../../lib/locale";
+import { splitLocalePath, isLocaleShaped, getCurrentLocale, resolveTranslation } from "../../lib/locale";
 import { BlogIndexPosts } from "../../components/BlogIndexPosts";
 import { BlogArchive } from "../../components/BlogArchive";
 import { BlogPostChrome } from "../../components/BlogPostChrome";
@@ -149,8 +149,13 @@ export default async function SiteRoute({ params, searchParams }: RouteCtx) {
   const postMeta = (result.page.seoMeta as { post?: PostMeta } | null)?.post;
   if (postMeta) {
     const postLocale = await getCurrentLocale(defaultLocale, availableLocales);
+    // update_blog_post's `lang` param writes into the same title_translations
+    // column as a regular page title (see set_header_translations) — resolve
+    // it the same way pageMetadata() already does for the <title> tag,
+    // otherwise the visible <h1> stays stuck in the default language.
+    const postTitle = resolveTranslation(result.page.title, result.page.titleTranslations, postLocale);
     return (
-      <BlogPostChrome title={result.page.title} post={postMeta} locale={postLocale}>
+      <BlogPostChrome title={postTitle} post={postMeta} locale={postLocale}>
         <SitePage slug={slug} searchParams={sp} />
       </BlogPostChrome>
     );

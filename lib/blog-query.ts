@@ -16,6 +16,7 @@ export interface BlogPostRow {
   slug: string; // "blog/{post_slug}"
   postSlug: string;
   title: string;
+  titleTranslations: Record<string, string> | null;
   post: PostMeta;
 }
 
@@ -50,7 +51,10 @@ export const getAllBlogPostPages = unstable_cache(
     for (const row of rows) {
       const post = (row.seoMeta as PageSeoMetaWithPost | null)?.post;
       if (!post) continue;
-      out.push({ id: row.id, slug: row.slug, postSlug: row.slug.slice("blog/".length), title: row.title, post });
+      out.push({
+        id: row.id, slug: row.slug, postSlug: row.slug.slice("blog/".length), title: row.title,
+        titleTranslations: (row.titleTranslations as Record<string, string> | null) ?? null, post,
+      });
     }
     return out;
   },

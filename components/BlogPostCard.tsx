@@ -1,4 +1,5 @@
 import { formatPostDate, DEFAULT_BLOG_STYLE_CONFIG, type BlogStyleConfig } from "../lib/blog-render";
+import { resolveTranslation } from "../lib/locale";
 import type { BlogPostRow } from "../lib/blog-query";
 
 // BSA Phase 22 — one card in the blog index/archive grid. Excerpt is
@@ -21,7 +22,7 @@ export function BlogPostCard({
   tagNames?: Record<string, string>;
   styleConfig?: BlogStyleConfig;
 }) {
-  const { title } = post;
+  const title = locale ? resolveTranslation(post.title, post.titleTranslations, locale) : post.title;
   const { excerpt, featuredImage, publishedAt, author } = post.post;
   const tags = post.post.tags ?? [];
   const categories = post.post.categories ?? [];
