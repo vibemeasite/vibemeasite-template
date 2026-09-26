@@ -58,6 +58,8 @@
 	var UI_STRINGS = {
 		en: {
 			yourName: 'Your name',
+			yourFirstName: 'First name',
+			yourLastName: 'Last name',
 			yourEmail: 'Your email',
 			loadingTimes: 'Loading times…',
 			noAvailableTimes: 'No available times this day.',
@@ -78,6 +80,8 @@
 		},
 		uk: {
 			yourName: 'Ваше ім\'я',
+			yourFirstName: 'Ім\'я',
+			yourLastName: 'Прізвище',
 			yourEmail: 'Ваша електронна пошта',
 			loadingTimes: 'Завантаження часу…',
 			noAvailableTimes: 'На цей день немає вільного часу.',
@@ -202,6 +206,13 @@
 			customFields: [],
 			itemSelectorStyle: 'dropdown',
 			maxServices: 1,
+			// Flexible name/contact fields follow-up — 'full' (default) keeps a
+			// single Name input, matching every widget's behavior before this;
+			// 'first_last' splits it into two. formNotice is a Site-Owner
+			// authored line shown in the request form, e.g. a note that
+			// inaccurate contact info may lead to a booking being refused.
+			nameFields: 'full',
+			formNotice: '',
 			currency: 'usd', // BSA Phase 23 — only meaningful for services that carry deposit_cents
 			// Booking widget translation follow-up — id, not name: the display
 			// name varies by visitor language, id doesn't. Used for every
@@ -236,6 +247,8 @@
 				state.itemSelectorStyle = result.json.item_selector_style || 'dropdown';
 				state.maxServices = result.json.max_services || 1;
 				state.currency = result.json.currency || 'usd';
+				state.nameFields = result.json.name_fields || 'full';
+				state.formNotice = result.json.form_notice || '';
 				if ( 0 === state.services.length ) {
 					renderMessage( mount, T.bookingUnavailable );
 					return;
@@ -716,12 +729,40 @@
 		var form = document.createElement( 'form' );
 		form.className = 'vms-booking-widget__form';
 
-		var nameInput = document.createElement( 'input' );
-		nameInput.type = 'text';
-		nameInput.name = 'name';
-		nameInput.placeholder = T.yourName;
-		nameInput.required = true;
-		form.appendChild( nameInput );
+		// Flexible name/contact fields follow-up — 'first_last' splits the
+		// single Name input into two; either way visitorName() below joins
+		// them back into the one string the request endpoint has always
+		// expected, so nothing downstream of this form needs to know which
+		// mode is active.
+		var firstNameInput = null, lastNameInput = null, nameInput = null;
+		if ( 'first_last' === state.nameFields ) {
+			firstNameInput = document.createElement( 'input' );
+			firstNameInput.type = 'text';
+			firstNameInput.name = 'first_name';
+			firstNameInput.placeholder = T.yourFirstName;
+			firstNameInput.required = true;
+			form.appendChild( firstNameInput );
+
+			lastNameInput = document.createElement( 'input' );
+			lastNameInput.type = 'text';
+			lastNameInput.name = 'last_name';
+			lastNameInput.placeholder = T.yourLastName;
+			lastNameInput.required = true;
+			form.appendChild( lastNameInput );
+		} else {
+			nameInput = document.createElement( 'input' );
+			nameInput.type = 'text';
+			nameInput.name = 'name';
+			nameInput.placeholder = T.yourName;
+			nameInput.required = true;
+			form.appendChild( nameInput );
+		}
+
+		function visitorName() {
+			return nameInput
+				? nameInput.value
+				: ( firstNameInput.value.trim() + ' ' + lastNameInput.value.trim() ).trim();
+		}
 
 		var emailInput = document.createElement( 'input' );
 		emailInput.type = 'email';
@@ -748,6 +789,10 @@
 			form.appendChild( input );
 			customFieldInputs[ field.name ] = input;
 		} );
+
+		if ( state.formNotice ) {
+			form.appendChild( el( 'p', 'vms-booking-widget__notice', state.formNotice ) );
+		}
 
 		// BSA Phase 23 — shown once, computed from the service selection
 		// already locked in by the time this form renders (changing
@@ -778,7 +823,7 @@
 					widget_public_id: widgetId,
 					service_ids: state.selectedServiceIds,
 					start_iso: state.selectedSlot.startIso,
-					visitor_name: nameInput.value,
+					visitor_name: visitorName(),
 					visitor_email: emailInput.value,
 					custom_field_values: customFieldValues,
 				} ),
