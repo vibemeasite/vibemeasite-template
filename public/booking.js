@@ -67,6 +67,7 @@
 			confirm: 'Confirm',
 			appointmentConfirmed: 'Your appointment is confirmed! Check your email for details.',
 			redirectingToPayment: 'Redirecting you to pay your deposit…',
+			paymentRequiredNotice: 'Payment of {amount} is required to confirm this booking.',
 			genericError: 'Something went wrong. Please try again.',
 			bookingUnavailable: 'Booking isn\'t available right now.',
 			viewDays: 'Days',
@@ -86,6 +87,7 @@
 			confirm: 'Підтвердити',
 			appointmentConfirmed: 'Вашу зустріч підтверджено! Перевірте електронну пошту для деталей.',
 			redirectingToPayment: 'Перенаправляємо вас для оплати депозиту…',
+			paymentRequiredNotice: 'Для підтвердження бронювання потрібна оплата {amount}.',
 			genericError: 'Щось пішло не так. Спробуйте ще раз.',
 			bookingUnavailable: 'Бронювання зараз недоступне.',
 			viewDays: 'Дні',
@@ -200,6 +202,7 @@
 			customFields: [],
 			itemSelectorStyle: 'dropdown',
 			maxServices: 1,
+			currency: 'usd', // BSA Phase 23 — only meaningful for services that carry deposit_cents
 			// Booking widget translation follow-up — id, not name: the display
 			// name varies by visitor language, id doesn't. Used for every
 			// availability/request call; the name is only ever shown, never
@@ -232,6 +235,7 @@
 				state.customFields = result.json.custom_fields || [];
 				state.itemSelectorStyle = result.json.item_selector_style || 'dropdown';
 				state.maxServices = result.json.max_services || 1;
+				state.currency = result.json.currency || 'usd';
 				if ( 0 === state.services.length ) {
 					renderMessage( mount, T.bookingUnavailable );
 					return;
@@ -268,6 +272,39 @@
 		return !! MULTI_SELECT_STYLES[ style ];
 	}
 
+	// BSA Phase 23 — deposit_cents is only present on a service that actually
+	// requires payment (see api/public-booking.ts's handleWidgetConfig); a
+	// free service simply never has this field, so every existing site's
+	// booking widget renders identically to before this phase.
+	function formatPrice( cents, currency ) {
+		try {
+			return new Intl.NumberFormat( undefined, { style: 'currency', currency: ( currency || 'usd' ).toUpperCase() } ).format( cents / 100 );
+		} catch ( e ) {
+			// Intl.NumberFormat throws on a currency code it doesn't recognize —
+			// fall back to a plain number rather than breaking the whole widget
+			// over a formatting nicety.
+			return ( cents / 100 ).toFixed( 2 ) + ' ' + ( currency || '' ).toUpperCase();
+		}
+	}
+
+	function serviceLabel( s, state ) {
+		var label = s.name + ' (' + s.duration_minutes + ' min)';
+		if ( s.deposit_cents ) label += ' — ' + formatPrice( s.deposit_cents, state.currency );
+		return label;
+	}
+
+	// Total price owed for the CURRENT selection, or 0 if every selected
+	// service is free — used both by formatSummary (multi-select) and by
+	// the payment notice above the request form (any selector style).
+	function selectionTotalCents( state ) {
+		var total = 0;
+		state.selectedServiceIds.forEach( function ( id ) {
+			var s = getService( state, id );
+			if ( s && s.deposit_cents ) total += s.deposit_cents;
+		} );
+		return total;
+	}
+
 	function formatSummary( state ) {
 		if ( state.selectedServiceIds.length < 2 ) return '';
 		var parts = [];
@@ -278,7 +315,10 @@
 			parts.push( s.name + ' (' + s.duration_minutes + ' min)' );
 			total += s.duration_minutes;
 		} );
-		return T.summaryTotal.replace( '{list}', parts.join( ' + ' ) ).replace( '{total}', String( total ) );
+		var summary = T.summaryTotal.replace( '{list}', parts.join( ' + ' ) ).replace( '{total}', String( total ) );
+		var priceCents = selectionTotalCents( state );
+		if ( priceCents ) summary += ' — ' + formatPrice( priceCents, state.currency );
+		return summary;
 	}
 
 	function renderServicePicker( mount, widgetId, state ) {
@@ -336,7 +376,7 @@
 			state.services.forEach( function ( s ) {
 				var opt = document.createElement( 'option' );
 				opt.value = s.id;
-				opt.textContent = s.name;
+				opt.textContent = serviceLabel( s, state );
 				select.appendChild( opt );
 			} );
 			select.value = state.selectedServiceIds[ 0 ];
@@ -360,7 +400,7 @@
 					handleSelect( s.id );
 				} );
 				label.appendChild( input );
-				label.appendChild( document.createTextNode( ' ' + s.name + ' (' + s.duration_minutes + ' min)' ) );
+				label.appendChild( document.createTextNode( ' ' + serviceLabel( s, state ) ) );
 				container.appendChild( label );
 			} );
 		} else if ( 'tiles-single' === style || 'tiles-multi' === style ) {
@@ -369,7 +409,7 @@
 				tile.type = 'button';
 				tile.setAttribute( 'data-vms-service-id', s.id );
 				tile.appendChild( el( 'span', null, s.name ) );
-				tile.appendChild( el( 'span', null, s.duration_minutes + ' min' ) );
+				tile.appendChild( el( 'span', null, s.duration_minutes + ' min' + ( s.deposit_cents ? ' — ' + formatPrice( s.deposit_cents, state.currency ) : '' ) ) );
 				tile.addEventListener( 'click', function () {
 					if ( tile.disabled ) return;
 					handleSelect( s.id );
@@ -378,7 +418,7 @@
 			} );
 		} else if ( 'segmented' === style ) {
 			state.services.forEach( function ( s ) {
-				var seg = el( 'button', 'vms-booking-widget__service-option', s.name );
+				var seg = el( 'button', 'vms-booking-widget__service-option', serviceLabel( s, state ) );
 				seg.type = 'button';
 				seg.setAttribute( 'data-vms-service-id', s.id );
 				seg.addEventListener( 'click', function () {
@@ -390,7 +430,7 @@
 			state.services.forEach( function ( s ) {
 				var item = el( 'div', 'vms-booking-widget__service-option' );
 				item.setAttribute( 'data-vms-service-id', s.id );
-				var header = el( 'button', null, s.name + ' — ' + s.duration_minutes + ' min' );
+				var header = el( 'button', null, serviceLabel( s, state ) );
 				header.type = 'button';
 				header.setAttribute( 'aria-expanded', 'false' );
 				header.addEventListener( 'click', function () {
@@ -708,6 +748,15 @@
 			form.appendChild( input );
 			customFieldInputs[ field.name ] = input;
 		} );
+
+		// BSA Phase 23 — shown once, computed from the service selection
+		// already locked in by the time this form renders (changing
+		// services means going back to pick a slot again, which re-renders
+		// this form fresh) — no live-update wiring needed here.
+		var paymentCents = selectionTotalCents( state );
+		if ( paymentCents ) {
+			form.appendChild( el( 'p', 'vms-booking-widget__payment-notice', T.paymentRequiredNotice.replace( '{amount}', formatPrice( paymentCents, state.currency ) ) ) );
+		}
 
 		var submitBtn = el( 'button', 'vms-booking-widget__submit', T.requestThisTime );
 		submitBtn.type = 'submit';
