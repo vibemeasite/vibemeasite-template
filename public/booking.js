@@ -345,21 +345,31 @@
 		summaryEl.hidden = true;
 
 		function refreshSelectedVisuals() {
-			var options = container.querySelectorAll( '[data-vms-service-id]' );
-			Array.prototype.forEach.call( options, function ( optionEl ) {
-				var id = optionEl.getAttribute( 'data-vms-service-id' );
-				var selected = state.selectedServiceIds.indexOf( id ) !== -1;
-				optionEl.classList.toggle( 'vms-booking-widget__service-option--selected', selected );
-				var input = optionEl.querySelector( 'input' );
-				if ( input ) input.checked = selected;
-				if ( multi ) {
-					var atCap = state.selectedServiceIds.length >= state.maxServices;
-					var disable = atCap && ! selected;
-					optionEl.classList.toggle( 'vms-booking-widget__service-option--disabled', disable );
-					if ( input ) input.disabled = disable;
-					else optionEl.disabled = disable;
-				}
-			} );
+			// container is null for 'dropdown' (a native <select> has no
+			// per-option elements to toggle classes on) — skip straight to the
+			// summary line in that case. Guarding this was missing entirely
+			// before, so selecting a different service in a dropdown-style
+			// widget threw here and never reached onServiceSelectionChanged
+			// below, leaving the old slot/date and the old service's payment
+			// notice stuck on screen even though a different service (and
+			// price) was now selected.
+			if ( container ) {
+				var options = container.querySelectorAll( '[data-vms-service-id]' );
+				Array.prototype.forEach.call( options, function ( optionEl ) {
+					var id = optionEl.getAttribute( 'data-vms-service-id' );
+					var selected = state.selectedServiceIds.indexOf( id ) !== -1;
+					optionEl.classList.toggle( 'vms-booking-widget__service-option--selected', selected );
+					var input = optionEl.querySelector( 'input' );
+					if ( input ) input.checked = selected;
+					if ( multi ) {
+						var atCap = state.selectedServiceIds.length >= state.maxServices;
+						var disable = atCap && ! selected;
+						optionEl.classList.toggle( 'vms-booking-widget__service-option--disabled', disable );
+						if ( input ) input.disabled = disable;
+						else optionEl.disabled = disable;
+					}
+				} );
+			}
 			var summary = formatSummary( state );
 			summaryEl.textContent = summary;
 			summaryEl.hidden = ! summary;
