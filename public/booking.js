@@ -66,6 +66,7 @@
 			sixDigitCode: '6-digit code',
 			confirm: 'Confirm',
 			appointmentConfirmed: 'Your appointment is confirmed! Check your email for details.',
+			redirectingToPayment: 'Redirecting you to pay your deposit…',
 			genericError: 'Something went wrong. Please try again.',
 			bookingUnavailable: 'Booking isn\'t available right now.',
 			viewDays: 'Days',
@@ -84,6 +85,7 @@
 			sixDigitCode: '6-значний код',
 			confirm: 'Підтвердити',
 			appointmentConfirmed: 'Вашу зустріч підтверджено! Перевірте електронну пошту для деталей.',
+			redirectingToPayment: 'Перенаправляємо вас для оплати депозиту…',
 			genericError: 'Щось пішло не так. Спробуйте ще раз.',
 			bookingUnavailable: 'Бронювання зараз недоступне.',
 			viewDays: 'Дні',
@@ -779,12 +781,21 @@
 			fetchJson( CONFIRM_ENDPOINT, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify( { request_id: state.requestId, code: codeInput.value } ),
+				// site_base_url (BSA Phase 23) — only actually used server-side
+				// when the requested service(s) owe a deposit; harmless to always
+				// send. window.location.origin is this tenant's own live domain,
+				// same value the relay would otherwise have had to guess.
+				body: JSON.stringify( { request_id: state.requestId, code: codeInput.value, site_base_url: window.location.origin } ),
 			} )
 				.then( function ( result ) {
 					submitBtn.disabled = false;
 					if ( 200 !== result.status || ! result.json.ok ) {
 						showFormError( form, ( result.json && result.json.message ) || GENERIC_ERROR );
+						return;
+					}
+					if ( result.json.requires_payment ) {
+						renderMessage( formContainer, T.redirectingToPayment );
+						window.location.href = result.json.checkout_url;
 						return;
 					}
 					renderMessage( formContainer, T.appointmentConfirmed );
