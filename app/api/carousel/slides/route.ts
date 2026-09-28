@@ -7,10 +7,13 @@ import { NextRequest, NextResponse } from "next/server";
 const PUBLIC_CAROUSEL_BASE = "https://mcp.vibemeasite.com/api/public-carousel/";
 
 export async function GET(req: NextRequest) {
-  const carousel = new URL(req.url).searchParams.get("carousel") ?? "";
+  const params = new URL(req.url).searchParams;
+  const carousel = params.get("carousel") ?? "";
+  const lang = params.get("lang");
 
   try {
-    const res = await fetch(`${PUBLIC_CAROUSEL_BASE}slides?carousel=${encodeURIComponent(carousel)}`);
+    const upstream = `${PUBLIC_CAROUSEL_BASE}slides?carousel=${encodeURIComponent(carousel)}${lang ? `&lang=${encodeURIComponent(lang)}` : ""}`;
+    const res = await fetch(upstream);
     const json = await res.json().catch(() => ({}));
     return NextResponse.json(json, { status: res.status });
   } catch {

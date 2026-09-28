@@ -20,6 +20,11 @@
  * exactly as before (1 slide, modulo-wrap jump on wrap), so existing
  * carousels don't change look. Swipe defaults on since it has no visible
  * effect unless a viewer actually drags.
+ *
+ * v49 — passes the page's current language (document.documentElement.lang)
+ * to /api/carousel/slides as ?lang=, so a block-type slide with a
+ * translation set (vibemeasite-mcp's translate_carousel_slide) renders in
+ * that language instead of always the default one.
  */
 ( function () {
 	if ( window.__cellpyCarouselInit ) return;
@@ -78,7 +83,9 @@
 		var mount = wrapper.querySelector( '[data-vms-carousel-mount]' );
 		if ( ! carouselId || ! mount ) return;
 
-		fetch( SLIDES_ENDPOINT + '?carousel=' + encodeURIComponent( carouselId ) )
+		var lang = document.documentElement.lang || '';
+		var url = SLIDES_ENDPOINT + '?carousel=' + encodeURIComponent( carouselId ) + ( lang ? '&lang=' + encodeURIComponent( lang ) : '' );
+		fetch( url )
 			.then( function ( res ) { return res.json(); } )
 			.then( function ( json ) {
 				if ( ! json || ! json.ok || ! json.slides || json.slides.length === 0 ) {
