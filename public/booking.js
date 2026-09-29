@@ -784,9 +784,68 @@
 		// Site-Owner-defined fields beyond name/email (e.g. phone, notes) —
 		// see CUSTOM_FIELDS_SCHEMA in vibemeasite-mcp's api/_server.ts. Each
 		// field's `type` maps directly to an <input type="..."> except
-		// 'textarea', which needs its own element.
-		var customFieldInputs = {};
+		// 'textarea', 'select' and 'radio', which need their own elements.
+		// select/radio options arrive as { value, label }: `value` is always
+		// the default-language option (what the owner sees in the booking),
+		// `label` is translated for the page's language.
+		// customFieldValueGetters: field name -> function returning its value.
+		var customFieldValueGetters = {};
 		state.customFields.forEach( function ( field ) {
+			if ( 'select' === field.type ) {
+				var select = document.createElement( 'select' );
+				select.className = 'vms-booking-widget__field-select';
+				select.name = field.name;
+				select.required = !! field.required;
+				select.setAttribute( 'aria-label', field.label );
+				// Disabled+selected empty first option doubles as the label,
+				// matching the placeholder-as-label style of the other inputs,
+				// and makes `required` actually block an untouched dropdown.
+				var placeholder = el( 'option', null, field.label );
+				placeholder.value = '';
+				placeholder.disabled = true;
+				placeholder.selected = true;
+				select.appendChild( placeholder );
+				( field.options || [] ).forEach( function ( opt ) {
+					var option = el( 'option', null, opt.label );
+					option.value = opt.value;
+					select.appendChild( option );
+				} );
+				form.appendChild( select );
+				customFieldValueGetters[ field.name ] = function () {
+					return select.value;
+				};
+				return;
+			}
+
+			if ( 'radio' === field.type ) {
+				var fieldset = document.createElement( 'fieldset' );
+				fieldset.className = 'vms-booking-widget__field-radio';
+				fieldset.appendChild( el( 'legend', null, field.label ) );
+				var radios = [];
+				( field.options || [] ).forEach( function ( opt, i ) {
+					var optionLabel = el( 'label', 'vms-booking-widget__field-radio-option' );
+					var radio = document.createElement( 'input' );
+					radio.type = 'radio';
+					radio.name = field.name;
+					radio.value = opt.value;
+					// One required radio in a same-name group makes the
+					// whole group required for native form validation.
+					if ( 0 === i ) radio.required = !! field.required;
+					optionLabel.appendChild( radio );
+					optionLabel.appendChild( document.createTextNode( ' ' + opt.label ) );
+					fieldset.appendChild( optionLabel );
+					radios.push( radio );
+				} );
+				form.appendChild( fieldset );
+				customFieldValueGetters[ field.name ] = function () {
+					for ( var i = 0; i < radios.length; i++ ) {
+						if ( radios[ i ].checked ) return radios[ i ].value;
+					}
+					return '';
+				};
+				return;
+			}
+
 			var input = 'textarea' === field.type
 				? document.createElement( 'textarea' )
 				: document.createElement( 'input' );
@@ -797,7 +856,9 @@
 			input.placeholder = field.label;
 			input.required = !! field.required;
 			form.appendChild( input );
-			customFieldInputs[ field.name ] = input;
+			customFieldValueGetters[ field.name ] = function () {
+				return input.value;
+			};
 		} );
 
 		if ( state.formNotice ) {
@@ -822,8 +883,8 @@
 			submitBtn.disabled = true;
 
 			var customFieldValues = {};
-			Object.keys( customFieldInputs ).forEach( function ( name ) {
-				customFieldValues[ name ] = customFieldInputs[ name ].value;
+			Object.keys( customFieldValueGetters ).forEach( function ( name ) {
+				customFieldValues[ name ] = customFieldValueGetters[ name ]();
 			} );
 
 			fetchJson( REQUEST_ENDPOINT, {
