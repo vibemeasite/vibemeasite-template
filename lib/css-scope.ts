@@ -11,6 +11,10 @@ export function scopeCss(css: string, wrapper: string): string {
   let buffer = "";
   let output = "";
   let atRuleDepth: number | null = null;
+  // @keyframes bodies hold keyframe selectors (0%, 50%, 100%), not element
+  // selectors — prefixing them (".wrapper 0%") makes the browser drop every
+  // keyframe, silently killing the animation. Pass those through untouched.
+  let atRuleIsKeyframes = false;
 
   for (let i = 0; i < css.length; i++) {
     const ch = css[i];
@@ -24,9 +28,12 @@ export function scopeCss(css: string, wrapper: string): string {
           // are scoped individually as they close, below.
           output += trimmed + " {";
           atRuleDepth = depth;
+          atRuleIsKeyframes = /^@(-[a-z]+-)?keyframes\b/i.test(trimmed);
         } else {
           output += scopeSelectorList(trimmed, wrapper) + " {";
         }
+      } else if (atRuleDepth !== null && depth === atRuleDepth + 1 && atRuleIsKeyframes) {
+        output += trimmed + " {";
       } else if (atRuleDepth !== null && depth === atRuleDepth + 1) {
         // A rule nested directly inside an @-rule's body — its selector
         // list must be scoped too.
@@ -49,6 +56,7 @@ export function scopeCss(css: string, wrapper: string): string {
 
       if (atRuleDepth !== null && depth === atRuleDepth) {
         atRuleDepth = null;
+        atRuleIsKeyframes = false;
       }
       continue;
     }
