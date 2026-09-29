@@ -70,6 +70,8 @@
 			appointmentConfirmed: 'Your appointment is confirmed! Check your email for details.',
 			redirectingToPayment: 'Redirecting you to pay your deposit…',
 			paymentRequiredNotice: 'Payment of {amount} is required to confirm this booking.',
+			prepaymentNotice: 'A pre-payment of {deposit} is required to confirm your booking. The full price is {price} — the remaining {balance} is paid at your visit.',
+			payAtVisitNotice: 'The full price of {price} is paid at your visit.',
 			genericError: 'Something went wrong. Please try again.',
 			bookingUnavailable: 'Booking isn\'t available right now.',
 			viewDays: 'Days',
@@ -92,6 +94,8 @@
 			appointmentConfirmed: 'Вашу зустріч підтверджено! Перевірте електронну пошту для деталей.',
 			redirectingToPayment: 'Перенаправляємо вас для оплати депозиту…',
 			paymentRequiredNotice: 'Для підтвердження бронювання потрібна оплата {amount}.',
+			prepaymentNotice: 'Для підтвердження бронювання потрібна передоплата {deposit}. Повна вартість — {price}; решту, {balance}, ви сплачуєте під час візиту.',
+			payAtVisitNotice: 'Повна вартість {price} сплачується під час візиту.',
 			genericError: 'Щось пішло не так. Спробуйте ще раз.',
 			bookingUnavailable: 'Бронювання зараз недоступне.',
 			viewDays: 'Дні',
@@ -100,8 +104,61 @@
 			selectUpToN: 'Виберіть до {n} послуг.',
 			summaryTotal: '{list} — {total} хв всього',
 		},
+		fr: {
+			yourName: 'Votre nom',
+			yourFirstName: 'Prénom',
+			yourLastName: 'Nom',
+			yourEmail: 'Votre courriel',
+			loadingTimes: 'Chargement des horaires…',
+			noAvailableTimes: 'Aucun horaire disponible ce jour-là.',
+			requestThisTime: 'Réserver ce créneau',
+			checkEmailForCode: 'Consultez vos courriels : entrez ci-dessous le code à 6 chiffres reçu pour confirmer.',
+			sixDigitCode: 'Code à 6 chiffres',
+			confirm: 'Confirmer',
+			appointmentConfirmed: 'Votre rendez-vous est confirmé ! Consultez vos courriels pour les détails.',
+			redirectingToPayment: 'Redirection vers le paiement de votre acompte…',
+			paymentRequiredNotice: 'Un paiement de {amount} est requis pour confirmer cette réservation.',
+			prepaymentNotice: 'Un acompte de {deposit} est requis pour confirmer votre réservation. Le prix total est de {price} — le solde de {balance} se règle lors de votre visite.',
+			payAtVisitNotice: 'Le prix total de {price} se règle lors de votre visite.',
+			genericError: 'Une erreur est survenue. Veuillez réessayer.',
+			bookingUnavailable: 'La réservation n\'est pas disponible pour le moment.',
+			viewDays: 'Jours',
+			viewCalendar: 'Calendrier',
+			loadingCalendar: 'Chargement du calendrier…',
+			selectUpToN: 'Sélectionnez jusqu\'à {n} soins.',
+			summaryTotal: '{list} — {total} min au total',
+		},
+		ru: {
+			yourName: 'Ваше имя',
+			yourFirstName: 'Имя',
+			yourLastName: 'Фамилия',
+			yourEmail: 'Ваш e-mail',
+			loadingTimes: 'Загрузка времени…',
+			noAvailableTimes: 'На этот день нет свободного времени.',
+			requestThisTime: 'Записаться на это время',
+			checkEmailForCode: 'Проверьте почту: введите ниже 6-значный код для подтверждения.',
+			sixDigitCode: '6-значный код',
+			confirm: 'Подтвердить',
+			appointmentConfirmed: 'Ваша запись подтверждена! Подробности отправлены на e-mail.',
+			redirectingToPayment: 'Переходим к оплате предоплаты…',
+			paymentRequiredNotice: 'Для подтверждения записи требуется оплата {amount}.',
+			prepaymentNotice: 'Для подтверждения записи требуется предоплата {deposit}. Полная стоимость — {price}; оставшиеся {balance} оплачиваются во время визита.',
+			payAtVisitNotice: 'Полная стоимость {price} оплачивается во время визита.',
+			genericError: 'Что-то пошло не так. Попробуйте ещё раз.',
+			bookingUnavailable: 'Запись сейчас недоступна.',
+			viewDays: 'Дни',
+			viewCalendar: 'Календарь',
+			loadingCalendar: 'Загрузка календаря…',
+			selectUpToN: 'Выберите до {n} услуг.',
+			summaryTotal: '{list} — всего {total} мин',
+		},
 	};
-	var T = UI_STRINGS[ currentLang() ] || UI_STRINGS.en;
+	// No cellpy_lang cookie means the site's default language — the page's
+	// own <html lang> then says which one that is, rather than assuming 'en'.
+	function uiLang() {
+		return currentLang() || ( document.documentElement.lang || '' ).slice( 0, 2 ).toLowerCase();
+	}
+	var T = UI_STRINGS[ uiLang() ] || UI_STRINGS.en;
 	var GENERIC_ERROR = T.genericError;
 
 	// Single-select item_selector_style values keep state.selectedServiceIds
@@ -300,22 +357,54 @@
 		}
 	}
 
+	// price_cents is the display-only full price; deposit_cents is what's
+	// actually charged online. A service with only deposit_cents (every
+	// widget before price_cents existed) is paid in full online, so its
+	// deposit IS its price.
+	function servicePriceCents( s ) {
+		return s.price_cents || s.deposit_cents || 0;
+	}
+
 	function serviceLabel( s, state ) {
 		var label = s.name + ' (' + s.duration_minutes + ' min)';
-		if ( s.deposit_cents ) label += ' — ' + formatPrice( s.deposit_cents, state.currency );
+		var price = servicePriceCents( s );
+		if ( price ) label += ' — ' + formatPrice( price, state.currency );
 		return label;
 	}
 
-	// Total price owed for the CURRENT selection, or 0 if every selected
-	// service is free — used both by formatSummary (multi-select) and by
-	// the payment notice above the request form (any selector style).
-	function selectionTotalCents( state ) {
-		var total = 0;
+	// Totals for the CURRENT selection — `deposit` is charged online,
+	// `price` is the full price shown to the visitor. Used both by
+	// formatSummary (multi-select) and by the payment notice above the
+	// request form (any selector style).
+	function selectionTotals( state ) {
+		var totals = { deposit: 0, price: 0 };
 		state.selectedServiceIds.forEach( function ( id ) {
 			var s = getService( state, id );
-			if ( s && s.deposit_cents ) total += s.deposit_cents;
+			if ( ! s ) return;
+			totals.deposit += s.deposit_cents || 0;
+			totals.price += servicePriceCents( s );
 		} );
-		return total;
+		return totals;
+	}
+
+	// One line under the request form explaining what's paid when: all
+	// online, a pre-payment now + the rest at the visit, or everything at
+	// the visit. Empty for free services.
+	function paymentNoticeText( state ) {
+		var totals = selectionTotals( state );
+		if ( totals.deposit && totals.price > totals.deposit ) {
+			return T.prepaymentNotice
+				.replace( '{deposit}', formatPrice( totals.deposit, state.currency ) )
+				.replace( '{price}', formatPrice( totals.price, state.currency ) )
+				.replace( '{balance}', formatPrice( totals.price - totals.deposit, state.currency ) );
+		}
+		if ( totals.deposit ) {
+			return T.paymentRequiredNotice.replace( '{amount}', formatPrice( totals.deposit, state.currency ) );
+		}
+		if ( totals.price ) {
+			return T.payAtVisitNotice.replace( '{price}', formatPrice( totals.price, state.currency ) );
+		}
+		return '';
 	}
 
 	function formatSummary( state ) {
@@ -329,7 +418,7 @@
 			total += s.duration_minutes;
 		} );
 		var summary = T.summaryTotal.replace( '{list}', parts.join( ' + ' ) ).replace( '{total}', String( total ) );
-		var priceCents = selectionTotalCents( state );
+		var priceCents = selectionTotals( state ).price;
 		if ( priceCents ) summary += ' — ' + formatPrice( priceCents, state.currency );
 		return summary;
 	}
@@ -432,7 +521,7 @@
 				tile.type = 'button';
 				tile.setAttribute( 'data-vms-service-id', s.id );
 				tile.appendChild( el( 'span', null, s.name ) );
-				tile.appendChild( el( 'span', null, s.duration_minutes + ' min' + ( s.deposit_cents ? ' — ' + formatPrice( s.deposit_cents, state.currency ) : '' ) ) );
+				tile.appendChild( el( 'span', null, s.duration_minutes + ' min' + ( servicePriceCents( s ) ? ' — ' + formatPrice( servicePriceCents( s ), state.currency ) : '' ) ) );
 				tile.addEventListener( 'click', function () {
 					if ( tile.disabled ) return;
 					handleSelect( s.id );
@@ -869,9 +958,9 @@
 		// already locked in by the time this form renders (changing
 		// services means going back to pick a slot again, which re-renders
 		// this form fresh) — no live-update wiring needed here.
-		var paymentCents = selectionTotalCents( state );
-		if ( paymentCents ) {
-			form.appendChild( el( 'p', 'vms-booking-widget__payment-notice', T.paymentRequiredNotice.replace( '{amount}', formatPrice( paymentCents, state.currency ) ) ) );
+		var paymentNotice = paymentNoticeText( state );
+		if ( paymentNotice ) {
+			form.appendChild( el( 'p', 'vms-booking-widget__payment-notice', paymentNotice ) );
 		}
 
 		var submitBtn = el( 'button', 'vms-booking-widget__submit', T.requestThisTime );
