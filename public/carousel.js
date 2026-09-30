@@ -387,12 +387,18 @@
 				dragMovedPx = 0;
 				suppressClick = false;
 				track.style.transition = 'none';
-				try { viewport.setPointerCapture( e.pointerId ); } catch ( err ) {}
+				// No pointer capture yet: a captured pointer retargets the
+				// resulting click to the viewport, so a plain click on a
+				// slide's <a> would never navigate. Capture only once this
+				// is clearly a drag (see pointermove).
 			} );
 			viewport.addEventListener( 'pointermove', function ( e ) {
 				if ( ! dragging ) return;
 				var width = viewport.getBoundingClientRect().width || 1;
 				dragMovedPx = Math.max( dragMovedPx, Math.abs( e.clientX - dragStartX ) );
+				if ( dragMovedPx > 6 && ! viewport.hasPointerCapture( e.pointerId ) ) {
+					try { viewport.setPointerCapture( e.pointerId ); } catch ( err ) {}
+				}
 				dragDeltaPct = ( ( e.clientX - dragStartX ) / width ) * 100;
 				track.style.transform = 'translateX(' + ( -trackIndex * ( 100 / perView ) + dragDeltaPct ) + '%)';
 			} );
