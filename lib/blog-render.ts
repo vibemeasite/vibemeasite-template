@@ -142,6 +142,9 @@ export interface PostMeta {
   tags?: string[];
   categories?: string[];
   excerpt?: string;
+  // { [lang]: translatedExcerpt } (v52) — update_blog_post's `lang` mode.
+  // `excerpt` stays the default-language text and the fallback.
+  excerptTranslations?: Record<string, string>;
   featuredImage?: string;
   publishedAt?: string | null;
   status: "draft" | "scheduled" | "published";

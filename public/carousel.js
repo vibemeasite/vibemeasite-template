@@ -25,6 +25,13 @@
  * to /api/carousel/slides as ?lang=, so a block-type slide with a
  * translation set (vibemeasite-mcp's translate_carousel_slide) renders in
  * that language instead of always the default one.
+ *
+ * v52 — blog-post slides (vibemeasite-mcp's "post"/"latest_posts" slide
+ * types, both resolved server-side into slideType "post"). The whole card
+ * is an <a> to the post (image, title, excerpt, date/author, category
+ * chips, "Read more"), matching the blog index's own clickable cards. A
+ * swipe that starts on a card must not also open the post, so a drag past
+ * a few pixels swallows the click that follows it.
  */
 ( function () {
 	if ( window.__cellpyCarouselInit ) return;
@@ -39,12 +46,75 @@
 		return node;
 	}
 
+	// "Read more" in the page's language — the only UI string a post slide
+	// has. Anything not listed falls back to English.
+	var READ_MORE = {
+		en: 'Read more', fr: 'Lire la suite', ru: 'Читать далее', uk: 'Читати далі',
+		es: 'Leer más', de: 'Weiterlesen', it: 'Leggi di più', pt: 'Leia mais', pl: 'Czytaj dalej',
+	};
+
+	function pageLang() {
+		return ( document.documentElement.lang || 'en' ).toLowerCase();
+	}
+
+	function formatPostDate( iso ) {
+		if ( ! iso ) return '';
+		var d = new Date( iso );
+		if ( isNaN( d.getTime() ) ) return '';
+		try {
+			return d.toLocaleDateString( pageLang(), { year: 'numeric', month: 'long', day: 'numeric' } );
+		} catch ( e ) {
+			return d.toDateString();
+		}
+	}
+
+	function buildPostSlideEl( slide ) {
+		var card = el( 'a', 'vms-carousel__slide vms-carousel__slide--post' );
+		card.href = slide.link || '#';
+		card.setAttribute( 'draggable', 'false' );
+
+		if ( slide.image ) {
+			var img = el( 'img', 'vms-carousel__slide-image' );
+			img.src = slide.image;
+			img.alt = slide.title || '';
+			img.loading = 'lazy';
+			img.setAttribute( 'draggable', 'false' );
+			card.appendChild( img );
+		}
+
+		var body = el( 'div', 'vms-carousel__slide-body' );
+		if ( slide.categories && slide.categories.length ) {
+			var chips = el( 'div', 'vms-carousel__slide-categories' );
+			slide.categories.forEach( function ( name ) {
+				chips.appendChild( el( 'span', 'vms-carousel__slide-category', name ) );
+			} );
+			body.appendChild( chips );
+		}
+		if ( slide.title ) body.appendChild( el( 'h3', 'vms-carousel__slide-title', slide.title ) );
+		if ( slide.description ) body.appendChild( el( 'p', 'vms-carousel__slide-description', slide.description ) );
+
+		var dateText = formatPostDate( slide.date );
+		if ( dateText || slide.author ) {
+			var meta = el( 'div', 'vms-carousel__slide-meta' );
+			if ( dateText ) meta.appendChild( el( 'span', 'vms-carousel__slide-date', dateText ) );
+			if ( slide.author ) meta.appendChild( el( 'span', 'vms-carousel__slide-author', slide.author ) );
+			body.appendChild( meta );
+		}
+
+		var lang = pageLang();
+		body.appendChild( el( 'span', 'vms-carousel__slide-link', READ_MORE[ lang ] || READ_MORE[ lang.split( '-' )[ 0 ] ] || READ_MORE.en ) );
+		card.appendChild( body );
+		return card;
+	}
+
 	function formatCents( cents, currency ) {
 		var symbol = ( currency || 'usd' ).toLowerCase() === 'usd' ? '$' : ( currency || '' ).toUpperCase() + ' ';
 		return symbol + ( cents / 100 ).toFixed( 2 );
 	}
 
 	function buildSlideEl( slide ) {
+		if ( slide.slideType === 'post' ) return buildPostSlideEl( slide );
+
 		var wrap = el( 'div', 'vms-carousel__slide' );
 
 		if ( slide.slideType === 'block' ) {
@@ -299,25 +369,37 @@
 		} );
 
 		if ( config.swipe !== false ) {
-			var dragging = false, dragStartX = 0, dragDeltaPct = 0;
+			var dragging = false, dragStartX = 0, dragDeltaPct = 0, dragMovedPx = 0, suppressClick = false;
 			viewport.style.touchAction = 'pan-y';
+			// Capture phase, so it runs before the post card's own <a> navigates.
+			viewport.addEventListener( 'click', function ( e ) {
+				if ( suppressClick ) {
+					e.preventDefault();
+					e.stopPropagation();
+					suppressClick = false;
+				}
+			}, true );
 			viewport.addEventListener( 'pointerdown', function ( e ) {
 				if ( realCount <= perView && ! loop ) return;
 				dragging = true;
 				dragStartX = e.clientX;
 				dragDeltaPct = 0;
+				dragMovedPx = 0;
+				suppressClick = false;
 				track.style.transition = 'none';
 				try { viewport.setPointerCapture( e.pointerId ); } catch ( err ) {}
 			} );
 			viewport.addEventListener( 'pointermove', function ( e ) {
 				if ( ! dragging ) return;
 				var width = viewport.getBoundingClientRect().width || 1;
+				dragMovedPx = Math.max( dragMovedPx, Math.abs( e.clientX - dragStartX ) );
 				dragDeltaPct = ( ( e.clientX - dragStartX ) / width ) * 100;
 				track.style.transform = 'translateX(' + ( -trackIndex * ( 100 / perView ) + dragDeltaPct ) + '%)';
 			} );
 			function endDrag() {
 				if ( ! dragging ) return;
 				dragging = false;
+				if ( dragMovedPx > 6 ) suppressClick = true;
 				var threshold = ( 100 / perView ) * 0.2;
 				if ( dragDeltaPct <= -threshold ) { step( 1 ); controls.resetAutoplay(); }
 				else if ( dragDeltaPct >= threshold ) { step( -1 ); controls.resetAutoplay(); }

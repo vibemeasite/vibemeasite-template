@@ -23,7 +23,8 @@ export function BlogPostCard({
   styleConfig?: BlogStyleConfig;
 }) {
   const title = locale ? resolveTranslation(post.title, post.titleTranslations, locale) : post.title;
-  const { excerpt, featuredImage, publishedAt, author } = post.post;
+  const { featuredImage, publishedAt, author } = post.post;
+  const excerpt = locale ? resolveTranslation(post.post.excerpt ?? "", post.post.excerptTranslations ?? null, locale) : post.post.excerpt;
   const tags = post.post.tags ?? [];
   const categories = post.post.categories ?? [];
 
