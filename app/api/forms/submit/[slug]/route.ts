@@ -357,7 +357,12 @@ async function forwardToCentralRelay(
   fields: Record<string, unknown>
 ): Promise<NextResponse> {
   try {
-    const res = await fetch(`${CENTRAL_RELAY_BASE}${encodeURIComponent(slug)}`, {
+    // ?account= scopes the relay's container lookup to this site's own org —
+    // container slugs (e.g. "contact-contact-form") repeat across sites, and
+    // a bare-slug lookup can deliver this submission to another site's inbox.
+    const account = process.env.CELLPY_ACCOUNT_SLUG;
+    const query = account ? `?account=${encodeURIComponent(account)}` : "";
+    const res = await fetch(`${CENTRAL_RELAY_BASE}${encodeURIComponent(slug)}${query}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(fields),
