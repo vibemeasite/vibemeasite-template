@@ -19,9 +19,12 @@
  *     max_services) into one back-to-back appointment, tiles-single is the
  *     single-select tile look.
  *
- * Staff picker — when widget-config carries `staff`, a row of specialist
- * cards (photo, name, short description) renders under the service picker,
- * filtered to the people who perform every selected service. The chosen
+ * Staff picker — when widget-config carries `staff`, specialist cards
+ * (photo, name, short description) render inside the request form, under
+ * the custom fields, filtered to the people who perform every selected
+ * service. A person's optional `rules` tie eligibility to the visitor's
+ * answers (e.g. gender = "Femme" → these services), so the picker
+ * re-filters live as those fields change. The chosen
  * id is sent as staff_id with the request (null when nothing is picked —
  * the server then rejects it if someone was eligible). Availability is the
  * same shared calendar either way; picking a person never changes slots.
@@ -88,6 +91,7 @@
 			summaryTotal: '{list} — {total} min total',
 			chooseStaff: 'Choose your specialist',
 			chooseStaffError: 'Please choose a specialist.',
+			staffNeedsField: 'Answer «{field}» above to see the available specialists.',
 		},
 		uk: {
 			yourName: 'Ваше ім\'я',
@@ -114,6 +118,7 @@
 			summaryTotal: '{list} — {total} хв всього',
 			chooseStaff: 'Оберіть спеціаліста',
 			chooseStaffError: 'Будь ласка, оберіть спеціаліста.',
+			staffNeedsField: 'Заповніть поле «{field}» вище, щоб побачити доступних спеціалістів.',
 		},
 		fr: {
 			yourName: 'Votre nom',
@@ -140,6 +145,7 @@
 			summaryTotal: '{list} — {total} min au total',
 			chooseStaff: 'Choisissez votre spécialiste',
 			chooseStaffError: 'Veuillez choisir un spécialiste.',
+			staffNeedsField: 'Remplissez le champ « {field} » ci-dessus pour voir les spécialistes disponibles.',
 		},
 		ru: {
 			yourName: 'Ваше имя',
@@ -166,6 +172,7 @@
 			summaryTotal: '{list} — всего {total} мин',
 			chooseStaff: 'Выберите специалиста',
 			chooseStaffError: 'Пожалуйста, выберите специалиста.',
+			staffNeedsField: 'Заполните поле «{field}» выше, чтобы увидеть доступных специалистов.',
 		},
 	};
 	// No cellpy_lang cookie means the site's default language — the page's
@@ -306,6 +313,11 @@
 			slotsContainer: null,
 			formContainer: null,
 			staffContainer: null,
+			// Returns the request form's current custom field values — set by
+			// renderRequestForm, read by the staff picker's rule evaluation.
+			readFieldValues: function () {
+				return {};
+			},
 		};
 
 		var langParam = currentLang() ? '&lang=' + encodeURIComponent( currentLang() ) : '';
@@ -341,11 +353,6 @@
 		mount.innerHTML = '';
 
 		renderServicePicker( mount, widgetId, state );
-
-		state.staffContainer = el( 'div', 'vms-booking-widget__staff' );
-		mount.appendChild( state.staffContainer );
-		renderStaffPicker( state );
-
 		renderViewToggle( mount, widgetId, state );
 
 		state.dateAreaContainer = el( 'div' );
@@ -583,7 +590,6 @@
 	}
 
 	function onServiceSelectionChanged( widgetId, state ) {
-		renderStaffPicker( state );
 		state.selectedSlot = null;
 		state.formContainer.innerHTML = '';
 		if ( 'calendar' === state.view ) {
@@ -597,15 +603,46 @@
 
 	// ─── Staff picker ───────────────────────────────────────────────────────
 
+	function coversServices( allowed, state ) {
+		if ( ! allowed ) return true;
+		return state.selectedServiceIds.every( function ( id ) {
+			return allowed.indexOf( id ) !== -1;
+		} );
+	}
+
 	// The people who perform EVERY selected service — no service_ids means
-	// someone performs everything.
+	// someone performs everything. With `rules`, a person qualifies when any
+	// rule matches the visitor's current answers (an unanswered field never
+	// matches) and covers the services — mirrors eligibleStaffFor in
+	// vibemeasite-mcp's lib/booking-service.ts, which re-checks server-side.
 	function eligibleStaff( state ) {
+		var values = state.readFieldValues();
 		return state.staff.filter( function ( p ) {
-			if ( ! p.service_ids ) return true;
-			return state.selectedServiceIds.every( function ( id ) {
-				return p.service_ids.indexOf( id ) !== -1;
+			if ( ! p.rules || ! p.rules.length ) return coversServices( p.service_ids, state );
+			return p.rules.some( function ( r ) {
+				if ( r.field && ( r.values || [] ).indexOf( values[ r.field ] || '' ) === -1 ) return false;
+				return coversServices( r.service_ids, state );
 			} );
 		} );
+	}
+
+	// Custom field names any rule depends on — the picker re-filters when
+	// one of these changes, and hints at the first unanswered one.
+	function staffRuleFields( state ) {
+		var names = [];
+		state.staff.forEach( function ( p ) {
+			( p.rules || [] ).forEach( function ( r ) {
+				if ( r.field && names.indexOf( r.field ) === -1 ) names.push( r.field );
+			} );
+		} );
+		return names;
+	}
+
+	function fieldLabel( state, name ) {
+		for ( var i = 0; i < state.customFields.length; i++ ) {
+			if ( state.customFields[ i ].name === name ) return state.customFields[ i ].label;
+		}
+		return name;
 	}
 
 	// Baseline look so the picker is usable on a site whose own widget CSS
@@ -624,6 +661,7 @@
 			':where(.vms-booking-widget__staff-photo){grid-row:1/3;width:56px;height:56px;border-radius:50%;object-fit:cover;object-position:center 20%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.08);font-weight:600;}',
 			':where(.vms-booking-widget__staff-name){font-weight:600;}',
 			':where(.vms-booking-widget__staff-description){font-size:.875em;line-height:1.4;opacity:.8;}',
+			':where(.vms-booking-widget__staff-hint){grid-column:1/-1;margin:0;font-size:.875em;opacity:.8;}',
 		].join( '' );
 		document.head.appendChild( style );
 	}
@@ -642,8 +680,21 @@
 		// the visitor sees who they're booking with.
 		if ( 1 === eligible.length ) state.selectedStaffId = eligible[ 0 ].id;
 
-		container.hidden = 0 === eligible.length;
-		if ( 0 === eligible.length ) return;
+		if ( 0 === eligible.length ) {
+			var values = state.readFieldValues();
+			var unanswered = staffRuleFields( state ).filter( function ( name ) {
+				return ! values[ name ];
+			} )[ 0 ];
+			container.hidden = ! unanswered;
+			if ( unanswered ) {
+				injectStaffBaseStyles();
+				container.removeAttribute( 'role' );
+				container.appendChild( el( 'p', 'vms-booking-widget__staff-heading', T.chooseStaff ) );
+				container.appendChild( el( 'p', 'vms-booking-widget__staff-hint', T.staffNeedsField.replace( '{field}', fieldLabel( state, unanswered ) ) ) );
+			}
+			return;
+		}
+		container.hidden = false;
 
 		injectStaffBaseStyles();
 		container.setAttribute( 'role', 'radiogroup' );
@@ -1069,6 +1120,23 @@
 				return input.value;
 			};
 		} );
+
+		state.readFieldValues = function () {
+			var values = {};
+			Object.keys( customFieldValueGetters ).forEach( function ( name ) {
+				values[ name ] = customFieldValueGetters[ name ]();
+			} );
+			return values;
+		};
+		state.staffContainer = el( 'div', 'vms-booking-widget__staff' );
+		form.appendChild( state.staffContainer );
+		renderStaffPicker( state );
+		var ruleFields = staffRuleFields( state );
+		if ( ruleFields.length ) {
+			form.addEventListener( 'change', function ( e ) {
+				if ( e.target && ruleFields.indexOf( e.target.name ) !== -1 ) renderStaffPicker( state );
+			} );
+		}
 
 		if ( state.formNotice ) {
 			form.appendChild( el( 'p', 'vms-booking-widget__notice', state.formNotice ) );
