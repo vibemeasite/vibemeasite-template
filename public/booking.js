@@ -18,6 +18,13 @@
  *     checkbox/tiles-multi allow combining several services (capped at
  *     max_services) into one back-to-back appointment, tiles-single is the
  *     single-select tile look.
+ *
+ * Staff picker — when widget-config carries `staff`, a row of specialist
+ * cards (photo, name, short description) renders under the service picker,
+ * filtered to the people who perform every selected service. The chosen
+ * id is sent as staff_id with the request (null when nothing is picked —
+ * the server then rejects it if someone was eligible). Availability is the
+ * same shared calendar either way; picking a person never changes slots.
  */
 ( function () {
 	// See forms.js's own comment — Floating Widgets can independently decide
@@ -79,6 +86,8 @@
 			loadingCalendar: 'Loading calendar…',
 			selectUpToN: 'Select up to {n} services.',
 			summaryTotal: '{list} — {total} min total',
+			chooseStaff: 'Choose your specialist',
+			chooseStaffError: 'Please choose a specialist.',
 		},
 		uk: {
 			yourName: 'Ваше ім\'я',
@@ -103,6 +112,8 @@
 			loadingCalendar: 'Завантаження календаря…',
 			selectUpToN: 'Виберіть до {n} послуг.',
 			summaryTotal: '{list} — {total} хв всього',
+			chooseStaff: 'Оберіть спеціаліста',
+			chooseStaffError: 'Будь ласка, оберіть спеціаліста.',
 		},
 		fr: {
 			yourName: 'Votre nom',
@@ -127,6 +138,8 @@
 			loadingCalendar: 'Chargement du calendrier…',
 			selectUpToN: 'Sélectionnez jusqu\'à {n} soins.',
 			summaryTotal: '{list} — {total} min au total',
+			chooseStaff: 'Choisissez votre spécialiste',
+			chooseStaffError: 'Veuillez choisir un spécialiste.',
 		},
 		ru: {
 			yourName: 'Ваше имя',
@@ -151,6 +164,8 @@
 			loadingCalendar: 'Загрузка календаря…',
 			selectUpToN: 'Выберите до {n} услуг.',
 			summaryTotal: '{list} — всего {total} мин',
+			chooseStaff: 'Выберите специалиста',
+			chooseStaffError: 'Пожалуйста, выберите специалиста.',
 		},
 	};
 	// No cellpy_lang cookie means the site's default language — the page's
@@ -271,6 +286,8 @@
 			nameFields: 'full',
 			formNotice: '',
 			currency: 'usd', // BSA Phase 23 — only meaningful for services that carry deposit_cents
+			staff: [],
+			selectedStaffId: null,
 			// Booking widget translation follow-up — id, not name: the display
 			// name varies by visitor language, id doesn't. Used for every
 			// availability/request call; the name is only ever shown, never
@@ -288,6 +305,7 @@
 			dateAreaContainer: null,
 			slotsContainer: null,
 			formContainer: null,
+			staffContainer: null,
 		};
 
 		var langParam = currentLang() ? '&lang=' + encodeURIComponent( currentLang() ) : '';
@@ -306,6 +324,7 @@
 				state.currency = result.json.currency || 'usd';
 				state.nameFields = result.json.name_fields || 'full';
 				state.formNotice = result.json.form_notice || '';
+				state.staff = result.json.staff || [];
 				if ( 0 === state.services.length ) {
 					renderMessage( mount, T.bookingUnavailable );
 					return;
@@ -322,6 +341,11 @@
 		mount.innerHTML = '';
 
 		renderServicePicker( mount, widgetId, state );
+
+		state.staffContainer = el( 'div', 'vms-booking-widget__staff' );
+		mount.appendChild( state.staffContainer );
+		renderStaffPicker( state );
+
 		renderViewToggle( mount, widgetId, state );
 
 		state.dateAreaContainer = el( 'div' );
@@ -559,6 +583,7 @@
 	}
 
 	function onServiceSelectionChanged( widgetId, state ) {
+		renderStaffPicker( state );
 		state.selectedSlot = null;
 		state.formContainer.innerHTML = '';
 		if ( 'calendar' === state.view ) {
@@ -568,6 +593,101 @@
 		} else {
 			state.slotsContainer.innerHTML = '';
 		}
+	}
+
+	// ─── Staff picker ───────────────────────────────────────────────────────
+
+	// The people who perform EVERY selected service — no service_ids means
+	// someone performs everything.
+	function eligibleStaff( state ) {
+		return state.staff.filter( function ( p ) {
+			if ( ! p.service_ids ) return true;
+			return state.selectedServiceIds.every( function ( id ) {
+				return p.service_ids.indexOf( id ) !== -1;
+			} );
+		} );
+	}
+
+	// Baseline look so the picker is usable on a site whose own widget CSS
+	// predates it. :where() keeps specificity at zero, so any rule the Site
+	// Owner's block CSS has for these classes wins without !important.
+	function injectStaffBaseStyles() {
+		if ( document.getElementById( 'vms-booking-staff-base' ) ) return;
+		var style = document.createElement( 'style' );
+		style.id = 'vms-booking-staff-base';
+		style.textContent = [
+			':where(.vms-booking-widget__staff){display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin:16px 0;}',
+			':where(.vms-booking-widget__staff[hidden]){display:none;}',
+			':where(.vms-booking-widget__staff-heading){grid-column:1/-1;margin:0;font-weight:600;}',
+			':where(.vms-booking-widget__staff-option){display:grid;grid-template-columns:56px 1fr;column-gap:12px;align-items:start;text-align:left;padding:10px;border:1px solid rgba(0,0,0,.15);border-radius:8px;background:transparent;color:inherit;font:inherit;cursor:pointer;}',
+			':where(.vms-booking-widget__staff-option--selected){border-color:currentColor;box-shadow:0 0 0 1px currentColor;}',
+			':where(.vms-booking-widget__staff-photo){grid-row:1/3;width:56px;height:56px;border-radius:50%;object-fit:cover;object-position:center 20%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.08);font-weight:600;}',
+			':where(.vms-booking-widget__staff-name){font-weight:600;}',
+			':where(.vms-booking-widget__staff-description){font-size:.875em;line-height:1.4;opacity:.8;}',
+		].join( '' );
+		document.head.appendChild( style );
+	}
+
+	function renderStaffPicker( state ) {
+		var container = state.staffContainer;
+		if ( ! container ) return;
+		container.innerHTML = '';
+
+		var eligible = eligibleStaff( state );
+		var stillEligible = eligible.some( function ( p ) {
+			return p.id === state.selectedStaffId;
+		} );
+		if ( ! stillEligible ) state.selectedStaffId = null;
+		// Only one person can do it — nothing to choose, but still shown so
+		// the visitor sees who they're booking with.
+		if ( 1 === eligible.length ) state.selectedStaffId = eligible[ 0 ].id;
+
+		container.hidden = 0 === eligible.length;
+		if ( 0 === eligible.length ) return;
+
+		injectStaffBaseStyles();
+		container.setAttribute( 'role', 'radiogroup' );
+		container.appendChild( el( 'p', 'vms-booking-widget__staff-heading', T.chooseStaff ) );
+
+		eligible.forEach( function ( p ) {
+			var btn = el( 'button', 'vms-booking-widget__staff-option' );
+			btn.type = 'button';
+			btn.setAttribute( 'role', 'radio' );
+			btn.setAttribute( 'data-vms-staff-id', p.id );
+
+			var photo;
+			if ( p.photo_url ) {
+				photo = el( 'img', 'vms-booking-widget__staff-photo' );
+				photo.src = p.photo_url;
+				photo.alt = '';
+				photo.loading = 'lazy';
+				photo.width = 56;
+				photo.height = 56;
+			} else {
+				photo = el( 'span', 'vms-booking-widget__staff-photo', ( p.name || '?' ).charAt( 0 ).toUpperCase() );
+				photo.setAttribute( 'aria-hidden', 'true' );
+			}
+			btn.appendChild( photo );
+			btn.appendChild( el( 'span', 'vms-booking-widget__staff-name', p.name ) );
+			if ( p.description ) {
+				btn.appendChild( el( 'span', 'vms-booking-widget__staff-description', p.description ) );
+			}
+
+			btn.addEventListener( 'click', function () {
+				state.selectedStaffId = p.id;
+				refreshStaffSelection( container, state );
+			} );
+			container.appendChild( btn );
+		} );
+		refreshStaffSelection( container, state );
+	}
+
+	function refreshStaffSelection( container, state ) {
+		Array.prototype.forEach.call( container.querySelectorAll( '[data-vms-staff-id]' ), function ( btn ) {
+			var selected = btn.getAttribute( 'data-vms-staff-id' ) === state.selectedStaffId;
+			btn.classList.toggle( 'vms-booking-widget__staff-option--selected', selected );
+			btn.setAttribute( 'aria-checked', String( selected ) );
+		} );
 	}
 
 	// ─── Strip/Calendar view toggle ─────────────────────────────────────────
@@ -969,6 +1089,14 @@
 
 		form.addEventListener( 'submit', function ( e ) {
 			e.preventDefault();
+
+			if ( eligibleStaff( state ).length && ! state.selectedStaffId ) {
+				showFormError( form, T.chooseStaffError );
+				if ( state.staffContainer && state.staffContainer.scrollIntoView ) {
+					state.staffContainer.scrollIntoView( { behavior: 'smooth', block: 'center' } );
+				}
+				return;
+			}
 			submitBtn.disabled = true;
 
 			var customFieldValues = {};
@@ -986,6 +1114,7 @@
 					visitor_name: visitorName(),
 					visitor_email: emailInput.value,
 					custom_field_values: customFieldValues,
+					staff_id: state.selectedStaffId,
 				} ),
 			} )
 				.then( function ( result ) {
