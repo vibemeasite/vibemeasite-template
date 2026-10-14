@@ -310,6 +310,21 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             />
           </>
         ) : null}
+        {/* GA4 booking funnel (v56) — the shared booking_* event helper,
+            only when GTM/GA4 itself was rendered above (so it inherits the
+            same staging + cookie-consent gate). The flag tells it which of
+            the two to send through, so a site with both set doesn't count
+            every event twice. */}
+        {gtmId || gaId ? (
+          <>
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `window.__vmsAnalytics=${JSON.stringify({ gtm: Boolean(gtmId), ga: Boolean(gaId) })};`,
+              }}
+            />
+            <script src="/vms-analytics.js" defer />
+          </>
+        ) : null}
         {metaPixelId ? (
           <script
             dangerouslySetInnerHTML={{

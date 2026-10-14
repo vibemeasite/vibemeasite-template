@@ -272,6 +272,152 @@
 		return ids.join( ',' );
 	}
 
+	// ─── GA4 booking funnel (template v56) ─────────────────────────────────
+	// Every event goes through public/vms-analytics.js's shared helper, which
+	// app/layout.tsx only includes when GA4/GTM is configured AND allowed
+	// (cookie consent given, not a staging preview) — without it, track() is
+	// a silent no-op. Params are only ever ids, default-language service/
+	// staff names, dates and prices — never anything the visitor typed.
+
+	function track( state, name, params ) {
+		var api = window.vmsBookingAnalytics;
+		if ( ! api || 'function' !== typeof api.track ) return;
+		try {
+			api.track( name, withWidgetParams( state, params ) );
+		} catch ( e ) {
+			/* analytics must never break the booking flow */
+		}
+	}
+
+	function withWidgetParams( state, params ) {
+		var p = { widget_id: state.widgetId, widget_placement: state.placement };
+		Object.keys( params || {} ).forEach( function ( k ) {
+			p[ k ] = params[ k ];
+		} );
+		return p;
+	}
+
+	// analytics_name is the default-language name (widget-config sends it
+	// alongside the translated display name), so one service reports under
+	// one name whichever language the visitor browsed in.
+	function analyticsName( item ) {
+		return ( item && ( item.analytics_name || item.name ) ) || '';
+	}
+
+	function serviceParams( state ) {
+		return {
+			service_name: state.selectedServiceIds
+				.map( function ( id ) {
+					return analyticsName( getService( state, id ) );
+				} )
+				.filter( Boolean )
+				.join( ' + ' ),
+			service_count: state.selectedServiceIds.length,
+		};
+	}
+
+	// GA4 wants `value` in major units — the full price when known, else the
+	// deposit (selectionTotals' price already falls back that way); omitted
+	// for a free service.
+	function conversionParams( state ) {
+		var p = serviceParams( state );
+		var priceCents = selectionTotals( state ).price;
+		if ( priceCents ) {
+			p.value = priceCents / 100;
+			p.currency = ( state.currency || 'usd' ).toUpperCase();
+		}
+		if ( state.requestId ) p.booking_id = state.requestId;
+		return p;
+	}
+
+	function trackConversion( state ) {
+		if ( state.analytics.succeeded ) return;
+		state.analytics.succeeded = true;
+		var api = window.vmsBookingAnalytics;
+		if ( ! api || 'function' !== typeof api.conversion ) return;
+		try {
+			api.conversion( withWidgetParams( state, conversionParams( state ) ) );
+		} catch ( e ) {
+			/* ignore */
+		}
+	}
+
+	// The slot's date/time in the WIDGET's timezone (the business's own
+	// calendar), not the visitor's — that's what the owner reads in reports.
+	function slotParams( iso, timezone ) {
+		try {
+			var parts = {};
+			new Intl.DateTimeFormat( 'en-CA', {
+				timeZone: timezone,
+				year: 'numeric',
+				month: '2-digit',
+				day: '2-digit',
+				hour: '2-digit',
+				minute: '2-digit',
+				hourCycle: 'h23',
+			} )
+				.formatToParts( new Date( iso ) )
+				.forEach( function ( x ) {
+					parts[ x.type ] = x.value;
+				} );
+			return { slot_date: parts.year + '-' + parts.month + '-' + parts.day, slot_time: parts.hour + ':' + parts.minute };
+		} catch ( e ) {
+			return { slot_date: String( iso ).slice( 0, 10 ), slot_time: String( iso ).slice( 11, 16 ) };
+		}
+	}
+
+	// booking_error's error_type, from the public booking API's `reason`
+	// (vibemeasite-mcp's api/public-booking.ts); falls back to the HTTP
+	// status for a relay/network failure or an older API without `reason`.
+	var ERROR_TYPES = {
+		NOT_AVAILABLE: 'slot_taken',
+		PAYMENT_NOT_CONFIGURED: 'payment',
+		CALENDAR_ERROR: 'server',
+		NO_CALENDAR: 'server',
+		WIDGET_NOT_FOUND: 'server',
+		UNKNOWN_SERVICE: 'server',
+		INVALID_FIELDS: 'validation',
+		WRONG_CODE: 'validation',
+		EXPIRED: 'validation',
+		TOO_MANY_ATTEMPTS: 'validation',
+		NOT_FOUND: 'validation',
+	};
+
+	function errorType( result ) {
+		var reason = result && result.json && result.json.reason;
+		if ( reason && ERROR_TYPES[ reason ] ) return ERROR_TYPES[ reason ];
+		if ( ! result || ! result.status || result.status >= 500 ) return 'server';
+		return 'validation';
+	}
+
+	// booking_view — once per widget instance per page load, when the widget
+	// (already rendered, so it's actually usable) scrolls into view. A
+	// popup-mode floating widget is display:none until opened, so it only
+	// counts once someone opens it.
+	function observeView( wrapper, state ) {
+		function fire() {
+			if ( state.analytics.viewed ) return;
+			state.analytics.viewed = true;
+			track( state, 'booking_view', {} );
+		}
+		if ( 'function' !== typeof window.IntersectionObserver ) {
+			fire();
+			return;
+		}
+		var observer = new window.IntersectionObserver(
+			function ( entries ) {
+				entries.forEach( function ( entry ) {
+					if ( entry.isIntersecting ) {
+						fire();
+						observer.disconnect();
+					}
+				} );
+			},
+			{ rootMargin: '0px 0px -15% 0px' }
+		);
+		observer.observe( wrapper );
+	}
+
 	function setupWidget( wrapper ) {
 		var widgetId = wrapper.getAttribute( 'data-cellpy-booking-widget' );
 		var mount = wrapper.querySelector( '[data-vms-booking-mount]' );
@@ -280,6 +426,15 @@
 		}
 
 		var state = {
+			widgetId: widgetId,
+			placement: wrapper.closest( '.fw-popup' ) ? 'popup' : wrapper.closest( '.cellpy-modal' ) ? 'modal' : 'inline',
+			// GA4 booking funnel — per-instance dedupe flags (view/form_start/
+			// success fire at most once) and whether the visitor has made each
+			// choice themselves rather than kept the widget's preselection.
+			analytics: { viewed: false, serviceChosen: false, dateChosen: false, formStarted: false, succeeded: false },
+			// True only while the Strip view programmatically clicks its first
+			// day — that preselection isn't a visitor's booking_date_select.
+			autoSelecting: false,
 			services: [],
 			timezone: 'UTC',
 			customFields: [],
@@ -343,6 +498,7 @@
 				}
 				state.selectedServiceIds = [ state.services[ 0 ].id ];
 				renderPicker( mount, widgetId, state );
+				observeView( wrapper, state );
 			} )
 			.catch( function () {
 				renderMessage( mount, GENERIC_ERROR );
@@ -511,6 +667,10 @@
 			}
 			refreshSelectedVisuals();
 			onServiceSelectionChanged( widgetId, state );
+			state.analytics.serviceChosen = true;
+			var params = serviceParams( state );
+			params.selection_method = 'visitor';
+			track( state, 'booking_service_select', params );
 		}
 
 		if ( 'dropdown' === style ) {
@@ -727,6 +887,7 @@
 			btn.addEventListener( 'click', function () {
 				state.selectedStaffId = p.id;
 				refreshStaffSelection( container, state );
+				track( state, 'booking_staff_select', { staff_name: analyticsName( p ) } );
 			} );
 			container.appendChild( btn );
 		} );
@@ -802,6 +963,10 @@
 						b.classList.remove( 'vms-booking-widget__calendar-day--selected' );
 					} );
 					dayBtn.classList.add( 'vms-booking-widget__calendar-day--selected' );
+					if ( ! state.autoSelecting ) {
+						state.analytics.dateChosen = true;
+						track( state, 'booking_date_select', { slot_date: ds, selection_method: 'visitor' } );
+					}
 					renderSlotsForSelectedDate( widgetId, state );
 				} );
 				strip.appendChild( dayBtn );
@@ -811,7 +976,12 @@
 
 		var firstDayBtn = strip.querySelector( '.vms-booking-widget__calendar-day' );
 		if ( firstDayBtn ) {
-			firstDayBtn.click();
+			state.autoSelecting = true;
+			try {
+				firstDayBtn.click();
+			} finally {
+				state.autoSelecting = false;
+			}
 		}
 	}
 
@@ -908,6 +1078,8 @@
 						c.classList.remove( 'vms-booking-widget__calendar-grid-day--selected' );
 					} );
 					cell.classList.add( 'vms-booking-widget__calendar-grid-day--selected' );
+					state.analytics.dateChosen = true;
+					track( state, 'booking_date_select', { slot_date: ds, selection_method: 'visitor' } );
 					renderSlotsForSelectedDate( widgetId, state );
 				} );
 				dayCells[ ds ] = cell;
@@ -982,6 +1154,20 @@
 						} );
 						btn.classList.add( 'vms-booking-widget__slot--selected' );
 						state.selectedSlot = slot;
+						// Keep the funnel in order for a visitor who kept the
+						// preselected service/day: emit those steps now, marked
+						// as defaults, right before the slot itself.
+						if ( ! state.analytics.serviceChosen ) {
+							state.analytics.serviceChosen = true;
+							var serviceStep = serviceParams( state );
+							serviceStep.selection_method = 'default';
+							track( state, 'booking_service_select', serviceStep );
+						}
+						if ( ! state.analytics.dateChosen ) {
+							state.analytics.dateChosen = true;
+							track( state, 'booking_date_select', { slot_date: state.selectedDate, selection_method: 'default' } );
+						}
+						track( state, 'booking_slot_select', slotParams( slot.startIso, state.timezone ) );
 						renderRequestForm( widgetId, state );
 					} );
 					slotsContainer.appendChild( btn );
@@ -998,6 +1184,32 @@
 
 		var form = document.createElement( 'form' );
 		form.className = 'vms-booking-widget__form';
+
+		// booking_form_start — first focus/typing in any field, once per
+		// widget instance (the form re-renders per slot; the flag doesn't).
+		function onFirstFieldInteraction( e ) {
+			if ( state.analytics.formStarted || ! e.target || ! /^(INPUT|SELECT|TEXTAREA)$/.test( e.target.tagName ) ) return;
+			state.analytics.formStarted = true;
+			track( state, 'booking_form_start', serviceParams( state ) );
+		}
+		form.addEventListener( 'focusin', onFirstFieldInteraction );
+		form.addEventListener( 'input', onFirstFieldInteraction );
+		// Browser-native required/type validation blocks the submit event
+		// entirely, firing `invalid` once per bad field instead — report that
+		// as one booking_error per submit attempt.
+		var invalidReported = false;
+		form.addEventListener(
+			'invalid',
+			function () {
+				if ( invalidReported ) return;
+				invalidReported = true;
+				setTimeout( function () {
+					invalidReported = false;
+				}, 0 );
+				track( state, 'booking_error', { error_type: 'validation', step: 'request' } );
+			},
+			true
+		);
 
 		// Flexible name/contact fields follow-up — 'first_last' splits the
 		// single Name input into two; either way visitorName() below joins
@@ -1157,8 +1369,10 @@
 
 		form.addEventListener( 'submit', function ( e ) {
 			e.preventDefault();
+			track( state, 'booking_submit', serviceParams( state ) );
 
 			if ( eligibleStaff( state ).length && ! state.selectedStaffId ) {
+				track( state, 'booking_error', { error_type: 'validation', step: 'request' } );
 				showFormError( form, T.chooseStaffError );
 				if ( state.staffContainer && state.staffContainer.scrollIntoView ) {
 					state.staffContainer.scrollIntoView( { behavior: 'smooth', block: 'center' } );
@@ -1188,14 +1402,19 @@
 				.then( function ( result ) {
 					submitBtn.disabled = false;
 					if ( 200 !== result.status || ! result.json.ok ) {
+						track( state, 'booking_error', { error_type: errorType( result ), step: 'request' } );
 						showFormError( form, ( result.json && result.json.message ) || GENERIC_ERROR );
 						return;
 					}
 					state.requestId = result.json.request_id;
+					var sent = serviceParams( state );
+					sent.booking_id = state.requestId;
+					track( state, 'booking_request_sent', sent );
 					renderCodeForm( state );
 				} )
 				.catch( function () {
 					submitBtn.disabled = false;
+					track( state, 'booking_error', { error_type: 'server', step: 'request' } );
 					showFormError( form, GENERIC_ERROR );
 				} );
 		} );
@@ -1241,18 +1460,33 @@
 				.then( function ( result ) {
 					submitBtn.disabled = false;
 					if ( 200 !== result.status || ! result.json.ok ) {
+						track( state, 'booking_error', { error_type: errorType( result ), step: 'confirm' } );
 						showFormError( form, ( result.json && result.json.message ) || GENERIC_ERROR );
 						return;
 					}
 					if ( result.json.requires_payment ) {
+						// Not a booking yet — the conversion fires on
+						// /booking-confirmed once the deposit is paid
+						// (vms-analytics.js), from the params stashed here.
+						var paymentParams = withWidgetParams( state, conversionParams( state ) );
+						track( state, 'booking_payment_start', paymentParams );
+						if ( window.vmsBookingAnalytics && 'function' === typeof window.vmsBookingAnalytics.stashPending ) {
+							try {
+								window.vmsBookingAnalytics.stashPending( state.requestId, paymentParams );
+							} catch ( err ) {
+								/* ignore */
+							}
+						}
 						renderMessage( formContainer, T.redirectingToPayment );
 						window.location.href = result.json.checkout_url;
 						return;
 					}
+					trackConversion( state );
 					renderMessage( formContainer, T.appointmentConfirmed );
 				} )
 				.catch( function () {
 					submitBtn.disabled = false;
+					track( state, 'booking_error', { error_type: 'server', step: 'confirm' } );
 					showFormError( form, GENERIC_ERROR );
 				} );
 		} );
