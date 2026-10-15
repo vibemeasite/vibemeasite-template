@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildMonthWeeks, shiftMonth, parseMonthParam, weekStartFor } from "./trip-calendar";
-import { tripStatus, resolveText, travelTextToHtml, safeImageUrl, safeLinkUrl, ymd } from "./travel-text";
+import { tripStatus, resolveText, travelTextToHtml, safeImageUrl, safeLinkUrl, ymd, timeRevealedUpTo } from "./travel-text";
 
 describe("month grid", () => {
   it("covers whole weeks around November 2026 (Monday start)", () => {
@@ -83,5 +83,26 @@ describe("travel text", () => {
 
   it("formats dates in the trip's zone", () => {
     expect(ymd("2026-11-15T03:00:00Z", "America/Toronto")).toBe("2026-11-14");
+  });
+});
+
+describe("time-based reveal (BSA Area 8, P21c/d)", () => {
+  const stops = [
+    { position: 1, arriveAt: "2026-10-14T10:30:00Z" },
+    { position: 2, arriveAt: "2026-10-14T14:30:00Z" },
+    { position: 3, arriveAt: null },
+    { position: 4, arriveAt: "2026-10-16T23:00:00Z" },
+  ];
+  const end = "2026-10-17T00:00:00Z";
+  it("reveals nothing before the first scheduled arrival", () => {
+    expect(timeRevealedUpTo(stops, end, Date.parse("2026-10-14T09:00:00Z"))).toBe(0);
+  });
+  it("reveals up to the latest stop whose time has passed", () => {
+    expect(timeRevealedUpTo(stops, end, Date.parse("2026-10-14T15:00:00Z"))).toBe(2);
+  });
+  it("skips stops without a time and reveals everything once the trip ends", () => {
+    expect(timeRevealedUpTo(stops, end, Date.parse("2026-10-16T23:30:00Z"))).toBe(4);
+    expect(timeRevealedUpTo(stops, end, Date.parse("2026-10-18T00:00:00Z"))).toBe(4);
+    expect(timeRevealedUpTo([], end)).toBe(0);
   });
 });

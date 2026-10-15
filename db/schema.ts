@@ -246,6 +246,9 @@ export const siteSettings = pgTable("site_settings", {
   // enable_travel_kit (added via its ensureTravelTables(), not a migration
   // file here — same as blog_style_config above).
   travelKitEnabled: boolean("travel_kit_enabled").notNull().default(false),
+  // v58 — the site's Phase 19 shopAuthPublicId, carried by a trip page's
+  // Start panel and its server-side participant check. Set by enable_travel_kit.
+  visitorAuthPublicId: text("visitor_auth_public_id"),
 });
 
 // Side menu items (Phase 21) — wholesale-replaced by vibemeasite-mcp's
@@ -381,6 +384,9 @@ export const trips = pgTable("trips", {
   cancelReason: text("cancel_reason"),
   postsPremoderated: boolean("posts_premoderated").notNull().default(false),
   wallVisibility: text("wall_visibility").notNull().default("public"),
+  // v58 (BSA Q9) — after end_at: "public" shows every stop to every visitor,
+  // "participants" keeps them for participants only.
+  postTripVisibility: text("post_trip_visibility").notNull().default("public"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -402,4 +408,6 @@ export const tripStops = pgTable("trip_stops", {
   mapX: real("map_x"),
   mapY: real("map_y"),
   noteJson: jsonb("note_json").notNull().default({}), // { [lang]: note }
+  // v58 (BSA Q11) — arrival radius that reveals this stop; null = 300 m.
+  revealRadiusM: integer("reveal_radius_m"),
 });

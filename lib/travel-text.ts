@@ -157,3 +157,16 @@ export function formatDuration(min: number, locale: string): string {
 export function googleMapsUrl(lat: number, lng: number): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${lat},${lng}`)}`;
 }
+
+// Highest stop position whose scheduled arrival has passed (BSA P21c), or
+// every stop once the trip has ended (P21d). 0 = nothing revealed yet.
+export function timeRevealedUpTo(
+  stops: Array<{ position: number; arriveAt: string | null }>,
+  endAt: string,
+  now = Date.now(),
+): number {
+  if (now > Date.parse(endAt)) return stops.length ? Math.max(...stops.map((s) => s.position)) : 0;
+  let max = 0;
+  for (const s of stops) if (s.arriveAt && Date.parse(s.arriveAt) <= now) max = Math.max(max, s.position);
+  return max;
+}

@@ -34,6 +34,7 @@ export interface TripStopView {
   durationMin: number | null;
   mapX: number | null;
   mapY: number | null;
+  revealRadiusM: number;
   note: Record<string, string>;
   place: {
     slug: string;
@@ -47,6 +48,9 @@ export interface TripStopView {
 
 export interface TripView extends CalendarTrip {
   cancelReason: string | null;
+  accessFrom: string | null;
+  accessUntil: string | null;
+  postTripVisibility: "public" | "participants";
   stops: TripStopView[];
 }
 
@@ -116,6 +120,9 @@ export function getTripForPage(pageSlug: string): Promise<TripView | null> {
         bookUrl: trip.bookUrl,
         cancelledAt: iso(trip.cancelledAt),
         cancelReason: trip.cancelReason,
+        accessFrom: iso(trip.accessFrom),
+        accessUntil: iso(trip.accessUntil),
+        postTripVisibility: trip.postTripVisibility === "participants" ? "participants" : "public",
         text: texts.get(trip.id) ?? {},
         stops: stopRows.map(({ stop, place }) => ({
           position: stop.position,
@@ -123,6 +130,7 @@ export function getTripForPage(pageSlug: string): Promise<TripView | null> {
           durationMin: stop.durationMin,
           mapX: stop.mapX,
           mapY: stop.mapY,
+          revealRadiusM: stop.revealRadiusM ?? 300,
           note: (stop.noteJson as Record<string, string> | null) ?? {},
           place: {
             slug: place.slug,

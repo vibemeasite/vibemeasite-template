@@ -25,6 +25,29 @@ export interface TravelStrings {
   photos: string;
   more: string;
   calendar: string;
+  start: string;
+  startHint: string;
+  email: string;
+  sendCode: string;
+  codeSent: string;
+  code: string;
+  verify: string;
+  wrongCode: string;
+  expired: string;
+  tooMany: string;
+  genericError: string;
+  availableFrom: string;
+  signedInAs: string;
+  signOut: string;
+  locked: string;
+  nextStop: string;
+  nextTeaser: string;
+  unlockedNote: string;
+  testNext: string;
+  testAll: string;
+  testReset: string;
+  participantsOnly: string;
+  changeEmail: string;
 }
 
 const EN: TravelStrings = {
@@ -50,6 +73,29 @@ const EN: TravelStrings = {
   photos: "Photos",
   more: "Read more",
   calendar: "Trip calendar",
+  start: "Start the trip",
+  startHint: "Participants: sign in with the email you registered with to unlock the stops as you reach them.",
+  email: "Your email",
+  sendCode: "Send code",
+  codeSent: "We've sent a 6-digit code to",
+  code: "6-digit code",
+  verify: "Confirm",
+  wrongCode: "That code isn't right. Attempts left:",
+  expired: "The code has expired — request a new one.",
+  tooMany: "Too many attempts — wait a few minutes and try again.",
+  genericError: "Something went wrong. Please try again.",
+  availableFrom: "Start opens on",
+  signedInAs: "Signed in as",
+  signOut: "Sign out",
+  locked: "Locked until you reach it",
+  nextStop: "Next stop",
+  nextTeaser: "Coming up next",
+  unlockedNote: "Stops unlock as you reach them (or at their scheduled time).",
+  testNext: "Test: next stop revealed",
+  testAll: "Test: all stops revealed",
+  testReset: "Test: reveal reset",
+  participantsOnly: "Stop details are for trip participants.",
+  changeEmail: "Use another email",
 };
 
 const TABLE: Record<string, Partial<TravelStrings>> = {
@@ -61,6 +107,7 @@ const TABLE: Record<string, Partial<TravelStrings>> = {
     noTrips: "Aucun voyage prévu pour le moment.", route: "Itinéraire", routeSoon: "Itinéraire bientôt disponible",
     stops: "Étapes", arrival: "Arrivée", duration: "Durée", openInMaps: "Ouvrir dans Google Maps",
     close: "Fermer", photos: "Photos", more: "En savoir plus", calendar: "Calendrier des voyages",
+    start: "Commencer le voyage", startHint: "Participants : connectez-vous avec le courriel de votre inscription pour débloquer les étapes à mesure que vous y arrivez.", email: "Votre courriel", sendCode: "Envoyer le code", codeSent: "Nous avons envoyé un code à 6 chiffres à", code: "Code à 6 chiffres", verify: "Confirmer", wrongCode: "Code incorrect. Essais restants :", expired: "Le code a expiré — demandez-en un nouveau.", tooMany: "Trop d'essais — attendez quelques minutes et réessayez.", genericError: "Une erreur est survenue. Veuillez réessayer.", availableFrom: "Ouverture le", signedInAs: "Connecté(e) en tant que", signOut: "Se déconnecter", locked: "Débloqué à votre arrivée", nextStop: "Prochaine étape", nextTeaser: "À venir", unlockedNote: "Les étapes se débloquent à votre arrivée (ou à l'heure prévue).", testNext: "Test : étape suivante débloquée", testAll: "Test : toutes les étapes débloquées", testReset: "Test : réinitialisé", participantsOnly: "Les détails des étapes sont réservés aux participants.", changeEmail: "Autre courriel",
   },
   uk: {
     upcoming: "Незабаром", now: "Триває зараз", past: "Минула", cancelled: "Скасовано",
@@ -69,6 +116,7 @@ const TABLE: Record<string, Partial<TravelStrings>> = {
     noTrips: "Поїздок поки не заплановано.", route: "Маршрут", routeSoon: "Маршрут незабаром",
     stops: "Зупинки", arrival: "Прибуття", duration: "Тривалість", openInMaps: "Відкрити в Google Maps",
     close: "Закрити", photos: "Фото", more: "Детальніше", calendar: "Календар поїздок",
+    start: "Почати поїздку", startHint: "Учасники: увійдіть з поштою, яку вказали при реєстрації, — зупинки відкриватимуться, коли ви до них доїдете.", email: "Ваша пошта", sendCode: "Надіслати код", codeSent: "Ми надіслали 6-значний код на", code: "6-значний код", verify: "Підтвердити", wrongCode: "Код неправильний. Залишилося спроб:", expired: "Термін дії коду минув — запросіть новий.", tooMany: "Забагато спроб — зачекайте кілька хвилин і спробуйте ще раз.", genericError: "Щось пішло не так. Спробуйте ще раз.", availableFrom: "Старт відкриється", signedInAs: "Ви увійшли як", signOut: "Вийти", locked: "Відкриється, коли ви доїдете", nextStop: "Наступна зупинка", nextTeaser: "Далі за маршрутом", unlockedNote: "Зупинки відкриваються, коли ви до них доїжджаєте (або в запланований час).", testNext: "Тест: відкрито наступну зупинку", testAll: "Тест: відкрито всі зупинки", testReset: "Тест: скинуто", participantsOnly: "Деталі зупинок — для учасників поїздки.", changeEmail: "Інша пошта",
   },
   ru: {
     upcoming: "Скоро", now: "Идёт сейчас", past: "Прошедшая", cancelled: "Отменена",
@@ -77,6 +125,7 @@ const TABLE: Record<string, Partial<TravelStrings>> = {
     noTrips: "Поездок пока не запланировано.", route: "Маршрут", routeSoon: "Маршрут скоро появится",
     stops: "Остановки", arrival: "Прибытие", duration: "Длительность", openInMaps: "Открыть в Google Maps",
     close: "Закрыть", photos: "Фото", more: "Подробнее", calendar: "Календарь поездок",
+    start: "Начать поездку", startHint: "Участники: войдите с почтой, указанной при регистрации, — остановки будут открываться, когда вы до них доедете.", email: "Ваша почта", sendCode: "Отправить код", codeSent: "Мы отправили 6-значный код на", code: "6-значный код", verify: "Подтвердить", wrongCode: "Код неверный. Осталось попыток:", expired: "Срок действия кода истёк — запросите новый.", tooMany: "Слишком много попыток — подождите несколько минут и попробуйте снова.", genericError: "Что-то пошло не так. Попробуйте ещё раз.", availableFrom: "Старт откроется", signedInAs: "Вы вошли как", signOut: "Выйти", locked: "Откроется, когда вы доедете", nextStop: "Следующая остановка", nextTeaser: "Далее по маршруту", unlockedNote: "Остановки открываются, когда вы до них доезжаете (или в запланированное время).", testNext: "Тест: открыта следующая остановка", testAll: "Тест: открыты все остановки", testReset: "Тест: сброшено", participantsOnly: "Подробности остановок — для участников поездки.", changeEmail: "Другая почта",
   },
   es: {
     upcoming: "Próximo", now: "En curso", past: "Pasado", cancelled: "Cancelado",
@@ -85,6 +134,7 @@ const TABLE: Record<string, Partial<TravelStrings>> = {
     noTrips: "Todavía no hay viajes programados.", route: "Ruta", routeSoon: "Ruta próximamente",
     stops: "Paradas", arrival: "Llegada", duration: "Estancia", openInMaps: "Abrir en Google Maps",
     close: "Cerrar", photos: "Fotos", more: "Leer más", calendar: "Calendario de viajes",
+    start: "Empezar el viaje", startHint: "Participantes: entra con el correo con el que te inscribiste para desbloquear las paradas al llegar a ellas.", email: "Tu correo", sendCode: "Enviar código", codeSent: "Hemos enviado un código de 6 dígitos a", code: "Código de 6 dígitos", verify: "Confirmar", wrongCode: "Código incorrecto. Intentos restantes:", expired: "El código ha caducado: pide uno nuevo.", tooMany: "Demasiados intentos: espera unos minutos y vuelve a intentarlo.", genericError: "Algo salió mal. Inténtalo de nuevo.", availableFrom: "Disponible desde el", signedInAs: "Has entrado como", signOut: "Salir", locked: "Se desbloquea al llegar", nextStop: "Próxima parada", nextTeaser: "A continuación", unlockedNote: "Las paradas se desbloquean al llegar (o a la hora prevista).", testNext: "Prueba: siguiente parada desbloqueada", testAll: "Prueba: todas las paradas desbloqueadas", testReset: "Prueba: reiniciado", participantsOnly: "Los detalles de las paradas son para los participantes.", changeEmail: "Otro correo",
   },
   de: {
     upcoming: "Demnächst", now: "Läuft gerade", past: "Vergangen", cancelled: "Abgesagt",
@@ -93,6 +143,7 @@ const TABLE: Record<string, Partial<TravelStrings>> = {
     noTrips: "Noch keine Reisen geplant.", route: "Route", routeSoon: "Route folgt in Kürze",
     stops: "Stationen", arrival: "Ankunft", duration: "Aufenthalt", openInMaps: "In Google Maps öffnen",
     close: "Schließen", photos: "Fotos", more: "Mehr lesen", calendar: "Reisekalender",
+    start: "Reise starten", startHint: "Teilnehmende: Melden Sie sich mit der E-Mail Ihrer Anmeldung an, um Stationen bei Ankunft freizuschalten.", email: "Ihre E-Mail", sendCode: "Code senden", codeSent: "Wir haben einen 6-stelligen Code gesendet an", code: "6-stelliger Code", verify: "Bestätigen", wrongCode: "Falscher Code. Verbleibende Versuche:", expired: "Der Code ist abgelaufen – fordern Sie einen neuen an.", tooMany: "Zu viele Versuche – warten Sie ein paar Minuten.", genericError: "Etwas ist schiefgelaufen. Bitte erneut versuchen.", availableFrom: "Start möglich ab", signedInAs: "Angemeldet als", signOut: "Abmelden", locked: "Wird bei Ankunft freigeschaltet", nextStop: "Nächste Station", nextTeaser: "Als Nächstes", unlockedNote: "Stationen werden bei Ankunft (oder zur geplanten Zeit) freigeschaltet.", testNext: "Test: nächste Station freigeschaltet", testAll: "Test: alle Stationen freigeschaltet", testReset: "Test: zurückgesetzt", participantsOnly: "Details der Stationen sind für Teilnehmende.", changeEmail: "Andere E-Mail",
   },
   it: {
     upcoming: "In arrivo", now: "In corso", past: "Passato", cancelled: "Annullato",
@@ -101,6 +152,7 @@ const TABLE: Record<string, Partial<TravelStrings>> = {
     noTrips: "Nessun viaggio in programma.", route: "Percorso", routeSoon: "Percorso in arrivo",
     stops: "Tappe", arrival: "Arrivo", duration: "Sosta", openInMaps: "Apri in Google Maps",
     close: "Chiudi", photos: "Foto", more: "Leggi di più", calendar: "Calendario dei viaggi",
+    start: "Inizia il viaggio", startHint: "Partecipanti: accedi con l'e-mail dell'iscrizione per sbloccare le tappe quando le raggiungi.", email: "La tua e-mail", sendCode: "Invia codice", codeSent: "Abbiamo inviato un codice a 6 cifre a", code: "Codice a 6 cifre", verify: "Conferma", wrongCode: "Codice errato. Tentativi rimasti:", expired: "Il codice è scaduto: richiedine uno nuovo.", tooMany: "Troppi tentativi: attendi qualche minuto e riprova.", genericError: "Qualcosa è andato storto. Riprova.", availableFrom: "Disponibile dal", signedInAs: "Accesso come", signOut: "Esci", locked: "Si sblocca all'arrivo", nextStop: "Prossima tappa", nextTeaser: "In arrivo", unlockedNote: "Le tappe si sbloccano all'arrivo (o all'ora prevista).", testNext: "Test: tappa successiva sbloccata", testAll: "Test: tutte le tappe sbloccate", testReset: "Test: azzerato", participantsOnly: "I dettagli delle tappe sono per i partecipanti.", changeEmail: "Altra e-mail",
   },
   pt: {
     upcoming: "Em breve", now: "A decorrer", past: "Passada", cancelled: "Cancelada",
@@ -109,6 +161,7 @@ const TABLE: Record<string, Partial<TravelStrings>> = {
     noTrips: "Ainda não há viagens agendadas.", route: "Percurso", routeSoon: "Percurso em breve",
     stops: "Paragens", arrival: "Chegada", duration: "Estadia", openInMaps: "Abrir no Google Maps",
     close: "Fechar", photos: "Fotos", more: "Ler mais", calendar: "Calendário de viagens",
+    start: "Começar a viagem", startHint: "Participantes: entre com o e-mail da inscrição para desbloquear as paragens quando lá chegar.", email: "O seu e-mail", sendCode: "Enviar código", codeSent: "Enviámos um código de 6 dígitos para", code: "Código de 6 dígitos", verify: "Confirmar", wrongCode: "Código incorreto. Tentativas restantes:", expired: "O código expirou — peça um novo.", tooMany: "Demasiadas tentativas — aguarde alguns minutos.", genericError: "Algo correu mal. Tente novamente.", availableFrom: "Disponível a partir de", signedInAs: "Sessão iniciada como", signOut: "Sair", locked: "Desbloqueia quando chegar", nextStop: "Próxima paragem", nextTeaser: "A seguir", unlockedNote: "As paragens desbloqueiam quando chega (ou à hora prevista).", testNext: "Teste: paragem seguinte desbloqueada", testAll: "Teste: todas as paragens desbloqueadas", testReset: "Teste: reposto", participantsOnly: "Os detalhes das paragens são para participantes.", changeEmail: "Outro e-mail",
   },
   pl: {
     upcoming: "Wkrótce", now: "Trwa teraz", past: "Zakończona", cancelled: "Odwołana",
@@ -117,6 +170,7 @@ const TABLE: Record<string, Partial<TravelStrings>> = {
     noTrips: "Brak zaplanowanych wycieczek.", route: "Trasa", routeSoon: "Trasa wkrótce",
     stops: "Przystanki", arrival: "Przyjazd", duration: "Pobyt", openInMaps: "Otwórz w Mapach Google",
     close: "Zamknij", photos: "Zdjęcia", more: "Czytaj więcej", calendar: "Kalendarz wycieczek",
+    start: "Rozpocznij wycieczkę", startHint: "Uczestnicy: zaloguj się e-mailem podanym przy zapisie, aby odblokowywać przystanki po dotarciu.", email: "Twój e-mail", sendCode: "Wyślij kod", codeSent: "Wysłaliśmy 6-cyfrowy kod na", code: "6-cyfrowy kod", verify: "Potwierdź", wrongCode: "Nieprawidłowy kod. Pozostałe próby:", expired: "Kod wygasł — poproś o nowy.", tooMany: "Zbyt wiele prób — odczekaj kilka minut.", genericError: "Coś poszło nie tak. Spróbuj ponownie.", availableFrom: "Start dostępny od", signedInAs: "Zalogowano jako", signOut: "Wyloguj", locked: "Odblokuje się po dotarciu", nextStop: "Następny przystanek", nextTeaser: "Dalej na trasie", unlockedNote: "Przystanki odblokowują się po dotarciu (lub o planowanej godzinie).", testNext: "Test: odblokowano następny przystanek", testAll: "Test: odblokowano wszystkie przystanki", testReset: "Test: zresetowano", participantsOnly: "Szczegóły przystanków są dla uczestników.", changeEmail: "Inny e-mail",
   },
 };
 

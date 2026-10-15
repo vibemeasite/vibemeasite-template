@@ -103,6 +103,7 @@ export const getSiteSettings = unstable_cache(
         blogFilterConfig: { enabled: false, showSearch: true, showCategories: true, showTags: true },
         blogStyleConfig: DEFAULT_BLOG_STYLE_CONFIG,
         travelKitEnabled: false,
+        visitorAuthPublicId: null,
       }
     );
   },

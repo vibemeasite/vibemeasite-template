@@ -14,6 +14,11 @@ import { layoutRouteMap, type MapDecor } from "../lib/trip-map";
 interface Props {
   stops: Array<{ position: number; lat: number; lng: number; mapX: number | null; mapY: number | null; title: string }>;
   ariaLabel: string;
+  // false = public preview: pins are plain markers, not links (BSA P25).
+  interactive?: boolean;
+  // Stops at or after this position render locked (padlock, not clickable);
+  // public/trip.js keeps it in sync as stops are revealed. Omit = none locked.
+  lockedFrom?: number;
 }
 
 function Decor({ d }: { d: MapDecor }) {
@@ -59,20 +64,20 @@ function pinPath(x: number, y: number, r: number): string {
   return `M${x} ${y} C${x - r * 0.35} ${y - r * 0.9} ${x - r} ${y - r * 1.25} ${x - r} ${y - r * 1.9} A${r} ${r} 0 1 1 ${x + r} ${y - r * 1.9} C${x + r} ${y - r * 1.25} ${x + r * 0.35} ${y - r * 0.9} ${x} ${y} Z`;
 }
 
-export function TripRouteMap({ stops, ariaLabel }: Props) {
+export function TripRouteMap({ stops, ariaLabel, interactive = true, lockedFrom }: Props) {
   if (!stops.length) return null;
   const input = stops.map((s) => ({ lat: s.lat, lng: s.lng, mapX: s.mapX, mapY: s.mapY, label: s.title }));
   // Two drawings of the same route: a wide one, and a phone one whose smaller
   // viewBox makes pins/labels ~1.8x larger on screen. CSS shows one of them.
   return (
     <figure className="vms-route">
-      <MapSvg variant="wide" layout={layoutRouteMap(input)} stops={stops} ariaLabel={ariaLabel} />
-      <MapSvg variant="narrow" layout={layoutRouteMap(input, { width: 560, minAspect: 0.85, maxAspect: 1.3 })} stops={stops} ariaLabel={ariaLabel} />
+      <MapSvg variant="wide" layout={layoutRouteMap(input)} stops={stops} ariaLabel={ariaLabel} interactive={interactive} lockedFrom={lockedFrom} />
+      <MapSvg variant="narrow" layout={layoutRouteMap(input, { width: 560, minAspect: 0.85, maxAspect: 1.3 })} stops={stops} ariaLabel={ariaLabel} interactive={interactive} lockedFrom={lockedFrom} />
     </figure>
   );
 }
 
-function MapSvg({ variant, layout, stops, ariaLabel }: { variant: "wide" | "narrow"; layout: ReturnType<typeof layoutRouteMap> } & Props) {
+function MapSvg({ variant, layout, stops, ariaLabel, interactive, lockedFrom }: { variant: "wide" | "narrow"; layout: ReturnType<typeof layoutRouteMap> } & Props) {
   const { width: W, height: H } = layout;
   const shadow = `vms-map-shadow-${variant}`;
   return (
@@ -119,11 +124,14 @@ function MapSvg({ variant, layout, stops, ariaLabel }: { variant: "wide" | "narr
           const label = layout.labels[i];
           const group = stops.filter((_, j) => j === i || layout.sameAs[j] === i);
           const nums = group.map((g) => g.position).join("·");
+          // A shared pin ("1·4") is open while its first stop is.
+          const locked = lockedFrom !== undefined && stop.position >= lockedFrom;
+          const Pin = interactive ? "a" : "g";
           return (
-            <a
+            <Pin
               key={stop.position}
-              href={`#stop-${stop.position}`}
-              className="vms-route__stop"
+              {...(interactive ? { href: `#stop-${stop.position}` } : {})}
+              className={`vms-route__stop${interactive ? "" : " is-static"}${locked ? " is-locked" : ""}`}
               data-stop={stop.position}
               aria-label={group.map((g) => `${g.position}. ${g.title}`).join("; ")}
             >
@@ -133,13 +141,17 @@ function MapSvg({ variant, layout, stops, ariaLabel }: { variant: "wide" | "narr
               <text className="vms-route__num" x={p.x} y={p.y - 34} textAnchor="middle" style={nums.length > 2 ? { fontSize: 15 } : undefined}>
                 {nums}
               </text>
+              <g className="vms-route__lock" transform={`translate(${p.x} ${p.y - 42})`} aria-hidden="true">
+                <path d="M-6 -2 V-7 A6 6 0 0 1 6 -7 V-2" className="vms-route__lock-shackle" />
+                <rect x="-9" y="-3" width="18" height="14" rx="3" className="vms-route__lock-body" />
+              </g>
               {label && (
                 <g className="vms-route__tag">
                   <rect x={label.box.x} y={label.box.y} width={label.box.w} height={label.box.h} rx="10" className="vms-route__tag-bg" filter={`url(#${shadow})`} />
                   <text className="vms-route__label" x={label.x} y={label.y} textAnchor={label.anchor}>{label.text}</text>
                 </g>
               )}
-            </a>
+            </Pin>
           );
         })}
       </svg>

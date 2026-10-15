@@ -1,17 +1,32 @@
 /**
- * BSA Phase 27 — Travel Kit trip page behaviour (slice 1: the stop panel).
- * Loaded by components/TripPage.tsx on "trips/{slug}" pages only.
+ * BSA Phase 27 — Travel Kit trip page behaviour. Loaded by
+ * components/TripPage.tsx on "trips/{slug}" pages only.
  *
- * Without JS, a route-map marker (<a href="#stop-N">) just scrolls to that
- * stop's <article id="stop-N"> in the list. With JS, it opens the stop in a
- * panel: a bottom sheet under 640px, a side panel above. The article element
- * itself is MOVED into the panel (and back on close) rather than cloned, so
- * lightbox.js's per-image click bindings keep working inside it. The panel is
- * a plain fixed <div role="dialog">, not a modal <dialog>, because a top-layer
- * modal would sit above lightbox.js's overlay and hide it.
+ * 1. Stop panel. A route-map pin (<a href="#stop-N">) or a #stop-N link opens
+ *    that stop in a panel: a bottom sheet under 640px, a side panel above.
+ *    The article element itself is MOVED into the panel (and back on close),
+ *    not cloned, so lightbox.js's per-image bindings keep working. A plain
+ *    fixed <div role="dialog">, not a modal <dialog>: a top-layer modal would
+ *    sit above lightbox.js's overlay and hide it. Without JS, the link just
+ *    scrolls to the article.
  *
- * Also hides [data-online-only] links (e.g. "Open in Google Maps") while the
- * device is offline — the offline trip mode in a later slice relies on that.
+ * 2. Start (public preview): email → 6-digit code through the site's Phase 19
+ *    relay (/api/shopper-auth/*, with tripSlug so only rostered emails get a
+ *    code), then a reload — the server renders the participant version.
+ *
+ * 3. Progressive reveal (participant version, BSA Area 8). The highest
+ *    revealed stop position is kept per device in localStorage; the page
+ *    shows stops up to max(stored, scheduled-time reveal, trip ended → all).
+ *    Revealing stop N reveals 1..N. GPS reveal arrives in a later slice.
+ *    Locks are a surprise mechanic, not security: every stop is in the HTML.
+ *
+ * 4. Hidden test shortcuts (BSA P27), participant version only:
+ *      Shift+Alt+N  next stop (as if just arrived: reveal + open its panel)
+ *      Shift+Alt+A  reveal all      Shift+Alt+R  reset this device
+ *    On a phone: tap the map's compass 5× quickly = next; hold it 3 s = all;
+ *    tap 5× then hold = reset. Each shows a "Test: …" toast.
+ *
+ * Also hides [data-online-only] links while the device is offline.
  */
 ( function () {
 	if ( window.__vmsTripInit ) return;
@@ -21,6 +36,23 @@
 	var CLOSE_LABEL = ( script && script.getAttribute( 'data-close-label' ) ) || 'Close';
 	var STOP_HASH = /^#stop-(\d+)$/;
 
+	var root = null;
+	var T = {};
+	var mode = 'preview';
+	var tripSlug = '';
+
+	// ── Storage (never required) ────────────────────────────────────────────
+	function load( key ) {
+		try { return window.localStorage.getItem( key ); } catch ( e ) { return null; }
+	}
+	function save( key, value ) {
+		try {
+			if ( value === null ) window.localStorage.removeItem( key );
+			else window.localStorage.setItem( key, value );
+		} catch ( e ) { /* private mode etc. */ }
+	}
+
+	// ── Stop panel ──────────────────────────────────────────────────────────
 	var panel = null;
 	var body = null;
 	var placeholder = null;
@@ -52,6 +84,7 @@
 	function open( n, trigger, pushHash ) {
 		var article = document.getElementById( 'stop-' + n );
 		if ( ! article || ! article.classList.contains( 'vms-stop' ) ) return false;
+		if ( article.classList.contains( 'is-locked' ) ) return false;
 		if ( ! panel ) buildPanel();
 		if ( current ) restore();
 		placeholder = document.createElement( 'span' );
@@ -111,15 +144,254 @@
 		} );
 	}
 
+	// ── Progressive reveal (participant version) ────────────────────────────
+	var stops = []; // [{ pos, at (ms|null), el, item }]
+	var revealKey = '';
+
+	function storedReveal() {
+		var v = parseInt( load( revealKey ) || '0', 10 );
+		return isNaN( v ) ? 0 : v;
+	}
+
+	function computedReveal() {
+		if ( ! stops.length ) return 0;
+		var last = stops[ stops.length - 1 ].pos;
+		var endAt = Date.parse( root.getAttribute( 'data-end-at' ) || '' );
+		if ( ! isNaN( endAt ) && Date.now() > endAt ) return last;
+		var timeMax = 0;
+		stops.forEach( function ( s ) {
+			if ( s.at !== null && s.at <= Date.now() ) timeMax = Math.max( timeMax, s.pos );
+		} );
+		return Math.min( last, Math.max( storedReveal(), timeMax ) );
+	}
+
+	function applyReveal() {
+		var upTo = computedReveal();
+		stops.forEach( function ( s ) {
+			var locked = s.pos > upTo;
+			s.el.classList.toggle( 'is-locked', locked );
+			if ( s.item ) s.item.classList.toggle( 'is-locked', locked );
+		} );
+		document.querySelectorAll( '.vms-route__stop' ).forEach( function ( pin ) {
+			var pos = parseInt( pin.getAttribute( 'data-stop' ), 10 );
+			pin.classList.toggle( 'is-locked', pos > upTo );
+		} );
+		var next = null;
+		for ( var i = 0; i < stops.length; i++ ) {
+			if ( stops[ i ].pos > upTo ) { next = stops[ i ]; break; }
+		}
+		var teaser = root.querySelector( '.vms-trip__next' );
+		if ( teaser ) {
+			teaser.hidden = ! next;
+			var title = teaser.querySelector( '.vms-trip__next-title' );
+			if ( title && next ) title.textContent = next.el.getAttribute( 'data-title' ) || '';
+		}
+		return { upTo: upTo, next: next };
+	}
+
+	// Reveal up to stop `pos` (and everything before it). openIt = arrival UX.
+	function revealUpTo( pos, openIt ) {
+		save( revealKey, String( Math.max( storedReveal(), pos ) ) );
+		applyReveal();
+		if ( openIt ) open( pos, null, true );
+	}
+
+	// ── Test shortcuts (P27) ────────────────────────────────────────────────
+	var toastEl = null;
+	var toastTimer = null;
+	function toast( msg ) {
+		if ( ! toastEl ) {
+			toastEl = document.createElement( 'div' );
+			toastEl.className = 'vms-trip-toast';
+			toastEl.setAttribute( 'role', 'status' );
+			document.body.appendChild( toastEl );
+		}
+		toastEl.textContent = msg;
+		toastEl.classList.add( 'is-on' );
+		clearTimeout( toastTimer );
+		toastTimer = setTimeout( function () { toastEl.classList.remove( 'is-on' ); }, 2600 );
+	}
+
+	function testNext() {
+		var r = applyReveal();
+		if ( ! r.next ) { toast( T.testAll || 'Test: all stops revealed' ); return; }
+		revealUpTo( r.next.pos, true );
+		toast( T.testNext || 'Test: next stop revealed' );
+	}
+	function testAll() {
+		if ( stops.length ) revealUpTo( stops[ stops.length - 1 ].pos, false );
+		toast( T.testAll || 'Test: all stops revealed' );
+	}
+	function testReset() {
+		save( revealKey, null );
+		close( true );
+		applyReveal();
+		toast( T.testReset || 'Test: reveal reset' );
+	}
+
+	// Phone gestures on the map's compass rose: 5 quick taps = next stop; hold
+	// 3 s = reveal all; 5 taps and then a hold = reset.
+	function bindCompassGestures() {
+		var taps = 0;
+		var tapsTimer = null; // forgets taps after a pause
+		var nextTimer = null; // fires "next" unless a hold follows the 5th tap
+		var holdTimer = null;
+		function forget() { taps = 0; clearTimeout( tapsTimer ); clearTimeout( nextTimer ); }
+		document.querySelectorAll( '.vms-map__compass' ).forEach( function ( c ) {
+			c.style.cursor = 'pointer';
+			c.style.touchAction = 'manipulation';
+			c.addEventListener( 'pointerdown', function ( e ) {
+				e.preventDefault();
+				clearTimeout( nextTimer );
+				var resetHold = taps >= 5;
+				holdTimer = setTimeout( function () {
+					holdTimer = null;
+					forget();
+					if ( resetHold ) testReset();
+					else testAll();
+				}, 3000 );
+			} );
+			c.addEventListener( 'pointerup', function () {
+				if ( ! holdTimer ) return; // the hold already fired
+				clearTimeout( holdTimer );
+				holdTimer = null;
+				taps += 1;
+				clearTimeout( tapsTimer );
+				if ( taps >= 5 ) {
+					nextTimer = setTimeout( function () { forget(); testNext(); }, 700 );
+				} else {
+					tapsTimer = setTimeout( forget, 1500 );
+				}
+			} );
+			c.addEventListener( 'pointercancel', function () { clearTimeout( holdTimer ); holdTimer = null; } );
+		} );
+	}
+
+	// ── Start (public preview) ──────────────────────────────────────────────
+	function postJson( url, payload ) {
+		return fetch( url, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			credentials: 'same-origin',
+			body: JSON.stringify( payload ),
+		} ).then( function ( res ) {
+			return res.json().catch( function () { return {}; } ).then( function ( json ) {
+				return { status: res.status, json: json };
+			} );
+		} );
+	}
+
+	function initStart( section ) {
+		var btn = section.querySelector( '.vms-trip__start-btn' );
+		var box = section.querySelector( '.vms-start' );
+		if ( ! btn || ! box ) return;
+		var pid = section.getAttribute( 'data-pid' );
+		var slug = section.getAttribute( 'data-trip' );
+		var email = '';
+
+		function err( msg ) {
+			var p = box.querySelector( '.vms-start__error' );
+			if ( p ) { p.textContent = msg || ''; p.hidden = ! msg; }
+		}
+		function busy( on ) {
+			box.querySelectorAll( 'button, input' ).forEach( function ( el ) { el.disabled = on; } );
+		}
+		function emailStep() {
+			box.innerHTML =
+				'<form class="vms-start__form" novalidate>' +
+				'<label class="vms-start__label"></label>' +
+				'<input class="vms-start__input" type="email" autocomplete="email" inputmode="email" required>' +
+				'<button type="submit" class="vms-start__go"></button>' +
+				'<p class="vms-start__error" hidden></p>' +
+				'</form>';
+			box.querySelector( 'label' ).textContent = T.email || 'Your email';
+			box.querySelector( '.vms-start__go' ).textContent = T.sendCode || 'Send code';
+			var input = box.querySelector( 'input' );
+			input.value = email;
+			input.focus();
+			box.querySelector( 'form' ).addEventListener( 'submit', function ( e ) {
+				e.preventDefault();
+				email = input.value.trim();
+				if ( ! /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test( email ) ) { err( T.email ); return; }
+				busy( true );
+				postJson( '/api/shopper-auth/request-code', { shopAuthPublicId: pid, email: email, tripSlug: slug } ).then( function ( r ) {
+					busy( false );
+					if ( r.status === 429 ) { err( T.tooMany ); return; }
+					if ( r.status !== 200 ) { err( T.genericError ); return; }
+					codeStep();
+				}, function () { busy( false ); err( T.genericError ); } );
+			} );
+		}
+		function codeStep() {
+			box.innerHTML =
+				'<form class="vms-start__form" novalidate>' +
+				'<p class="vms-start__sent"></p>' +
+				'<label class="vms-start__label"></label>' +
+				'<input class="vms-start__input vms-start__code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required>' +
+				'<button type="submit" class="vms-start__go"></button>' +
+				'<button type="button" class="vms-start__back"></button>' +
+				'<p class="vms-start__error" hidden></p>' +
+				'</form>';
+			box.querySelector( '.vms-start__sent' ).textContent = ( T.codeSent || 'Code sent to' ) + ' ' + email;
+			box.querySelector( 'label' ).textContent = T.code || '6-digit code';
+			box.querySelector( '.vms-start__go' ).textContent = T.verify || 'Confirm';
+			box.querySelector( '.vms-start__back' ).textContent = T.changeEmail || 'Use another email';
+			box.querySelector( '.vms-start__back' ).addEventListener( 'click', emailStep );
+			var input = box.querySelector( 'input' );
+			input.focus();
+			box.querySelector( 'form' ).addEventListener( 'submit', function ( e ) {
+				e.preventDefault();
+				var code = input.value.replace( /\D/g, '' );
+				if ( code.length !== 6 ) { err( T.code ); return; }
+				busy( true );
+				postJson( '/api/shopper-auth/verify-code', { shopAuthPublicId: pid, email: email, code: code, tripSlug: slug } ).then( function ( r ) {
+					if ( r.status === 200 && r.json && r.json.ok ) { location.reload(); return; }
+					busy( false );
+					var msg = r.json && r.json.message ? String( r.json.message ) : '';
+					if ( /expired/i.test( msg ) ) err( T.expired );
+					else if ( r.json && typeof r.json.attemptsRemaining === 'number' ) {
+						err( r.json.attemptsRemaining > 0 ? ( T.wrongCode || 'Wrong code.' ) + ' ' + r.json.attemptsRemaining : T.tooMany );
+					} else err( T.genericError );
+				}, function () { busy( false ); err( T.genericError ); } );
+			} );
+		}
+
+		btn.addEventListener( 'click', function () {
+			btn.hidden = true;
+			box.hidden = false;
+			emailStep();
+		} );
+	}
+
+	function initSignOut() {
+		var b = root.querySelector( '.vms-trip__signout' );
+		if ( ! b ) return;
+		b.addEventListener( 'click', function () {
+			b.disabled = true;
+			fetch( '/api/shopper-auth/logout', { method: 'POST', credentials: 'same-origin' } ).then( function () {
+				location.reload();
+			}, function () { location.reload(); } );
+		} );
+	}
+
+	// ── Events ──────────────────────────────────────────────────────────────
 	document.addEventListener( 'click', function ( e ) {
 		var a = e.target && e.target.closest ? e.target.closest( 'a[href^="#stop-"]' ) : null;
 		if ( ! a || ! a.closest( '.vms-trip' ) ) return;
 		var m = STOP_HASH.exec( a.getAttribute( 'href' ) );
 		if ( ! m ) return;
+		if ( a.classList.contains( 'is-locked' ) ) { e.preventDefault(); return; }
 		if ( open( m[ 1 ], a, true ) ) e.preventDefault();
+		else if ( document.getElementById( 'stop-' + m[ 1 ] ) && document.getElementById( 'stop-' + m[ 1 ] ).classList.contains( 'is-locked' ) ) e.preventDefault();
 	} );
 
 	document.addEventListener( 'keydown', function ( e ) {
+		if ( mode === 'participant' && e.shiftKey && e.altKey && ! e.ctrlKey && ! e.metaKey ) {
+			// e.code, not e.key: Alt changes e.key on macOS / some layouts.
+			if ( e.code === 'KeyN' ) { e.preventDefault(); testNext(); return; }
+			if ( e.code === 'KeyA' ) { e.preventDefault(); testAll(); return; }
+			if ( e.code === 'KeyR' ) { e.preventDefault(); testReset(); return; }
+		}
 		if ( e.key === 'Escape' ) close( true );
 		if ( e.key === 'Tab' && panel && ! panel.hidden ) {
 			// Keep focus inside the panel.
@@ -148,6 +420,35 @@
 	window.addEventListener( 'offline', syncOnline );
 
 	function init() {
+		root = document.querySelector( '.vms-trip' );
+		if ( root ) {
+			mode = root.getAttribute( 'data-mode' ) || 'preview';
+			tripSlug = root.getAttribute( 'data-trip' ) || '';
+			try { T = JSON.parse( root.getAttribute( 'data-i18n' ) || '{}' ); } catch ( e ) { T = {}; }
+			revealKey = 'vms-trip-reveal:' + location.host + ':' + tripSlug;
+			var start = root.querySelector( '.vms-trip__start' );
+			if ( start ) initStart( start );
+			initSignOut();
+			if ( mode === 'participant' ) {
+				root.querySelectorAll( '.vms-stop' ).forEach( function ( el ) {
+					var at = Date.parse( el.getAttribute( 'data-reveal-at' ) || '' );
+					stops.push( {
+						pos: parseInt( el.getAttribute( 'data-stop' ), 10 ),
+						at: isNaN( at ) ? null : at,
+						el: el,
+						item: el.closest( '.vms-trip__stop-item' ),
+					} );
+				} );
+				stops.sort( function ( a, b ) { return a.pos - b.pos; } );
+				applyReveal();
+				// Scheduled-time reveal (P21c) needs no reload: re-check each minute.
+				setInterval( applyReveal, 60000 );
+				document.addEventListener( 'visibilitychange', function () {
+					if ( document.visibilityState === 'visible' ) applyReveal();
+				} );
+				bindCompassGestures();
+			}
+		}
 		syncOnline();
 		var m = STOP_HASH.exec( location.hash );
 		if ( m ) open( m[ 1 ], null, false );

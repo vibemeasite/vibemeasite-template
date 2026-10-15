@@ -1552,3 +1552,67 @@ html.vms-stop-panel-open { overflow: hidden; }
   :where(.vms-stop-panel__backdrop, .vms-stop-panel__sheet) { animation: none; }
   :where(.vms-cal-card) { transition: none; }
 }
+
+/* ── Travel Kit v58: Start, participant bar, progressive reveal (BSA Area 8) ── */
+:where(.vms-trip__start, .vms-trip__me) { max-width: 1100px; margin: 0 auto; padding: 28px 16px 0; }
+:where(.vms-trip__start) { display: grid; gap: 12px; justify-items: start; }
+:where(.vms-trip__start-hint, .vms-trip__me-note) { margin: 0; max-width: 62ch; color: var(--vms-trip-muted); line-height: 1.55; }
+.vms-trip__start-btn {
+  display: inline-flex; align-items: center; gap: 10px; padding: 14px 30px; border: 0; border-radius: 999px; cursor: pointer;
+  font: inherit; font-size: 1.05rem; font-weight: 800; background: var(--vms-trip-accent); color: var(--vms-trip-paper);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--vms-trip-accent) 35%, transparent);
+}
+.vms-trip__start-btn::before { content: "▶"; font-size: 0.85em; }
+:where(.vms-trip__start-soon) { margin: 0; font-weight: 700; }
+:where(.vms-start) {
+  width: min(100%, 440px); padding: 18px; border: 1px solid var(--vms-trip-line); border-radius: var(--vms-trip-radius);
+  background: var(--vms-trip-paper); box-shadow: 0 10px 30px color-mix(in srgb, var(--vms-trip-ink) 10%, transparent);
+}
+:where(.vms-start__form) { display: grid; gap: 10px; }
+:where(.vms-start__label) { font-weight: 700; font-size: 0.95rem; }
+:where(.vms-start__sent) { margin: 0; color: var(--vms-trip-muted); font-size: 0.92rem; word-break: break-word; }
+:where(.vms-start__input) {
+  width: 100%; padding: 12px 14px; font: inherit; font-size: 1.05rem; border: 1px solid var(--vms-trip-line); border-radius: 10px;
+  background: var(--vms-trip-paper); color: var(--vms-trip-ink);
+}
+:where(.vms-start__code) { letter-spacing: 0.4em; font-size: 1.4rem; text-align: center; font-variant-numeric: tabular-nums; }
+.vms-start__go {
+  padding: 12px 18px; border: 0; border-radius: 10px; cursor: pointer; font: inherit; font-weight: 800;
+  background: var(--vms-trip-accent); color: var(--vms-trip-paper);
+}
+.vms-start__back { padding: 6px; border: 0; background: none; cursor: pointer; font: inherit; color: var(--vms-trip-muted); text-decoration: underline; justify-self: start; }
+:where(.vms-start__error) { margin: 0; color: #b3261e; font-weight: 600; font-size: 0.92rem; }
+:where(.vms-start button:disabled, .vms-start input:disabled) { opacity: 0.6; cursor: progress; }
+
+:where(.vms-trip__me-line) { margin: 0 0 6px; }
+.vms-trip__signout { padding: 0; border: 0; background: none; cursor: pointer; font: inherit; color: var(--vms-trip-accent); text-decoration: underline; }
+
+:where(.vms-trip__next) {
+  display: flex; align-items: center; gap: 12px; margin: -10px 0 22px; padding: 14px 18px; border-radius: var(--vms-trip-radius);
+  border: 2px dashed color-mix(in srgb, var(--vms-trip-accent) 45%, var(--vms-trip-line)); background: var(--vms-trip-tint);
+}
+:where(.vms-trip__next[hidden]) { display: none; }
+:where(.vms-trip__next-label) { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--vms-trip-muted); }
+:where(.vms-trip__next-title) { font-weight: 800; font-size: 1.05rem; }
+:where(.vms-trip__next-lock) { margin-left: auto; font-size: 1.2rem; }
+
+/* Locked stops: out of the list, greyed padlocked pins (a surprise, not security). */
+:where(.vms-trip__stop-item.is-locked, .vms-stop.is-locked) { display: none; }
+:where(.vms-route__lock) { display: none; }
+:where(.vms-route__lock-shackle) { fill: none; stroke: #ffffff; stroke-width: 3; stroke-linecap: round; }
+:where(.vms-route__lock-body) { fill: #ffffff; }
+:where(.vms-route__stop.is-locked) { cursor: default; }
+:where(.vms-route__stop.is-locked .vms-route__marker) { fill: #a39c90; }
+:where(.vms-route__stop.is-locked .vms-route__num) { display: none; }
+:where(.vms-route__stop.is-locked .vms-route__lock) { display: inline; }
+:where(.vms-route__stop.is-locked .vms-route__tag) { opacity: 0.7; }
+:where(.vms-route__stop.is-locked:hover .vms-route__marker) { transform: none; }
+:where(.vms-route__stop.is-static) { cursor: default; }
+:where(.vms-route__stop.is-static:hover .vms-route__marker) { transform: none; }
+
+:where(.vms-trip-toast) {
+  position: fixed; left: 50%; bottom: 24px; z-index: 9500; transform: translate(-50%, 20px); opacity: 0; pointer-events: none;
+  padding: 10px 18px; border-radius: 999px; background: #1f1b16; color: #fff; font-weight: 700; font-size: 0.92rem;
+  transition: opacity 180ms ease, transform 180ms ease; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.3);
+}
+:where(.vms-trip-toast.is-on) { opacity: 1; transform: translate(-50%, 0); }
