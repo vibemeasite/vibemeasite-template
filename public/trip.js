@@ -20,9 +20,11 @@
  *    Revealing stop N reveals 1..N. GPS reveal arrives in a later slice.
  *    Locks are a surprise mechanic, not security: every stop is in the HTML.
  *
- * 4. Hidden test shortcuts (BSA P27), participant version only:
- *      Shift+Alt+N  next stop (as if just arrived: reveal + open its panel)
- *      Shift+Alt+A  reveal all      Shift+Alt+R  reset this device
+ * 4. Hidden test shortcuts (BSA P27), participant version only. Typed words
+ *    (anywhere outside a text field), not key chords — browsers already own
+ *    Shift+Alt+R (Firefox/Windows), Ctrl+Shift+N/A/R, etc.:
+ *      vmsnext   next stop (as if just arrived: reveal + open its panel)
+ *      vmsall    reveal all      vmsreset   reset this device
  *    On a phone: tap the map's compass 5× quickly = next; hold it 3 s = all;
  *    tap 5× then hold = reset. Each shows a "Test: …" toast.
  *
@@ -385,12 +387,20 @@
 		else if ( document.getElementById( 'stop-' + m[ 1 ] ) && document.getElementById( 'stop-' + m[ 1 ] ).classList.contains( 'is-locked' ) ) e.preventDefault();
 	} );
 
+	// Last letters typed outside text fields, matched against the test words.
+	// e.code (physical key), so it works on any keyboard layout (e.g. Cyrillic).
+	var typed = '';
+	var TEST_WORDS = { vmsnext: function () { testNext(); }, vmsall: function () { testAll(); }, vmsreset: function () { testReset(); } };
 	document.addEventListener( 'keydown', function ( e ) {
-		if ( mode === 'participant' && e.shiftKey && e.altKey && ! e.ctrlKey && ! e.metaKey ) {
-			// e.code, not e.key: Alt changes e.key on macOS / some layouts.
-			if ( e.code === 'KeyN' ) { e.preventDefault(); testNext(); return; }
-			if ( e.code === 'KeyA' ) { e.preventDefault(); testAll(); return; }
-			if ( e.code === 'KeyR' ) { e.preventDefault(); testReset(); return; }
+		if ( mode === 'participant' && ! e.ctrlKey && ! e.metaKey && ! e.altKey && /^Key[A-Z]$/.test( e.code || '' ) ) {
+			var t = e.target;
+			var editable = t && ( t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test( t.tagName ) );
+			if ( ! editable ) {
+				typed = ( typed + e.code.slice( 3 ).toLowerCase() ).slice( -12 );
+				for ( var w in TEST_WORDS ) {
+					if ( typed.slice( -w.length ) === w ) { typed = ''; TEST_WORDS[ w ](); return; }
+				}
+			}
 		}
 		if ( e.key === 'Escape' ) close( true );
 		if ( e.key === 'Tab' && panel && ! panel.hidden ) {
