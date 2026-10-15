@@ -1433,22 +1433,55 @@ a { color: var(--color-primary, inherit); }
 :where(.vms-trip__h2) { margin: 0 0 18px; font-size: 1.6rem; }
 :where(.vms-trip__soon) { color: var(--vms-trip-muted); font-style: italic; }
 
-:where(.vms-route) { margin: 0 0 28px; }
-:where(.vms-route__svg) { display: block; width: 100%; height: auto; max-height: 70vh; }
-:where(.vms-route__bg) { fill: var(--vms-trip-tint); stroke: var(--vms-trip-line); stroke-width: 2; }
-:where(.vms-route__dot) { fill: color-mix(in srgb, var(--vms-trip-accent) 18%, transparent); }
-:where(.vms-route__line-halo) { fill: none; stroke: var(--vms-trip-paper); stroke-width: 14; stroke-linecap: round; stroke-linejoin: round; }
-:where(.vms-route__line) { fill: none; stroke: var(--vms-trip-accent); stroke-width: 6; stroke-dasharray: 2 14; stroke-linecap: round; stroke-linejoin: round; }
-:where(.vms-route__hit) { fill: transparent; }
-:where(.vms-route__marker) { fill: var(--vms-trip-accent); stroke: var(--vms-trip-paper); stroke-width: 5; transition: r 120ms ease; }
-:where(.vms-route__num) { fill: var(--vms-trip-paper); font-size: 20px; font-weight: 800; pointer-events: none; font-family: inherit; }
-:where(.vms-route__label) {
-  fill: var(--vms-trip-ink); font-size: 26px; font-weight: 700; font-family: inherit; pointer-events: none;
-  paint-order: stroke; stroke: var(--vms-trip-paper); stroke-width: 7px; stroke-linejoin: round;
+/* Illustrated trip map. The scenery has its own storybook palette (it must read
+   as land and sea on any site); the trail, pins and tags follow the branding. */
+:root {
+  --vms-map-sea: #a9d7e8;
+  --vms-map-sea-ink: #5aa6c4;
+  --vms-map-land: #e4efc4;
+  --vms-map-shore: #f4e6bf;
+  --vms-map-leaf: #6aaa64;
+  --vms-map-pine: #3f8257;
+  --vms-map-hill: #a9cf86;
+  --vms-map-mtn: #b39d84;
+  --vms-map-trunk: #8a5a3b;
 }
+:where(.vms-route) { margin: 0 0 28px; }
+:where(.vms-route__svg) { display: block; width: 100%; height: auto; max-height: 72vh; border-radius: 22px; }
+:where(.vms-map__sea) { fill: var(--vms-map-sea); }
+:where(.vms-map__frame) { fill: none; stroke: #ffffff; stroke-opacity: 0.55; stroke-width: 3; stroke-dasharray: 10 8; }
+:where(.vms-map__shore) { fill: var(--vms-map-shore); }
+:where(.vms-map__land) { fill: var(--vms-map-land); }
+:where(.vms-map__land-edge) { fill: none; stroke: #7fb07a; stroke-width: 3; stroke-linejoin: round; stroke-opacity: 0.6; }
+:where(.vms-map__wave) { fill: none; stroke: var(--vms-map-sea-ink); stroke-width: 3; stroke-linecap: round; opacity: 0.7; }
+:where(.vms-map__trunk) { fill: var(--vms-map-trunk); }
+:where(.vms-map__leaf) { fill: var(--vms-map-leaf); }
+:where(.vms-map__leaf-hi) { fill: #ffffff; opacity: 0.25; }
+:where(.vms-map__pine) { fill: var(--vms-map-pine); }
+:where(.vms-map__hill) { fill: var(--vms-map-hill); }
+:where(.vms-map__hill--back) { fill: color-mix(in srgb, var(--vms-map-hill) 80%, #5c8f4a); }
+:where(.vms-map__mtn) { fill: var(--vms-map-mtn); }
+:where(.vms-map__mtn--back) { fill: color-mix(in srgb, var(--vms-map-mtn) 75%, #6f5d4c); }
+:where(.vms-map__snow) { fill: #ffffff; }
+:where(.vms-map__compass-ring) { fill: #fffaf0; stroke: #8a7a63; stroke-width: 2.5; }
+:where(.vms-map__compass-ns) { fill: #8a7a63; }
+:where(.vms-map__compass-n) { fill: #c4553a; }
+:where(.vms-map__compass-ew) { fill: #b9ab94; }
+:where(.vms-map__compass-label) { fill: #6f5d4c; font-size: 16px; font-weight: 800; font-family: inherit; }
+:where(.vms-map__flagpole) { fill: #6f5d4c; }
+:where(.vms-map__flag) { fill: #c4553a; }
+:where(.vms-route__line-halo) { fill: none; stroke: #ffffff; stroke-opacity: 0.85; stroke-width: 14; stroke-linecap: round; }
+:where(.vms-route__line) { fill: none; stroke: var(--vms-trip-accent); stroke-width: 6; stroke-dasharray: 1 13; stroke-linecap: round; }
+:where(.vms-route__hit) { fill: transparent; }
+:where(.vms-route__pin-shadow) { fill: #000000; opacity: 0.18; }
+:where(.vms-route__marker) { fill: var(--vms-trip-accent); stroke: #ffffff; stroke-width: 4; transition: transform 140ms ease; transform-box: fill-box; transform-origin: 50% 100%; }
+:where(.vms-route__num) { fill: #ffffff; font-size: 20px; font-weight: 800; pointer-events: none; font-family: inherit; }
+:where(.vms-route__tag-bg) { fill: #fffdf7; stroke: color-mix(in srgb, var(--vms-trip-accent) 35%, #e7dcc7); stroke-width: 2; }
+:where(.vms-route__label) { fill: #2f2a24; font-size: 25px; font-weight: 700; font-family: inherit; pointer-events: none; }
 :where(.vms-route__stop) { cursor: pointer; outline: none; }
-:where(.vms-route__stop:hover .vms-route__marker, .vms-route__stop:focus-visible .vms-route__marker, .vms-route__stop.is-active .vms-route__marker) { r: 24; }
-:where(.vms-route__stop:focus-visible .vms-route__hit) { stroke: var(--vms-trip-accent); stroke-width: 4; }
+:where(.vms-route__stop:hover .vms-route__marker, .vms-route__stop:focus-visible .vms-route__marker, .vms-route__stop.is-active .vms-route__marker) { transform: scale(1.15); }
+:where(.vms-route__stop:focus-visible .vms-route__tag-bg, .vms-route__stop.is-active .vms-route__tag-bg) { stroke: var(--vms-trip-accent); stroke-width: 3; }
+@media (prefers-reduced-motion: reduce) { :where(.vms-route__marker) { transition: none; } }
 
 :where(.vms-trip__stops) { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
 :where(.vms-stop) {
