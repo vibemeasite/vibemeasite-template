@@ -88,7 +88,7 @@ export async function TripCalendar({ view: markerView, months, searchParams, loc
 
   const card = (i: Item) => {
     const cover = safeImageUrl(i.trip.coverImage);
-    const book = (i.status === "upcoming" || i.status === "in_progress") ? safeLinkUrl(i.trip.bookUrl) : null;
+    const book = i.status === "upcoming" ? safeLinkUrl(i.trip.bookUrl) : null;
     const bookHref = book && book.startsWith("/") && !book.startsWith("//") ? `${prefix}${book}` : book;
     const summary = resolveText(i.trip.text, locale, defaultLocale)?.summary;
     return (

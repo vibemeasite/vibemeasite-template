@@ -67,7 +67,7 @@ export async function TripPage({ pageSlug, locale, defaultLocale, children }: Pr
 
   const text = resolveText(trip.text, locale, defaultLocale);
   const cover = safeImageUrl(trip.coverImage);
-  const book = status === "upcoming" || status === "in_progress" ? safeLinkUrl(trip.bookUrl) : null;
+  const book = status === "upcoming" ? safeLinkUrl(trip.bookUrl) : null; // no booking once a trip is under way
   const stops = trip.stops.map((s) => {
     const pt = resolveText(s.place.text, locale, defaultLocale);
     return {

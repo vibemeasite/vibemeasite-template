@@ -1563,6 +1563,7 @@ html.vms-stop-panel-open { overflow: hidden; }
   box-shadow: 0 8px 22px color-mix(in srgb, var(--vms-trip-accent) 35%, transparent);
 }
 .vms-trip__start-btn::before { content: "▶"; font-size: 0.85em; }
+.vms-trip__start-btn[hidden] { display: none; }
 :where(.vms-trip__start-soon) { margin: 0; font-weight: 700; }
 :where(.vms-start) {
   width: min(100%, 440px); padding: 18px; border: 1px solid var(--vms-trip-line); border-radius: var(--vms-trip-radius);
