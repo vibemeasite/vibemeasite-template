@@ -61,6 +61,11 @@
 		current = article;
 		var details = article.querySelector( 'details' );
 		if ( details ) details.open = true;
+		// Lazy images don't reliably start loading once moved into the fixed,
+		// scrollable sheet — load this stop's photos now.
+		article.querySelectorAll( 'img[loading="lazy"]' ).forEach( function ( img ) {
+			img.loading = 'eager';
+		} );
 		var title = article.querySelector( '.vms-stop__title' );
 		if ( title ) {
 			if ( ! title.id ) title.id = 'stop-title-' + n;

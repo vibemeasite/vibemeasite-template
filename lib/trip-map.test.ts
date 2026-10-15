@@ -47,13 +47,36 @@ describe("layoutRouteMap", () => {
   });
 
   it("places labels so they don't overlap, dropping ones with no room", () => {
-    // Six stops at the same point: four label slots around one marker, then none left.
-    const crowd = Array.from({ length: 6 }, (_, i) => ({ lat: 45.5, lng: -73.6, label: `Stop ${i + 1}` }));
+    // Six distinct stops packed a few units apart (manual positions).
+    const crowd = Array.from({ length: 6 }, (_, i) => ({ lat: 45.5, lng: -73.6, mapX: 0.5 + i * 0.006, mapY: 0.5, label: `Stop ${i + 1}` }));
     const l = layoutRouteMap(crowd);
-    const placed = l.labels.filter(Boolean);
-    expect(placed.length).toBe(4);
-    expect(new Set(placed.map((p) => p!.anchor + p!.y)).size).toBe(4);
+    expect(l.sameAs.every((x) => x === null)).toBe(true);
+    const boxes = l.labels.flatMap((lab) => {
+      if (!lab) return [];
+      const w = lab.text.length * 26 * 0.56;
+      const x1 = lab.anchor === "start" ? lab.x : lab.anchor === "end" ? lab.x - w : lab.x - w / 2;
+      return [{ x1, x2: x1 + w, y1: lab.y - 26, y2: lab.y + 6 }];
+    });
+    expect(boxes.length).toBeGreaterThan(0);
     expect(l.labels.some((x) => x === null)).toBe(true);
+    for (let i = 0; i < boxes.length; i++)
+      for (let j = i + 1; j < boxes.length; j++) {
+        const a = boxes[i], b = boxes[j];
+        expect(a.x1 < b.x2 && a.x2 > b.x1 && a.y1 < b.y2 && a.y2 > b.y1).toBe(false);
+      }
+  });
+});
+
+describe("shared spots", () => {
+  it("merges a round trip's start and end into one marker", () => {
+    const l = layoutRouteMap([
+      { lat: 45.5, lng: -73.6, label: "Montréal" },
+      { lat: 46.8, lng: -71.2, label: "Québec" },
+      { lat: 45.5, lng: -73.6, label: "Montréal" },
+    ]);
+    expect(l.sameAs).toEqual([null, null, 0]);
+    expect(l.labels[2]).toBeNull();
+    expect(l.labels[0]?.text).toBe("Montréal");
   });
 });
 

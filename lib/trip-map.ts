@@ -23,6 +23,10 @@ export interface RouteMapLayout {
   height: number;
   points: Array<{ x: number; y: number }>;
   labels: Array<MapLabel | null>; // null = label dropped (number badge only)
+  // Index of an earlier stop drawn at the same spot (a round trip's start and
+  // end, or a revisit), else null. Such stops share that stop's marker and
+  // label instead of drawing a second marker on top of it.
+  sameAs: Array<number | null>;
 }
 
 export const MAP_WIDTH = 1000;
@@ -46,7 +50,7 @@ export function truncateLabel(text: string, max = LABEL_MAX_CHARS): string {
 }
 
 export function layoutRouteMap(stops: MapStopInput[]): RouteMapLayout {
-  if (stops.length === 0) return { width: MAP_WIDTH, height: Math.round(MAP_WIDTH * MIN_ASPECT), points: [], labels: [] };
+  if (stops.length === 0) return { width: MAP_WIDTH, height: Math.round(MAP_WIDTH * MIN_ASPECT), points: [], labels: [], sameAs: [] };
 
   // Equirectangular projection, x scaled by cos(mean latitude) so distances
   // look right at the route's latitude.
@@ -83,7 +87,12 @@ export function layoutRouteMap(stops: MapStopInput[]): RouteMapLayout {
   // Greedy label placement: right, left, above, below the marker; first spot
   // that stays inside the map and clears every marker and earlier label.
   const taken: Box[] = points.map((p) => ({ x1: p.x - MARKER_R, y1: p.y - MARKER_R, x2: p.x + MARKER_R, y2: p.y + MARKER_R }));
+  const sameAs = points.map((p, i) => {
+    const j = points.findIndex((q, k) => k < i && Math.abs(q.x - p.x) < 1 && Math.abs(q.y - p.y) < 1);
+    return j === -1 ? null : j;
+  });
   const labels = stops.map((s, i): MapLabel | null => {
+    if (sameAs[i] !== null) return null;
     const text = truncateLabel(s.label);
     if (!text) return null;
     const w = text.length * CHAR_W, h = FONT * 1.2;
@@ -105,7 +114,7 @@ export function layoutRouteMap(stops: MapStopInput[]): RouteMapLayout {
     return null;
   });
 
-  return { width, height, points, labels };
+  return { width, height, points, labels, sameAs };
 }
 
 function round(n: number): number {

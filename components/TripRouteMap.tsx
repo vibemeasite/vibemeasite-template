@@ -38,21 +38,39 @@ export function TripRouteMap({ stops, ariaLabel }: Props) {
           </>
         )}
         {layout.points.map((p, i) => {
+          // A stop at the same spot as an earlier one (round trip's start and
+          // end) shares that earlier stop's marker: "1 · 4".
+          if (layout.sameAs[i] !== null) return null;
           const stop = stops[i];
           const label = layout.labels[i];
+          const group = stops.filter((_, j) => j === i || layout.sameAs[j] === i);
+          const nums = group.map((g) => g.position).join(" · ");
+          const wide = group.length > 1;
           return (
             <a
               key={stop.position}
               href={`#stop-${stop.position}`}
               className="vms-route__stop"
               data-stop={stop.position}
-              aria-label={`${stop.position}. ${stop.title}`}
+              aria-label={group.map((g) => `${g.position}. ${g.title}`).join("; ")}
             >
               <circle className="vms-route__hit" cx={p.x} cy={p.y} r="34" />
-              <circle className="vms-route__marker" cx={p.x} cy={p.y} r="18" />
-              <text className="vms-route__num" x={p.x} y={p.y + 7} textAnchor="middle">{stop.position}</text>
+              {wide ? (
+                <rect className="vms-route__marker" x={p.x - 14 - nums.length * 5.5} y={p.y - 18} width={28 + nums.length * 11} height="36" rx="18" />
+              ) : (
+                <circle className="vms-route__marker" cx={p.x} cy={p.y} r="18" />
+              )}
+              <text className="vms-route__num" x={p.x} y={p.y + 7} textAnchor="middle">{nums}</text>
               {label && (
-                <text className="vms-route__label" x={label.x} y={label.y} textAnchor={label.anchor}>{label.text}</text>
+                <text
+                  className="vms-route__label"
+                  // A wider "1 · 4" pill pushes a side label out by its extra half-width.
+                  x={label.x + (wide ? (label.anchor === "start" ? 1 : label.anchor === "end" ? -1 : 0) * (nums.length * 5.5 - 4) : 0)}
+                  y={label.y}
+                  textAnchor={label.anchor}
+                >
+                  {label.text}
+                </text>
               )}
             </a>
           );
