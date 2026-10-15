@@ -105,8 +105,19 @@ function normalize(values: number[]): number[] {
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
 
-export function layoutRouteMap(stops: MapStopInput[]): RouteMapLayout {
-  const empty = { width: MAP_WIDTH, height: Math.round(MAP_WIDTH * MIN_ASPECT), points: [], labels: [], sameAs: [], legs: [], land: "", decor: [], compass: { x: MAP_WIDTH - 64, y: 64 } };
+// opts lets the component draw a second, phone-shaped map (narrower viewBox,
+// taller aspect) so pins and labels stay readable on a 375px screen.
+export interface MapLayoutOptions {
+  width?: number;
+  minAspect?: number;
+  maxAspect?: number;
+}
+
+export function layoutRouteMap(stops: MapStopInput[], opts: MapLayoutOptions = {}): RouteMapLayout {
+  const MAP_W = opts.width ?? MAP_WIDTH;
+  const MIN_A = opts.minAspect ?? MIN_ASPECT;
+  const MAX_A = opts.maxAspect ?? MAX_ASPECT;
+  const empty = { width: MAP_W, height: Math.round(MAP_W * MIN_A), points: [], labels: [], sameAs: [], legs: [], land: "", decor: [], compass: { x: MAP_W - 64, y: 64 } };
   if (stops.length === 0) return empty;
   const rand = seededRandom(stops);
 
@@ -133,8 +144,8 @@ export function layoutRouteMap(stops: MapStopInput[]): RouteMapLayout {
   if (spanY < spanX * 0.15) uy = uy.map((_, i) => 0.5 + (i % 2 === 0 ? -0.18 : 0.18) * (stops.length > 1 ? 1 : 0));
   if (spanX < spanY * 0.15) ux = ux.map((_, i) => 0.5 + (i % 2 === 0 ? -0.18 : 0.18) * (stops.length > 1 ? 1 : 0));
 
-  const aspect = Math.min(Math.max(spanX > 0 ? spanY / spanX : MAX_ASPECT, MIN_ASPECT), MAX_ASPECT);
-  const width = MAP_WIDTH;
+  const aspect = Math.min(Math.max(spanX > 0 ? spanY / spanX : MAX_A, MIN_A), MAX_A);
+  const width = MAP_W;
   const height = Math.round(width * aspect);
   const offX = width * PAD, offY = height * PAD;
   const innerW = width - 2 * offX, innerH = height - 2 * offY;
@@ -244,7 +255,7 @@ export function layoutRouteMap(stops: MapStopInput[]): RouteMapLayout {
 
   // Scenery: jittered grid, skipping anything near the trail, pins or tags.
   const decor: MapDecor[] = [];
-  const cell = 74;
+  const cell = Math.max(52, Math.round(74 * width / MAP_WIDTH)); // denser on the phone map
   for (let gy2 = cell / 2; gy2 < height; gy2 += cell) {
     for (let gx2 = cell / 2; gx2 < width; gx2 += cell) {
       const x = gx2 + (rand() - 0.5) * cell * 0.7;

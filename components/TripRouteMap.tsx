@@ -61,14 +61,24 @@ function pinPath(x: number, y: number, r: number): string {
 
 export function TripRouteMap({ stops, ariaLabel }: Props) {
   if (!stops.length) return null;
-  const layout = layoutRouteMap(stops.map((s) => ({ lat: s.lat, lng: s.lng, mapX: s.mapX, mapY: s.mapY, label: s.title })));
-  const { width: W, height: H } = layout;
-
+  const input = stops.map((s) => ({ lat: s.lat, lng: s.lng, mapX: s.mapX, mapY: s.mapY, label: s.title }));
+  // Two drawings of the same route: a wide one, and a phone one whose smaller
+  // viewBox makes pins/labels ~1.8x larger on screen. CSS shows one of them.
   return (
     <figure className="vms-route">
-      <svg className="vms-route__svg" viewBox={`0 0 ${W} ${H}`} role="group" aria-label={ariaLabel} preserveAspectRatio="xMidYMid meet">
+      <MapSvg variant="wide" layout={layoutRouteMap(input)} stops={stops} ariaLabel={ariaLabel} />
+      <MapSvg variant="narrow" layout={layoutRouteMap(input, { width: 560, minAspect: 0.85, maxAspect: 1.3 })} stops={stops} ariaLabel={ariaLabel} />
+    </figure>
+  );
+}
+
+function MapSvg({ variant, layout, stops, ariaLabel }: { variant: "wide" | "narrow"; layout: ReturnType<typeof layoutRouteMap> } & Props) {
+  const { width: W, height: H } = layout;
+  const shadow = `vms-map-shadow-${variant}`;
+  return (
+      <svg className={`vms-route__svg vms-route__svg--${variant}`} viewBox={`0 0 ${W} ${H}`} role="group" aria-label={ariaLabel} preserveAspectRatio="xMidYMid meet">
         <defs>
-          <filter id="vms-map-shadow" x="-10%" y="-10%" width="120%" height="130%">
+          <filter id={shadow} x="-10%" y="-10%" width="120%" height="130%">
             <feDropShadow dx="0" dy="4" stdDeviation="4" floodOpacity="0.22" />
           </filter>
         </defs>
@@ -119,13 +129,13 @@ export function TripRouteMap({ stops, ariaLabel }: Props) {
             >
               <circle className="vms-route__hit" cx={p.x} cy={p.y - 24} r="40" />
               <ellipse cx={p.x} cy={p.y + 2} rx="12" ry="4" className="vms-route__pin-shadow" />
-              <path d={pinPath(p.x, p.y, 22)} className="vms-route__marker" filter="url(#vms-map-shadow)" />
+              <path d={pinPath(p.x, p.y, 22)} className="vms-route__marker" filter={`url(#${shadow})`} />
               <text className="vms-route__num" x={p.x} y={p.y - 34} textAnchor="middle" style={nums.length > 2 ? { fontSize: 15 } : undefined}>
                 {nums}
               </text>
               {label && (
                 <g className="vms-route__tag">
-                  <rect x={label.box.x} y={label.box.y} width={label.box.w} height={label.box.h} rx="10" className="vms-route__tag-bg" filter="url(#vms-map-shadow)" />
+                  <rect x={label.box.x} y={label.box.y} width={label.box.w} height={label.box.h} rx="10" className="vms-route__tag-bg" filter={`url(#${shadow})`} />
                   <text className="vms-route__label" x={label.x} y={label.y} textAnchor={label.anchor}>{label.text}</text>
                 </g>
               )}
@@ -133,6 +143,5 @@ export function TripRouteMap({ stops, ariaLabel }: Props) {
           );
         })}
       </svg>
-    </figure>
   );
 }

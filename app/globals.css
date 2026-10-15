@@ -1448,6 +1448,11 @@ a { color: var(--color-primary, inherit); }
 }
 :where(.vms-route) { margin: 0 0 28px; }
 :where(.vms-route__svg) { display: block; width: 100%; height: auto; max-height: 72vh; border-radius: 22px; }
+:where(.vms-route__svg--narrow) { display: none; }
+@media (max-width: 639px) {
+  :where(.vms-route__svg--wide) { display: none; }
+  :where(.vms-route__svg--narrow) { display: block; max-height: none; }
+}
 :where(.vms-map__sea) { fill: var(--vms-map-sea); }
 :where(.vms-map__frame) { fill: none; stroke: #ffffff; stroke-opacity: 0.55; stroke-width: 3; stroke-dasharray: 10 8; }
 :where(.vms-map__shore) { fill: var(--vms-map-shore); }
