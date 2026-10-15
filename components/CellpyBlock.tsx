@@ -2,6 +2,7 @@ import { scopeCss } from "../lib/css-scope";
 import type { CellpyBlockContent } from "../lib/cellpy-block";
 import type { SearchParamsRecord } from "../lib/entries-query";
 import { EntityList } from "./EntityList";
+import { TripCalendar } from "./TripCalendar";
 
 interface CellpyBlockProps {
   containerSlug: string;
@@ -20,9 +21,11 @@ interface CellpyBlockProps {
 // Matches an empty <div data-entity="slug" [data-page-size="N"]
 // [data-sort="key"]></div> placeholder in any attribute order. The div is
 // authored empty (a mount point), so `>\s*</div>` / a self-closed `/>` both
-// count.
+// count. BSA Phase 27 — the same splitter also swaps
+// <div data-trip-calendar …></div> for the server-rendered <TripCalendar>
+// (vibemeasite-mcp's add_trip_calendar).
 const ENTITY_MARKER_RE =
-  /<div\b(?=[^>]*\bdata-entity=)[^>]*>\s*<\/div>|<div\b(?=[^>]*\bdata-entity=)[^>]*\/>/gi;
+  /<div\b(?=[^>]*\bdata-(?:entity|trip-calendar)=)[^>]*>\s*<\/div>|<div\b(?=[^>]*\bdata-(?:entity|trip-calendar)=)[^>]*\/>/gi;
 
 function attr(tag: string, name: string): string | undefined {
   const m = new RegExp(`\\b${name}="([^"]*)"`, "i").exec(tag);
@@ -68,7 +71,11 @@ export async function CellpyBlock({ containerSlug, content, searchParams, locale
   // own scoped CSS still targets its real elements as direct descendants of
   // `.cellpy-block-{slug}`.
   ENTITY_MARKER_RE.lastIndex = 0;
-  type Part = { kind: "html"; html: string } | { kind: "entity"; slug: string; pageSize?: number; sort?: string } | { kind: "dup"; slug: string };
+  type Part =
+    | { kind: "html"; html: string }
+    | { kind: "entity"; slug: string; pageSize?: number; sort?: string }
+    | { kind: "dup"; slug: string }
+    | { kind: "trip-calendar"; view: "month" | "list"; months: number };
   const parts: Part[] = [];
   const seen = new Set<string>();
   let last = 0;
@@ -76,6 +83,16 @@ export async function CellpyBlock({ containerSlug, content, searchParams, locale
   while ((m = ENTITY_MARKER_RE.exec(content.html)) !== null) {
     parts.push({ kind: "html", html: content.html.slice(last, m.index) });
     const tag = m[0];
+    if (attr(tag, "data-trip-calendar") !== undefined) {
+      const months = Number(attr(tag, "data-months"));
+      parts.push({
+        kind: "trip-calendar",
+        view: attr(tag, "data-view") === "list" ? "list" : "month",
+        months: Number.isInteger(months) && months > 0 ? months : 3,
+      });
+      last = m.index + tag.length;
+      continue;
+    }
     const slug = (attr(tag, "data-entity") ?? "").toLowerCase();
     if (!slug || !/^[a-z0-9-]{1,64}$/.test(slug)) {
       parts.push({ kind: "html", html: tag }); // leave an unparseable marker as-is
@@ -105,6 +122,18 @@ export async function CellpyBlock({ containerSlug, content, searchParams, locale
             return p.html
               ? <div key={i} style={{ display: "contents" }} dangerouslySetInnerHTML={{ __html: p.html }} />
               : null;
+          }
+          if (p.kind === "trip-calendar") {
+            return (
+              <TripCalendar
+                key={i}
+                view={p.view}
+                months={p.months}
+                searchParams={searchParams ?? {}}
+                locale={locale ?? defaultLocale ?? "en"}
+                defaultLocale={defaultLocale ?? "en"}
+              />
+            );
           }
           if (p.kind === "dup") {
             return (

@@ -102,6 +102,7 @@ export const getSiteSettings = unstable_cache(
         sideMenuPages: [] as string[] | "all",
         blogFilterConfig: { enabled: false, showSearch: true, showCategories: true, showTags: true },
         blogStyleConfig: DEFAULT_BLOG_STYLE_CONFIG,
+        travelKitEnabled: false,
       }
     );
   },

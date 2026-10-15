@@ -1310,3 +1310,206 @@ a { color: var(--color-primary, inherit); }
   color: var(--color-primary, #1d4ed8);
 }
 :where(.vms-carousel__slide--post) :where(.vms-carousel__slide-link) { font-weight: 600; color: var(--color-primary, #1d4ed8); }
+
+/* ─── Travel Kit (BSA Phase 27, v57) ──────────────────────────────────────
+   Trip calendar (components/TripCalendar.tsx), trip page chrome
+   (components/TripPage.tsx), schematic route map (TripRouteMap.tsx) and the
+   stop panel (public/trip.js). Everything derives from the site's branding
+   tokens through color-mix, so a dark-background site gets a dark calendar
+   without its own rules. :where() keeps specificity at zero, so set_branding's
+   body_css can override any of it. */
+:root {
+  --vms-trip-ink: var(--color-text, #1f2933);
+  --vms-trip-paper: var(--color-background, #ffffff);
+  --vms-trip-accent: var(--color-primary, #1d5fd1);
+  --vms-trip-muted: color-mix(in srgb, var(--vms-trip-ink) 62%, var(--vms-trip-paper));
+  --vms-trip-line: color-mix(in srgb, var(--vms-trip-ink) 14%, var(--vms-trip-paper));
+  --vms-trip-tint: color-mix(in srgb, var(--vms-trip-accent) 9%, var(--vms-trip-paper));
+  --vms-trip-radius: 16px;
+}
+
+/* Status badges (calendar + trip header) */
+:where(.vms-trip-badge) {
+  display: inline-block; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.02em;
+  padding: 3px 10px; border-radius: 999px; text-transform: uppercase;
+  background: var(--vms-trip-tint); color: var(--vms-trip-accent);
+}
+:where(.vms-trip-badge--in_progress) { background: var(--vms-trip-accent); color: var(--vms-trip-paper); }
+:where(.vms-trip-badge--past) { background: var(--vms-trip-line); color: var(--vms-trip-muted); }
+:where(.vms-trip-badge--cancelled) { background: color-mix(in srgb, #c62828 14%, var(--vms-trip-paper)); color: color-mix(in srgb, #c62828 80%, var(--vms-trip-ink)); }
+
+/* ── Calendar ── */
+:where(.vms-cal) { color: var(--vms-trip-ink); scroll-margin-top: 90px; }
+:where(.vms-cal__bar) { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin-bottom: 18px; }
+:where(.vms-cal__nav, .vms-cal__views) { display: inline-flex; gap: 6px; }
+:where(.vms-cal__btn) {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 40px;
+  padding: 6px 14px; border-radius: 999px; border: 1px solid var(--vms-trip-line);
+  color: var(--vms-trip-ink); text-decoration: none; font-weight: 600; font-size: 0.92rem;
+}
+:where(.vms-cal__btn:hover) { border-color: var(--vms-trip-accent); }
+:where(.vms-cal__btn[aria-current="true"]) { background: var(--vms-trip-accent); border-color: var(--vms-trip-accent); color: var(--vms-trip-paper); }
+:where(.vms-cal__months) { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 28px; }
+:where(.vms-cal-month__title) { margin: 0 0 10px; font-size: 1.1rem; text-transform: capitalize; }
+:where(.vms-cal-month__head) {
+  display: grid; grid-template-columns: repeat(7, 1fr); font-size: 0.72rem; font-weight: 700;
+  color: var(--vms-trip-muted); text-transform: uppercase; text-align: center; padding-bottom: 6px;
+}
+:where(.vms-cal-week) {
+  display: grid; grid-template-columns: repeat(7, 1fr); grid-auto-flow: row dense; grid-auto-rows: minmax(22px, auto);
+  row-gap: 3px; padding: 4px 0 6px; border-top: 1px solid var(--vms-trip-line); min-height: 56px;
+}
+:where(.vms-cal-day) { grid-row: 1; text-align: center; font-size: 0.85rem; padding: 2px 0; font-variant-numeric: tabular-nums; }
+:where(.vms-cal-day.is-out) { opacity: 0.35; }
+:where(.vms-cal-day.is-today) { font-weight: 800; color: var(--vms-trip-accent); }
+:where(.vms-cal-bar) {
+  display: block; margin: 0 2px; padding: 2px 8px; border-radius: 7px; font-size: 0.76rem; font-weight: 600;
+  line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-decoration: none;
+  background: var(--vms-trip-accent); color: var(--vms-trip-paper);
+}
+:where(.vms-cal-bar.cont-before) { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 0; }
+:where(.vms-cal-bar.cont-after) { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }
+:where(.vms-cal-bar.is-past) { background: var(--vms-trip-line); color: var(--vms-trip-muted); }
+:where(.vms-cal-bar.is-cancelled) { background: transparent; color: var(--vms-trip-muted); text-decoration: line-through; border: 1px dashed var(--vms-trip-line); }
+:where(.vms-cal-bar:hover, .vms-cal-bar:focus-visible) { filter: brightness(1.08); outline: 2px solid var(--vms-trip-accent); outline-offset: 1px; }
+
+:where(.vms-cal-list) { display: grid; gap: 26px; }
+:where(.vms-cal--month .vms-cal-list) { margin-top: 28px; }
+:where(.vms-cal-list__h) { margin: 0 0 12px; font-size: 1rem; color: var(--vms-trip-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+:where(.vms-cal-cards) { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); }
+:where(.vms-cal-card) {
+  position: relative; display: flex; flex-direction: column; border: 1px solid var(--vms-trip-line);
+  border-radius: var(--vms-trip-radius); overflow: hidden; background: var(--vms-trip-paper);
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+:where(.vms-cal-card:hover) { transform: translateY(-2px); box-shadow: 0 10px 28px color-mix(in srgb, var(--vms-trip-ink) 12%, transparent); }
+:where(.vms-cal-card__link) { display: flex; gap: 14px; padding: 12px; color: inherit; text-decoration: none; flex: 1; }
+:where(.vms-cal-card__img) { width: 96px; height: 96px; flex: none; object-fit: cover; border-radius: 12px; background: var(--vms-trip-tint); }
+:where(.vms-cal-card__body) { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+:where(.vms-cal-card__title) { font-weight: 700; font-size: 1.05rem; line-height: 1.3; }
+:where(.vms-cal-card__dates) { font-size: 0.88rem; color: var(--vms-trip-muted); }
+:where(.vms-cal-card__summary) { font-size: 0.88rem; color: var(--vms-trip-muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+:where(.vms-cal-card__past) { font-size: 0.85rem; font-weight: 600; color: var(--vms-trip-accent); }
+:where(.vms-cal-card__book) {
+  margin: 0 12px 12px auto; padding: 8px 18px; border-radius: 999px; font-weight: 700; text-decoration: none;
+  background: var(--vms-trip-accent); color: var(--vms-trip-paper);
+}
+/* Past trips: greyed, but still fully clickable (BSA US-VMAS-TRAVEL-07 AC3). */
+:where(.vms-cal-card.is-past) { background: color-mix(in srgb, var(--vms-trip-ink) 3%, var(--vms-trip-paper)); }
+:where(.vms-cal-card.is-past .vms-cal-card__img) { filter: grayscale(1) contrast(0.9); opacity: 0.7; }
+:where(.vms-cal-card.is-past .vms-cal-card__title, .vms-cal-card.is-past .vms-cal-card__dates) { opacity: 0.72; }
+:where(.vms-cal-card.is-cancelled .vms-cal-card__title) { text-decoration: line-through; }
+:where(.vms-cal-empty) { color: var(--vms-trip-muted); }
+@media (max-width: 639px) {
+  :where(.vms-cal--month .vms-cal__months, .vms-cal--month .vms-cal__nav) { display: none; }
+  :where(.vms-cal--month .vms-cal-list) { margin-top: 0; }
+}
+
+/* ── Trip page ── */
+:where(.vms-trip) { color: var(--vms-trip-ink); }
+:where(.vms-trip__hero) {
+  position: relative; display: grid; align-items: end; min-height: 300px; padding: 48px 20px 36px;
+  background: linear-gradient(135deg, var(--vms-trip-tint), var(--vms-trip-paper));
+  overflow: hidden;
+}
+:where(.vms-trip__hero.has-cover) { min-height: min(62vh, 520px); color: #fff; }
+:where(.vms-trip__cover) { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+:where(.vms-trip__hero.has-cover)::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0.12) 65%, transparent);
+}
+:where(.vms-trip--past .vms-trip__cover) { filter: grayscale(0.85); }
+:where(.vms-trip__hero-inner) { position: relative; z-index: 1; max-width: 1100px; width: 100%; margin: 0 auto; display: grid; gap: 10px; justify-items: start; }
+:where(.vms-trip__title) { margin: 0; font-size: clamp(1.9rem, 5vw, 3.2rem); line-height: 1.1; }
+:where(.vms-trip__dates) { margin: 0; font-size: 1.1rem; font-weight: 600; opacity: 0.92; }
+:where(.vms-trip__cancel) { margin: 0; font-weight: 600; }
+:where(.vms-trip__summary) { max-width: 62ch; font-size: 1.05rem; line-height: 1.6; }
+:where(.vms-trip__summary p) { margin: 0 0 0.6em; }
+:where(.vms-trip__book) {
+  display: inline-block; margin-top: 6px; padding: 12px 26px; border-radius: 999px; font-weight: 700;
+  text-decoration: none; background: var(--vms-trip-accent); color: var(--vms-trip-paper);
+}
+:where(.vms-trip__route) { max-width: 1100px; margin: 0 auto; padding: 40px 16px 24px; }
+:where(.vms-trip__h2) { margin: 0 0 18px; font-size: 1.6rem; }
+:where(.vms-trip__soon) { color: var(--vms-trip-muted); font-style: italic; }
+
+:where(.vms-route) { margin: 0 0 28px; }
+:where(.vms-route__svg) { display: block; width: 100%; height: auto; max-height: 70vh; }
+:where(.vms-route__bg) { fill: var(--vms-trip-tint); stroke: var(--vms-trip-line); stroke-width: 2; }
+:where(.vms-route__dot) { fill: color-mix(in srgb, var(--vms-trip-accent) 18%, transparent); }
+:where(.vms-route__line-halo) { fill: none; stroke: var(--vms-trip-paper); stroke-width: 14; stroke-linecap: round; stroke-linejoin: round; }
+:where(.vms-route__line) { fill: none; stroke: var(--vms-trip-accent); stroke-width: 6; stroke-dasharray: 2 14; stroke-linecap: round; stroke-linejoin: round; }
+:where(.vms-route__hit) { fill: transparent; }
+:where(.vms-route__marker) { fill: var(--vms-trip-accent); stroke: var(--vms-trip-paper); stroke-width: 5; transition: r 120ms ease; }
+:where(.vms-route__num) { fill: var(--vms-trip-paper); font-size: 20px; font-weight: 800; pointer-events: none; font-family: inherit; }
+:where(.vms-route__label) {
+  fill: var(--vms-trip-ink); font-size: 26px; font-weight: 700; font-family: inherit; pointer-events: none;
+  paint-order: stroke; stroke: var(--vms-trip-paper); stroke-width: 7px; stroke-linejoin: round;
+}
+:where(.vms-route__stop) { cursor: pointer; outline: none; }
+:where(.vms-route__stop:hover .vms-route__marker, .vms-route__stop:focus-visible .vms-route__marker, .vms-route__stop.is-active .vms-route__marker) { r: 24; }
+:where(.vms-route__stop:focus-visible .vms-route__hit) { stroke: var(--vms-trip-accent); stroke-width: 4; }
+
+:where(.vms-trip__stops) { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
+:where(.vms-stop) {
+  border: 1px solid var(--vms-trip-line); border-radius: var(--vms-trip-radius); padding: 18px;
+  background: var(--vms-trip-paper); scroll-margin-top: 90px;
+}
+:where(.vms-stop:target) { border-color: var(--vms-trip-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--vms-trip-accent) 25%, transparent); }
+:where(.vms-stop__head) { display: flex; gap: 14px; align-items: flex-start; }
+:where(.vms-stop__num) {
+  flex: none; display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 50%;
+  background: var(--vms-trip-accent); color: var(--vms-trip-paper); font-weight: 800;
+}
+:where(.vms-stop__title) { margin: 4px 0 2px; font-size: 1.2rem; }
+:where(.vms-stop__meta) { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 0.88rem; color: var(--vms-trip-muted); }
+:where(.vms-stop__note) { margin: 12px 0 0; padding: 10px 14px; border-radius: 10px; background: var(--vms-trip-tint); font-size: 0.95rem; }
+:where(.vms-stop__note p, .vms-stop__summary p, .vms-stop__history p) { margin: 0 0 0.7em; }
+:where(.vms-stop__photos) {
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(150px, 44%); gap: 8px; margin: 14px 0 0;
+  overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 4px;
+}
+:where(.vms-stop__photo) { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px; scroll-snap-align: start; cursor: zoom-in; }
+:where(.vms-stop__summary) { margin-top: 12px; line-height: 1.6; }
+:where(.vms-stop__history) { margin-top: 6px; line-height: 1.65; }
+:where(.vms-stop__history summary) { cursor: pointer; font-weight: 700; color: var(--vms-trip-accent); padding: 6px 0; }
+:where(.vms-stop__links) { margin: 10px 0 0; font-size: 0.9rem; }
+:where(.vms-trip__sections) { margin-top: 12px; }
+@media (min-width: 900px) {
+  :where(.vms-trip__stops) { grid-template-columns: 1fr 1fr; }
+}
+
+/* ── Stop panel (public/trip.js) ── */
+:where(.vms-stop-panel) { position: fixed; inset: 0; z-index: 9000; }
+:where(.vms-stop-panel[hidden]) { display: none; }
+:where(.vms-stop-panel__backdrop) { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.45); animation: vms-fade 160ms ease; }
+:where(.vms-stop-panel__sheet) {
+  position: absolute; left: 0; right: 0; bottom: 0; max-height: 86vh; overflow: auto; outline: none;
+  background: var(--vms-trip-paper); color: var(--vms-trip-ink);
+  border-radius: 22px 22px 0 0; padding: 22px 16px max(20px, env(safe-area-inset-bottom));
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.25); animation: vms-sheet-up 200ms ease;
+}
+:where(.vms-stop-panel__sheet)::before {
+  content: ""; display: block; width: 44px; height: 5px; border-radius: 999px; margin: -10px auto 12px;
+  background: var(--vms-trip-line);
+}
+:where(.vms-stop-panel__close) {
+  position: sticky; top: 0; float: right; width: 40px; height: 40px; border-radius: 50%; border: 0; cursor: pointer;
+  background: var(--vms-trip-line); color: var(--vms-trip-ink); font-size: 1.6rem; line-height: 1; z-index: 1;
+}
+:where(.vms-stop-panel .vms-stop) { border: 0; padding: 0; box-shadow: none; }
+@media (min-width: 640px) {
+  :where(.vms-stop-panel__sheet) {
+    left: auto; top: 0; width: min(520px, 92vw); max-height: none; height: 100%;
+    border-radius: 22px 0 0 22px; padding: 28px 24px; animation: vms-sheet-left 200ms ease;
+  }
+  :where(.vms-stop-panel__sheet)::before { display: none; }
+}
+html.vms-stop-panel-open { overflow: hidden; }
+@keyframes vms-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes vms-sheet-up { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes vms-sheet-left { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  :where(.vms-stop-panel__backdrop, .vms-stop-panel__sheet) { animation: none; }
+  :where(.vms-cal-card) { transition: none; }
+}

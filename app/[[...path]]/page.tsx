@@ -8,6 +8,7 @@ import { splitLocalePath, isLocaleShaped, getCurrentLocale, resolveTranslation }
 import { BlogIndexPosts } from "../../components/BlogIndexPosts";
 import { BlogArchive } from "../../components/BlogArchive";
 import { BlogPostChrome } from "../../components/BlogPostChrome";
+import { TripPage } from "../../components/TripPage";
 import type { PostMeta } from "../../lib/blog-render";
 
 // Path-prefix i18n (template v15) — one optional-catch-all route now serves
@@ -158,6 +159,20 @@ export default async function SiteRoute({ params, searchParams }: RouteCtx) {
       <BlogPostChrome title={postTitle} post={postMeta} locale={postLocale}>
         <SitePage slug={slug} searchParams={sp} />
       </BlogPostChrome>
+    );
+  }
+
+  // BSA Phase 27 — a "trips/{slug}" page (seo_meta.trip, set by
+  // vibemeasite-mcp's create_trip) renders inside the Travel Kit chrome:
+  // header, schematic route map, stops, then its own sections. Like a blog
+  // post, it can never be an in-scroll section, so this sits before the
+  // one-page-mode handling below.
+  if ((result.page.seoMeta as { trip?: { slug?: string } } | null)?.trip) {
+    const tripLocale = await getCurrentLocale(defaultLocale, availableLocales);
+    return (
+      <TripPage pageSlug={slug} locale={tripLocale} defaultLocale={defaultLocale}>
+        <SitePage slug={slug} searchParams={sp} />
+      </TripPage>
     );
   }
 

@@ -1,4 +1,4 @@
-import { pgTable, text, integer, jsonb, boolean, timestamp, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, jsonb, boolean, timestamp, doublePrecision, real, primaryKey, type AnyPgColumn } from "drizzle-orm/pg-core";
 
 // Per-site schema, matching vibemeasite/docs/bsa-documentation-vibemeasite-service.md's
 // US-VMAS-DEPLOY-03 Data model. This is the ONE canonical copy of a given
@@ -242,6 +242,10 @@ export const siteSettings = pgTable("site_settings", {
   // card/grid appearance, set via vibemeasite-mcp's set_blog_style.
   // { columns, cardStyle, showImage, borderRadius, accentColor, spacing }.
   blogStyleConfig: jsonb("blog_style_config").notNull().default({ columns: "auto", cardStyle: "bordered", showImage: true, borderRadius: 12, accentColor: null, spacing: "normal" }),
+  // BSA Phase 27 (v57) — Travel Kit on/off, set by vibemeasite-mcp's
+  // enable_travel_kit (added via its ensureTravelTables(), not a migration
+  // file here — same as blog_style_config above).
+  travelKitEnabled: boolean("travel_kit_enabled").notNull().default(false),
 });
 
 // Side menu items (Phase 21) — wholesale-replaced by vibemeasite-mcp's
@@ -334,4 +338,68 @@ export const entries = pgTable("entries", {
   sortIndex: integer("sort_index"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ─── Travel Kit (BSA Phase 27, v57) ──────────────────────────────────────────
+// Written only by vibemeasite-mcp (lib/travel-live.ts) over this DB's
+// connection string; read here by lib/travel-query.ts. Text lives in the
+// *_translations tables, one row per language INCLUDING the default one.
+// Created by vibemeasite-mcp's ensureTravelTables(), not a migration file.
+export const places = pgTable("places", {
+  id: text("id").primaryKey(),
+  slug: text("slug").notNull().unique(),
+  lat: doublePrecision("lat").notNull(),
+  lng: doublePrecision("lng").notNull(),
+  address: text("address"),
+  images: jsonb("images").notNull().default([]), // Array<{ url, alt? }>
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const placeTranslations = pgTable("place_translations", {
+  placeId: text("place_id").notNull().references(() => places.id, { onDelete: "cascade" }),
+  lang: text("lang").notNull(),
+  title: text("title").notNull(),
+  summary: text("summary").notNull().default(""),
+  history: text("history").notNull().default(""),
+}, (t) => [primaryKey({ columns: [t.placeId, t.lang] })]);
+
+export const trips = pgTable("trips", {
+  id: text("id").primaryKey(),
+  slug: text("slug").notNull().unique(),
+  // The trip's own page ("trips/{slug}") — by slug, not id (dev-steps Decision 1).
+  pageSlug: text("page_slug").notNull().unique(),
+  startAt: timestamp("start_at", { withTimezone: true }).notNull(),
+  endAt: timestamp("end_at", { withTimezone: true }).notNull(),
+  timezone: text("timezone").notNull(),
+  coverImage: text("cover_image"),
+  bookUrl: text("book_url"),
+  accessFrom: timestamp("access_from", { withTimezone: true }),
+  accessUntil: timestamp("access_until", { withTimezone: true }),
+  cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+  cancelReason: text("cancel_reason"),
+  postsPremoderated: boolean("posts_premoderated").notNull().default(false),
+  wallVisibility: text("wall_visibility").notNull().default("public"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const tripTranslations = pgTable("trip_translations", {
+  tripId: text("trip_id").notNull().references(() => trips.id, { onDelete: "cascade" }),
+  lang: text("lang").notNull(),
+  title: text("title").notNull(),
+  summary: text("summary").notNull().default(""),
+}, (t) => [primaryKey({ columns: [t.tripId, t.lang] })]);
+
+export const tripStops = pgTable("trip_stops", {
+  id: text("id").primaryKey(),
+  tripId: text("trip_id").notNull().references(() => trips.id, { onDelete: "cascade" }),
+  position: integer("position").notNull(),
+  placeId: text("place_id").notNull().references(() => places.id),
+  arriveAt: timestamp("arrive_at", { withTimezone: true }),
+  durationMin: integer("duration_min"),
+  mapX: real("map_x"),
+  mapY: real("map_y"),
+  noteJson: jsonb("note_json").notNull().default({}), // { [lang]: note }
 });
