@@ -435,3 +435,44 @@ describe("booking.js — funnel events", () => {
     expect(win.document.querySelector(".vms-booking-widget__message")!.textContent).toMatch(/confirmed/i);
   });
 });
+
+describe("vms-analytics.js — phone_click + form_submit (template v59)", () => {
+  const click = (win: Win, selector: string) => {
+    const el = win.document.querySelector(selector)!;
+    el.addEventListener("click", (e: Event) => e.preventDefault());
+    el.dispatchEvent(new win.MouseEvent("click", { bubbles: true, cancelable: true }));
+  };
+
+  it("fires phone_click with the link's location for header, footer, floating and section tel: links — never the number", async () => {
+    const { win, gtagCalls } = makeWindow({
+      ga: true,
+      url: "https://example.com/services",
+      html: `<div class="nav-top"><div class="nav-extras"><a id="h" href="tel:(403) 399-7376">(403) 399-7376</a></div></div>
+        <div class="cellpy-block-site-footer"><a id="f" href="tel:4033997376">call</a></div>
+        <div class="fw-slot"><a id="w" href="tel:4033997376">icon</a></div>
+        <section><a id="s" href="TEL:+14033997376">call</a></section>`,
+    });
+    await flush();
+    for (const id of ["h", "f", "w", "s"]) click(win, `#${id}`);
+    const evs = events(win, gtagCalls);
+    expect(names(evs)).toEqual(["phone_click", "phone_click", "phone_click", "phone_click"]);
+    expect(evs.map((e) => e.params.link_location)).toEqual(["header", "footer", "floating", "section"]);
+    expect(evs[0].params).toEqual({ link_location: "header", page_path: "/services" });
+  });
+
+  it("does not fire phone_click for ordinary links", async () => {
+    const { win, gtagCalls } = makeWindow({ gtm: true, html: `<a id="m" href="mailto:x@y.com">mail</a><a id="a" href="https://other.com/">x</a>` });
+    await flush();
+    click(win, "#m");
+    click(win, "#a");
+    expect(names(events(win, gtagCalls))).not.toContain("phone_click");
+  });
+
+  it("formSubmit() fires form_submit followed by generate_lead with form_id and page_path", () => {
+    const { win, gtagCalls } = makeWindow({ gtm: true, url: "https://example.com/quote" });
+    win.vmsAnalytics.formSubmit("quote-form");
+    const evs = events(win, gtagCalls);
+    expect(names(evs)).toEqual(["form_submit", "generate_lead"]);
+    expect(evs[1].params).toEqual({ form_id: "quote-form", page_path: "/quote" });
+  });
+});

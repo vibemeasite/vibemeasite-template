@@ -50,6 +50,8 @@
 		booking_id: true,
 		error_type: true,
 		step: true,
+		link_location: true,
+		form_id: true,
 	};
 
 	function sanitize( params ) {
@@ -120,6 +122,20 @@
 
 	window.vmsBookingAnalytics = { track: track, stashPending: stashPending, conversion: conversion };
 
+	// ─── Site-wide lead events (template v59) ───────────────────────────────
+	// phone_click: any tel: link (header, footer, floating call button, or a
+	// number inside a section) — link_location says which, never the number.
+	// form_submit + generate_lead: forms.js calls formSubmit() only after the
+	// server confirmed the submission, with the form's container slug.
+
+	function formSubmit( formId ) {
+		var params = { form_id: formId, page_path: window.location.pathname };
+		track( 'form_submit', params );
+		track( 'generate_lead', params );
+	}
+
+	window.vmsAnalytics = { track: track, formSubmit: formSubmit };
+
 	// ─── CTA clicks ─────────────────────────────────────────────────────────
 
 	function normalizePath( p ) {
@@ -183,7 +199,12 @@
 	function onClick( e ) {
 		try {
 			var el = e.target && e.target.closest ? e.target.closest( 'a[href], button, [data-vms-booking-cta]' ) : null;
-			if ( ! el || el.closest( BOOKING_SELECTOR ) ) return; // the widget's own buttons aren't CTAs
+			if ( ! el ) return;
+			if ( 'A' === el.tagName && /^\s*tel:/i.test( el.getAttribute( 'href' ) ) ) {
+				track( 'phone_click', { link_location: ctaLocation( el ), page_path: window.location.pathname } );
+				return;
+			}
+			if ( el.closest( BOOKING_SELECTOR ) ) return; // the widget's own buttons aren't CTAs
 			var location = ctaLocation( el );
 			var target = sameDocumentTarget( el );
 			if ( target && containsBooking( target ) ) {

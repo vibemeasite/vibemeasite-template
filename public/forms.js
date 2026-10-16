@@ -593,6 +593,11 @@
 							}
 
 							if ( result.json && true === result.json.ok ) {
+								// GA4 form_submit + generate_lead (template v59) — only
+								// present when layout.tsx rendered GA/GTM for this visitor.
+								try {
+									if ( window.vmsAnalytics ) window.vmsAnalytics.formSubmit( slug );
+								} catch ( err ) { /* analytics must never break the form */ }
 								showSuccess( form, config );
 								return;
 							}
