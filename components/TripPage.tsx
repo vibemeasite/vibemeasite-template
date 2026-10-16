@@ -8,6 +8,7 @@ import {
 import { travelStrings, type TravelStrings } from "../lib/travel-i18n";
 import { getTripViewer, timeRevealedUpTo } from "../lib/trip-session";
 import { TripRouteMap } from "./TripRouteMap";
+import { langLabel } from "../lib/lang-names";
 
 // BSA Phase 27 — chrome for a "trips/{slug}" page (pages.seo_meta.trip, set by
 // vibemeasite-mcp's create_trip), then the page's own Cellpy sections
@@ -194,6 +195,43 @@ export async function TripPage({ pageSlug, locale, defaultLocale, children }: Pr
                               )}
                             </div>
                           </header>
+                          {mode === "participant" && s.place.audio.length > 0 && (() => {
+                            // Page language → site default → first available (BSA P17).
+                            const pick = s.place.audio.find((a) => a.lang === locale) ?? s.place.audio.find((a) => a.lang === defaultLocale) ?? s.place.audio[0];
+                            const src = (lang: string, version: string) =>
+                              `/api/trips/audio?trip=${encodeURIComponent(trip.slug)}&place=${encodeURIComponent(s.place.slug)}&lang=${encodeURIComponent(lang)}&v=${version}`;
+                            return (
+                              <div className="vms-audio" data-audio-for={s.position}>
+                                <p className="vms-audio__label">
+                                  <span aria-hidden="true">🎧</span> {t.audioGuide}
+                                  {pick.durationSec ? <span className="vms-audio__dur"> · {formatDuration(Math.round(pick.durationSec / 60), locale)}</span> : null}
+                                </p>
+                                <audio className="vms-audio__player" controls preload="none" src={src(pick.lang, pick.version)} data-lang={pick.lang} />
+                                {s.place.audio.length > 1 && (
+                                  <p className="vms-audio__langs">
+                                    {t.audioAlso}:{" "}
+                                    {s.place.audio.map((a) => (
+                                      <button
+                                        key={a.lang}
+                                        type="button"
+                                        className={`vms-audio__lang${a.lang === pick.lang ? " is-current" : ""}`}
+                                        data-src={src(a.lang, a.version)}
+                                        data-lang={a.lang}
+                                      >
+                                        {langLabel(a.lang, "native")}
+                                      </button>
+                                    ))}
+                                  </p>
+                                )}
+                                {pick.transcript && (
+                                  <details className="vms-audio__transcript">
+                                    <summary>{t.transcript}</summary>
+                                    <div dangerouslySetInnerHTML={{ __html: travelTextToHtml(pick.transcript) }} />
+                                  </details>
+                                )}
+                              </div>
+                            );
+                          })()}
                           {s.noteHtml && <div className="vms-stop__note" dangerouslySetInnerHTML={{ __html: s.noteHtml }} />}
                           {s.images.length > 0 && (
                             <div className="vms-stop__photos" aria-label={t.photos}>

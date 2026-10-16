@@ -411,3 +411,20 @@ export const tripStops = pgTable("trip_stops", {
   // v58 (BSA Q11) — arrival radius that reveals this stop; null = 300 m.
   revealRadiusM: integer("reveal_radius_m"),
 });
+
+// v58 — audio guides, one recording per place per language. INTERIM storage:
+// the bytes (data bytea) live in this DB and are streamed only to
+// participants by app/api/trips/audio/route.ts; drizzle doesn't declare the
+// data column so ordinary selects never pull megabytes.
+export const placeAudio = pgTable("place_audio", {
+  id: text("id").primaryKey(),
+  placeId: text("place_id").notNull().references(() => places.id, { onDelete: "cascade" }),
+  lang: text("lang").notNull(),
+  mime: text("mime").notNull().default("audio/mpeg"),
+  bytes: integer("bytes").notNull(),
+  durationSec: real("duration_sec"),
+  sha256: text("sha256").notNull(),
+  title: text("title"),
+  transcript: text("transcript"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});

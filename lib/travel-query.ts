@@ -1,7 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { asc, eq, inArray } from "drizzle-orm";
 import { db } from "../db/index";
-import { places, placeTranslations, trips, tripTranslations, tripStops } from "../db/schema";
+import { places, placeTranslations, trips, tripTranslations, tripStops, placeAudio } from "../db/schema";
 
 // BSA Phase 27 — Travel Kit reads. Every read is cached under the single
 // "trips" tag, which vibemeasite-mcp revalidates after any place/trip/stop
@@ -43,6 +43,7 @@ export interface TripStopView {
     address: string | null;
     images: Array<{ url: string; alt?: string }>;
     text: Record<string, { title: string; summary: string; history: string }>;
+    audio: Array<{ lang: string; durationSec: number | null; transcript: string | null; version: string }>;
   };
 }
 
@@ -110,6 +111,20 @@ export function getTripForPage(pageSlug: string): Promise<TripView | null> {
           placeText.set(r.placeId, m);
         }
       }
+      const audioBy = new Map<string, TripStopView["place"]["audio"]>();
+      if (placeIds.length) {
+        // The audio table may not exist on a tenant that hasn't been upgraded.
+        const rows = await db
+          .select({ placeId: placeAudio.placeId, lang: placeAudio.lang, durationSec: placeAudio.durationSec, transcript: placeAudio.transcript, sha: placeAudio.sha256 })
+          .from(placeAudio)
+          .where(inArray(placeAudio.placeId, placeIds))
+          .catch(() => []);
+        for (const r of rows) {
+          const list = audioBy.get(r.placeId) ?? [];
+          list.push({ lang: r.lang, durationSec: r.durationSec, transcript: r.transcript, version: r.sha.slice(0, 12) });
+          audioBy.set(r.placeId, list);
+        }
+      }
       return {
         slug: trip.slug,
         pageSlug: trip.pageSlug,
@@ -139,6 +154,7 @@ export function getTripForPage(pageSlug: string): Promise<TripView | null> {
             address: place.address,
             images: (place.images as Array<{ url: string; alt?: string }> | null) ?? [],
             text: placeText.get(place.id) ?? {},
+            audio: audioBy.get(place.id) ?? [],
           },
         })),
       };

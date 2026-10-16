@@ -413,6 +413,26 @@
 		}
 	} );
 
+	// Audio guides: only one plays at a time; language buttons swap the source.
+	document.addEventListener( 'play', function ( e ) {
+		if ( ! e.target || e.target.tagName !== 'AUDIO' ) return;
+		document.querySelectorAll( 'audio.vms-audio__player' ).forEach( function ( a ) {
+			if ( a !== e.target && ! a.paused ) a.pause();
+		} );
+	}, true );
+	document.addEventListener( 'click', function ( e ) {
+		var b = e.target && e.target.closest ? e.target.closest( '.vms-audio__lang' ) : null;
+		if ( ! b ) return;
+		var box = b.closest( '.vms-audio' );
+		var player = box && box.querySelector( 'audio' );
+		if ( ! player ) return;
+		var wasPlaying = ! player.paused;
+		player.src = b.getAttribute( 'data-src' );
+		player.setAttribute( 'data-lang', b.getAttribute( 'data-lang' ) );
+		box.querySelectorAll( '.vms-audio__lang' ).forEach( function ( x ) { x.classList.toggle( 'is-current', x === b ); } );
+		if ( wasPlaying ) player.play().catch( function () {} );
+	} );
+
 	window.addEventListener( 'hashchange', function () {
 		var m = STOP_HASH.exec( location.hash );
 		if ( m ) open( m[ 1 ], null, false );

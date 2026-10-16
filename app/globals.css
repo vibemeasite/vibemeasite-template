@@ -1617,3 +1617,14 @@ html.vms-stop-panel-open { overflow: hidden; }
   transition: opacity 180ms ease, transform 180ms ease; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.3);
 }
 :where(.vms-trip-toast.is-on) { opacity: 1; transform: translate(-50%, 0); }
+
+/* ── Travel Kit: audio guide player (participants only) ── */
+:where(.vms-audio) { margin: 14px 0 0; padding: 14px; border-radius: 14px; background: var(--vms-trip-tint); display: grid; gap: 10px; }
+:where(.vms-audio__label) { margin: 0; font-weight: 800; }
+:where(.vms-audio__dur) { font-weight: 600; color: var(--vms-trip-muted); }
+:where(.vms-audio__player) { width: 100%; }
+:where(.vms-audio__langs) { margin: 0; font-size: 0.9rem; color: var(--vms-trip-muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.vms-audio__lang { padding: 4px 12px; border-radius: 999px; border: 1px solid var(--vms-trip-line); background: var(--vms-trip-paper); color: var(--vms-trip-ink); cursor: pointer; font: inherit; font-size: 0.85rem; }
+.vms-audio__lang.is-current { background: var(--vms-trip-accent); border-color: var(--vms-trip-accent); color: var(--vms-trip-paper); }
+:where(.vms-audio__transcript summary) { cursor: pointer; font-weight: 700; color: var(--vms-trip-accent); }
+:where(.vms-audio__transcript) { line-height: 1.6; font-size: 0.95rem; }
