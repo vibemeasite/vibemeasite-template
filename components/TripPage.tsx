@@ -51,6 +51,7 @@ const CLIENT_KEYS = [
   "offlinePausedHint", "offlineResume", "offlineReady", "offlineUntil", "offlineNow", "offlineNeedNet",
   "offlineUpdate", "offlineIosHint", "offlineInstall", "offlineRemove", "offlineRemoveConfirm",
   "offlineLowSpace", "offlineUnsupported",
+  "geoOn", "geoHint", "geoFinding", "geoDenied", "geoUnavailable", "geoNearest", "geoArrived", "testGps",
 ] as const;
 
 export async function TripPage({ pageSlug, locale, defaultLocale, children }: Props) {
@@ -108,6 +109,7 @@ export async function TripPage({ pageSlug, locale, defaultLocale, children }: Pr
         className={`vms-trip vms-trip--${status} vms-trip--${mode}`}
         data-trip={trip.slug}
         data-mode={mode}
+        data-start-at={trip.startAt}
         data-end-at={trip.endAt}
         data-i18n={JSON.stringify(clientText)}
       >
@@ -148,6 +150,8 @@ export async function TripPage({ pageSlug, locale, defaultLocale, children }: Pr
               <button type="button" className="vms-trip__signout">{t.signOut}</button>
             </p>
             {!ended && <p className="vms-trip__me-note">{t.unlockedNote}</p>}
+            {/* Live location (slice 4) — filled by public/trip-geo.js during the trip. */}
+            <div className="vms-geo" hidden dangerouslySetInnerHTML={{ __html: "" }} />
             {/* Offline trip mode (slice 3) — filled by public/trip-offline.js. */}
             <div className="vms-offline" hidden dangerouslySetInnerHTML={{ __html: "" }} />
           </section>
@@ -277,6 +281,7 @@ export async function TripPage({ pageSlug, locale, defaultLocale, children }: Pr
       </div>
       <script src="/trip.js" defer data-close-label={t.close} />
       {mode === "participant" && <script src="/trip-offline.js" defer />}
+      {mode === "participant" && <script src="/trip-geo.js" defer />}
       {hasImages && <script src="/lightbox.js" defer />}
     </>
   );

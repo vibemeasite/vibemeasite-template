@@ -110,12 +110,16 @@ function MapSvg({ variant, layout, stops, ariaLabel, interactive, lockedFrom }: 
         </g>
 
         {/* Trail */}
-        {layout.legs.filter(Boolean).map((d, i) => (
-          <g key={i}>
-            <path d={d} className="vms-route__line-halo" />
-            <path d={d} className="vms-route__line" />
-          </g>
-        ))}
+        {/* Trail. data-leg = index of the leg (stop i → stop i+1); public/trip-geo.js
+            walks these paths to place the "you are here" dot. */}
+        {layout.legs.map((d, i) =>
+          d ? (
+            <g key={i}>
+              <path d={d} className="vms-route__line-halo" />
+              <path d={d} className="vms-route__line" data-leg={i} />
+            </g>
+          ) : null,
+        )}
 
         {/* Pins and their paper tags */}
         {layout.points.map((p, i) => {
@@ -133,6 +137,7 @@ function MapSvg({ variant, layout, stops, ariaLabel, interactive, lockedFrom }: 
               {...(interactive ? { href: `#stop-${stop.position}` } : {})}
               className={`vms-route__stop${interactive ? "" : " is-static"}${locked ? " is-locked" : ""}`}
               data-stop={stop.position}
+              data-stops={group.map((g) => g.position).join(",")}
               aria-label={group.map((g) => `${g.position}. ${g.title}`).join("; ")}
             >
               <circle className="vms-route__hit" cx={p.x} cy={p.y - 24} r="40" />

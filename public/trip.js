@@ -17,7 +17,8 @@
  * 3. Progressive reveal (participant version, BSA Area 8). The highest
  *    revealed stop position is kept per device in localStorage; the page
  *    shows stops up to max(stored, scheduled-time reveal, trip ended → all).
- *    Revealing stop N reveals 1..N. GPS reveal arrives in a later slice.
+ *    Revealing stop N reveals 1..N. GPS arrival (public/trip-geo.js) calls
+ *    window.__vmsTrip.reveal(N, true).
  *    Locks are a surprise mechanic, not security: every stop is in the HTML.
  *
  * 4. Hidden test shortcuts (BSA P27), participant version only. Typed words
@@ -25,6 +26,7 @@
  *    Shift+Alt+R (Firefox/Windows), Ctrl+Shift+N/A/R, etc.:
  *      vmsnext   next stop (as if just arrived: reveal + open its panel)
  *      vmsall    reveal all      vmsreset   reset this device
+ *      vmsgps    start live location outside the trip dates (trip-geo.js)
  *    On a phone: tap the map's compass 5× quickly = next; hold it 3 s = all;
  *    tap 5× then hold = reset. Each shows a "Test: …" toast.
  *
@@ -226,6 +228,7 @@
 	}
 	function testReset() {
 		save( revealKey, null );
+		save( 'vms-trip-arrived:' + location.host + ':' + tripSlug, null );
 		close( true );
 		applyReveal();
 		toast( T.testReset || 'Test: reveal reset' );
@@ -390,7 +393,7 @@
 	// Last letters typed outside text fields, matched against the test words.
 	// e.code (physical key), so it works on any keyboard layout (e.g. Cyrillic).
 	var typed = '';
-	var TEST_WORDS = { vmsnext: function () { testNext(); }, vmsall: function () { testAll(); }, vmsreset: function () { testReset(); } };
+	var TEST_WORDS = { vmsnext: function () { testNext(); }, vmsall: function () { testAll(); }, vmsreset: function () { testReset(); }, vmsgps: function () { document.dispatchEvent( new CustomEvent( 'vms-trip-gps-test' ) ); } };
 	document.addEventListener( 'keydown', function ( e ) {
 		if ( mode === 'participant' && ! e.ctrlKey && ! e.metaKey && ! e.altKey && /^Key[A-Z]$/.test( e.code || '' ) ) {
 			var t = e.target;
@@ -477,6 +480,14 @@
 					if ( document.visibilityState === 'visible' ) applyReveal();
 				} );
 				bindCompassGestures();
+				// Used by public/trip-geo.js (arrival reveal).
+				window.__vmsTrip = {
+					reveal: revealUpTo,
+					upTo: function () { return computedReveal(); },
+					toast: toast,
+					T: T,
+				};
+				document.dispatchEvent( new CustomEvent( 'vms-trip-ready' ) );
 			}
 		}
 		syncOnline();
