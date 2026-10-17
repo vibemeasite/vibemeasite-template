@@ -1,7 +1,7 @@
 import { unstable_cache } from "next/cache";
-import { asc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne } from "drizzle-orm";
 import { db } from "../db/index";
-import { places, placeTranslations, trips, tripTranslations, tripStops, placeAudio } from "../db/schema";
+import { places, placeTranslations, trips, tripTranslations, tripStops, placeAudio, tripPosts } from "../db/schema";
 
 // BSA Phase 27 — Travel Kit reads. Every read is cached under the single
 // "trips" tag, which vibemeasite-mcp revalidates after any place/trip/stop
@@ -52,6 +52,8 @@ export interface TripView extends CalendarTrip {
   accessFrom: string | null;
   accessUntil: string | null;
   postTripVisibility: "public" | "participants";
+  wallVisibility: "public" | "participants";
+  postsPremoderated: boolean;
   stops: TripStopView[];
 }
 
@@ -138,6 +140,8 @@ export function getTripForPage(pageSlug: string): Promise<TripView | null> {
         accessFrom: iso(trip.accessFrom),
         accessUntil: iso(trip.accessUntil),
         postTripVisibility: trip.postTripVisibility === "participants" ? "participants" : "public",
+        wallVisibility: trip.wallVisibility === "participants" ? "participants" : "public",
+        postsPremoderated: trip.postsPremoderated,
         text: texts.get(trip.id) ?? {},
         stops: stopRows.map(({ stop, place }) => ({
           position: stop.position,
@@ -161,5 +165,52 @@ export function getTripForPage(pageSlug: string): Promise<TripView | null> {
     },
     ["travel-trip-page", pageSlug],
     { tags: ["trips", `page-${pageSlug}`] },
+  )();
+}
+
+// ─── Trip wall (v62, US-VMAS-TRAVEL-16) ─────────────────────────────────────
+
+export interface TripPostView {
+  id: string;
+  stopPosition: number | null;
+  authorEmail: string;
+  authorName: string | null;
+  body: string;
+  images: Array<{ url: string; caption?: string }>;
+  status: "published" | "pending";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const WALL_RENDER_MAX = 200;
+
+// Newest first, hidden posts left out. Pending ones are returned too — the
+// page shows each only to its author. Tag trip-wall-{slug}: vibemeasite-mcp
+// revalidates it after every post / edit / moderation action.
+export function getTripPosts(tripSlug: string): Promise<TripPostView[]> {
+  return unstable_cache(
+    async (): Promise<TripPostView[]> => {
+      const rows = await db
+        .select({ p: tripPosts })
+        .from(tripPosts)
+        .innerJoin(trips, eq(tripPosts.tripId, trips.id))
+        .where(and(eq(trips.slug, tripSlug), ne(tripPosts.status, "hidden")))
+        .orderBy(desc(tripPosts.createdAt))
+        .limit(WALL_RENDER_MAX)
+        .catch(() => []); // table missing on a tenant that hasn't been upgraded
+      return rows.map(({ p }) => ({
+        id: p.id,
+        stopPosition: p.stopPosition,
+        authorEmail: p.authorEmail,
+        authorName: p.authorName,
+        body: p.body,
+        images: ((p.images as Array<{ url: string; caption?: string }> | null) ?? []).filter((i) => i && typeof i.url === "string"),
+        status: p.status === "pending" ? "pending" : "published",
+        createdAt: iso(p.createdAt)!,
+        updatedAt: iso(p.updatedAt)!,
+      }));
+    },
+    ["travel-trip-wall", tripSlug],
+    { tags: ["trips", `trip-wall-${tripSlug}`] },
   )();
 }

@@ -78,6 +78,33 @@ export interface TravelStrings {
   geoNearest: string;
   geoArrived: string;
   testGps: string;
+  wallTitle: string;
+  wallAdd: string;
+  wallTextPh: string;
+  wallPhotos: string;
+  wallCaptionPh: string;
+  wallStop: string;
+  wallNoStop: string;
+  wallPost: string;
+  wallCancel: string;
+  wallWaiting: string;
+  wallSending: string;
+  wallPending: string;
+  wallFailed: string;
+  wallDelete: string;
+  wallDeleteConfirm: string;
+  wallEdit: string;
+  wallSave: string;
+  wallNeedDownload: string;
+  wallClosed: string;
+  wallAll: string;
+  wallEmpty: string;
+  wallParticipant: string;
+  wallTooMany: string;
+  wallTooLong: string;
+  wallEmptyPost: string;
+  wallSignedOut: string;
+  wallOffline: string;
 }
 
 const EN: TravelStrings = {
@@ -156,6 +183,33 @@ const EN: TravelStrings = {
   geoNearest: "Nearest stop:",
   geoArrived: "You've arrived:",
   testGps: "Test: location on",
+  wallTitle: "Trip wall",
+  wallAdd: "Add to the trip wall",
+  wallTextPh: "What happened? (optional)",
+  wallPhotos: "Add photos",
+  wallCaptionPh: "Caption (optional)",
+  wallStop: "Stop",
+  wallNoStop: "No stop",
+  wallPost: "Post",
+  wallCancel: "Cancel",
+  wallWaiting: "Waiting to upload",
+  wallSending: "Uploading…",
+  wallPending: "Waiting for approval",
+  wallFailed: "Couldn't post yet — it will retry automatically.",
+  wallDelete: "Delete",
+  wallDeleteConfirm: "Delete this post?",
+  wallEdit: "Edit",
+  wallSave: "Save",
+  wallNeedDownload: "Save the trip on this phone first — then you can post to the wall.",
+  wallClosed: "The wall is closed for new posts.",
+  wallAll: "All",
+  wallEmpty: "No posts yet — share the first photo!",
+  wallParticipant: "Participant",
+  wallTooMany: "Up to 10 photos per post.",
+  wallTooLong: "Up to 2,000 characters.",
+  wallEmptyPost: "Add a photo or some text.",
+  wallSignedOut: "Sign in again to post.",
+  wallOffline: "You're offline — the post is saved and will upload when you're back online.",
 };
 
 const TABLE: Record<string, Partial<TravelStrings>> = {
@@ -171,6 +225,7 @@ const TABLE: Record<string, Partial<TravelStrings>> = {
     audioGuide: "Audioguide", transcript: "Lire le texte", audioAlso: "Aussi disponible en",
     offlineTitle: "Enregistrez le voyage sur ce téléphone", offlineIntro: "Téléchargez une fois en Wi-Fi : la carte, les récits et tous les audioguides fonctionneront sans Internet.", offlineDownload: "Télécharger", offlineSaving: "Enregistrement du voyage…", offlineKeepOpen: "Gardez cette page ouverte jusqu'à la fin.", offlinePaused: "Téléchargement en pause", offlinePausedHint: "La connexion a été coupée. Les fichiers déjà enregistrés sont conservés.", offlineResume: "Continuer", offlineReady: "Disponible hors ligne", offlineUntil: "jusqu'au", offlineNow: "Vous êtes hors ligne — la copie enregistrée est utilisée.", offlineNeedNet: "Connectez-vous à Internet pour enregistrer ce voyage hors ligne.", offlineUpdate: "Mettre à jour le voyage enregistré", offlineIosHint: "Sur iPhone : touchez Partager → Sur l'écran d'accueil, puis ouvrez le voyage depuis là.", offlineInstall: "Installer comme application", offlineRemove: "Supprimer la copie hors ligne", offlineRemoveConfirm: "Supprimer la copie hors ligne de ce téléphone?", offlineLowSpace: "Ce téléphone n'a peut-être pas assez d'espace. Essayer quand même?", offlineUnsupported: "Ce navigateur ne peut pas enregistrer le voyage hors ligne.",
     geoOn: "Activer la localisation", geoHint: "Votre position reste sur ce téléphone : elle sert seulement à vous situer et à débloquer les étapes à votre arrivée.", geoFinding: "Recherche de votre position…", geoDenied: "La localisation est bloquée. Autorisez-la pour ce site dans les réglages du navigateur — les étapes s'ouvrent quand même à l'heure prévue.", geoUnavailable: "Impossible d'obtenir votre position pour l'instant.", geoNearest: "Étape la plus proche :", geoArrived: "Vous êtes arrivé(e) :", testGps: "Test : localisation activée",
+    wallTitle: "Mur du voyage", wallAdd: "Ajouter au mur du voyage", wallTextPh: "Que s'est-il passé ? (facultatif)", wallPhotos: "Ajouter des photos", wallCaptionPh: "Légende (facultatif)", wallStop: "Étape", wallNoStop: "Aucune étape", wallPost: "Publier", wallCancel: "Annuler", wallWaiting: "En attente d'envoi", wallSending: "Envoi…", wallPending: "En attente de validation", wallFailed: "Pas encore publié — nouvel essai automatique.", wallDelete: "Supprimer", wallDeleteConfirm: "Supprimer cette publication ?", wallEdit: "Modifier", wallSave: "Enregistrer", wallNeedDownload: "Enregistrez d'abord le voyage sur ce téléphone — vous pourrez ensuite publier sur le mur.", wallClosed: "Le mur est fermé aux nouvelles publications.", wallAll: "Tout", wallEmpty: "Aucune publication — partagez la première photo !", wallParticipant: "Participant(e)", wallTooMany: "Jusqu'à 10 photos par publication.", wallTooLong: "Jusqu'à 2 000 caractères.", wallEmptyPost: "Ajoutez une photo ou un texte.", wallSignedOut: "Reconnectez-vous pour publier.", wallOffline: "Vous êtes hors ligne — la publication est enregistrée et partira dès le retour du réseau.",
   },
   uk: {
     upcoming: "Незабаром", now: "Триває зараз", past: "Минула", cancelled: "Скасовано",
@@ -183,6 +238,7 @@ const TABLE: Record<string, Partial<TravelStrings>> = {
     audioGuide: "Аудіогід", transcript: "Текст запису", audioAlso: "Також доступно",
     offlineTitle: "Збережіть поїздку на телефон", offlineIntro: "Завантажте один раз через Wi-Fi — карта, історії й усі аудіогіди працюватимуть без інтернету.", offlineDownload: "Завантажити", offlineSaving: "Зберігаємо поїздку…", offlineKeepOpen: "Не закривайте сторінку, доки завантаження не завершиться.", offlinePaused: "Завантаження призупинено", offlinePausedHint: "Зв'язок перервався. Уже збережені файли залишаються.", offlineResume: "Продовжити", offlineReady: "Доступно офлайн", offlineUntil: "до", offlineNow: "Ви офлайн — працює збережена копія.", offlineNeedNet: "Підключіться до інтернету, щоб зберегти поїздку для офлайн-режиму.", offlineUpdate: "Оновити збережену поїздку", offlineIosHint: "На iPhone: натисніть «Поділитися» → «На початковий екран» і відкривайте поїздку звідти.", offlineInstall: "Встановити як застосунок", offlineRemove: "Видалити офлайн-копію", offlineRemoveConfirm: "Видалити офлайн-копію з цього телефона?", offlineLowSpace: "На телефоні може бракувати місця. Спробувати все одно?", offlineUnsupported: "Цей браузер не може зберегти поїздку для офлайн-режиму.",
     geoOn: "Увімкнути геолокацію", geoHint: "Ваше місцезнаходження залишається на телефоні — воно потрібне лише, щоб показати, де ви, і відкривати зупинки, коли ви приїжджаєте.", geoFinding: "Визначаємо ваше місцезнаходження…", geoDenied: "Геолокацію заблоковано. Дозвольте її для цього сайту в налаштуваннях браузера — зупинки все одно відкриються в запланований час.", geoUnavailable: "Зараз не вдається визначити ваше місцезнаходження.", geoNearest: "Найближча зупинка:", geoArrived: "Ви на місці:", testGps: "Тест: геолокацію ввімкнено",
+    wallTitle: "Стіна поїздки", wallAdd: "Додати на стіну поїздки", wallTextPh: "Що сталося? (необов'язково)", wallPhotos: "Додати фото", wallCaptionPh: "Підпис (необов'язково)", wallStop: "Зупинка", wallNoStop: "Без зупинки", wallPost: "Опублікувати", wallCancel: "Скасувати", wallWaiting: "Очікує надсилання", wallSending: "Надсилаємо…", wallPending: "Очікує схвалення", wallFailed: "Поки не вдалося опублікувати — спробуємо ще раз автоматично.", wallDelete: "Видалити", wallDeleteConfirm: "Видалити цей допис?", wallEdit: "Змінити", wallSave: "Зберегти", wallNeedDownload: "Спершу збережіть поїздку на телефон — тоді зможете публікувати на стіні.", wallClosed: "Стіна закрита для нових дописів.", wallAll: "Усі", wallEmpty: "Ще немає дописів — поділіться першим фото!", wallParticipant: "Учасник", wallTooMany: "До 10 фото в одному дописі.", wallTooLong: "До 2000 символів.", wallEmptyPost: "Додайте фото або текст.", wallSignedOut: "Увійдіть знову, щоб публікувати.", wallOffline: "Ви офлайн — допис збережено, він надішлеться, щойно з'явиться зв'язок.",
   },
   ru: {
     upcoming: "Скоро", now: "Идёт сейчас", past: "Прошедшая", cancelled: "Отменена",
@@ -195,6 +251,7 @@ const TABLE: Record<string, Partial<TravelStrings>> = {
     audioGuide: "Аудиогид", transcript: "Текст записи", audioAlso: "Также доступно",
     offlineTitle: "Сохраните поездку на телефон", offlineIntro: "Скачайте один раз через Wi-Fi — карта, истории и все аудиогиды будут работать без интернета.", offlineDownload: "Скачать", offlineSaving: "Сохраняем поездку…", offlineKeepOpen: "Не закрывайте страницу, пока загрузка не завершится.", offlinePaused: "Загрузка приостановлена", offlinePausedHint: "Связь прервалась. Уже сохранённые файлы остаются.", offlineResume: "Продолжить", offlineReady: "Доступно офлайн", offlineUntil: "до", offlineNow: "Вы офлайн — работает сохранённая копия.", offlineNeedNet: "Подключитесь к интернету, чтобы сохранить поездку для офлайн-режима.", offlineUpdate: "Обновить сохранённую поездку", offlineIosHint: "На iPhone: нажмите «Поделиться» → «На экран „Домой“» и открывайте поездку оттуда.", offlineInstall: "Установить как приложение", offlineRemove: "Удалить офлайн-копию", offlineRemoveConfirm: "Удалить офлайн-копию с этого телефона?", offlineLowSpace: "На телефоне может не хватить места. Попробовать всё равно?", offlineUnsupported: "Этот браузер не может сохранить поездку для офлайн-режима.",
     geoOn: "Включить геолокацию", geoHint: "Ваше местоположение остаётся на телефоне — оно нужно только, чтобы показать, где вы, и открывать остановки, когда вы приезжаете.", geoFinding: "Определяем ваше местоположение…", geoDenied: "Геолокация заблокирована. Разрешите её для этого сайта в настройках браузера — остановки всё равно откроются в запланированное время.", geoUnavailable: "Сейчас не удаётся определить ваше местоположение.", geoNearest: "Ближайшая остановка:", geoArrived: "Вы на месте:", testGps: "Тест: геолокация включена",
+    wallTitle: "Стена поездки", wallAdd: "Добавить на стену поездки", wallTextPh: "Что произошло? (необязательно)", wallPhotos: "Добавить фото", wallCaptionPh: "Подпись (необязательно)", wallStop: "Остановка", wallNoStop: "Без остановки", wallPost: "Опубликовать", wallCancel: "Отмена", wallWaiting: "Ждёт отправки", wallSending: "Отправляем…", wallPending: "Ждёт одобрения", wallFailed: "Пока не удалось опубликовать — попробуем снова автоматически.", wallDelete: "Удалить", wallDeleteConfirm: "Удалить эту запись?", wallEdit: "Изменить", wallSave: "Сохранить", wallNeedDownload: "Сначала сохраните поездку на телефон — тогда сможете публиковать на стене.", wallClosed: "Стена закрыта для новых записей.", wallAll: "Все", wallEmpty: "Записей пока нет — поделитесь первым фото!", wallParticipant: "Участник", wallTooMany: "До 10 фото в одной записи.", wallTooLong: "До 2000 символов.", wallEmptyPost: "Добавьте фото или текст.", wallSignedOut: "Войдите снова, чтобы публиковать.", wallOffline: "Вы офлайн — запись сохранена и отправится, как только появится связь.",
   },
   es: {
     upcoming: "Próximo", now: "En curso", past: "Pasado", cancelled: "Cancelado",
@@ -207,6 +264,7 @@ const TABLE: Record<string, Partial<TravelStrings>> = {
     audioGuide: "Audioguía", transcript: "Leer el texto", audioAlso: "También disponible en",
     offlineTitle: "Guarda el viaje en este teléfono", offlineIntro: "Descárgalo una vez con Wi-Fi: el mapa, las historias y todas las audioguías funcionarán sin internet.", offlineDownload: "Descargar", offlineSaving: "Guardando el viaje…", offlineKeepOpen: "Mantén esta página abierta hasta que termine.", offlinePaused: "Descarga en pausa", offlinePausedHint: "Se cortó la conexión. Los archivos ya guardados se conservan.", offlineResume: "Continuar", offlineReady: "Disponible sin conexión", offlineUntil: "hasta el", offlineNow: "Estás sin conexión: se usa la copia guardada.", offlineNeedNet: "Conéctate a internet para guardar este viaje sin conexión.", offlineUpdate: "Actualizar el viaje guardado", offlineIosHint: "En iPhone: toca Compartir → Añadir a pantalla de inicio y abre el viaje desde ahí.", offlineInstall: "Instalar como aplicación", offlineRemove: "Eliminar copia sin conexión", offlineRemoveConfirm: "¿Eliminar la copia sin conexión de este teléfono?", offlineLowSpace: "Puede que este teléfono no tenga espacio suficiente. ¿Intentarlo igualmente?", offlineUnsupported: "Este navegador no puede guardar el viaje sin conexión.",
     geoOn: "Activar la ubicación", geoHint: "Tu ubicación se queda en este teléfono: solo sirve para mostrar dónde estás y abrir las paradas al llegar.", geoFinding: "Buscando tu ubicación…", geoDenied: "La ubicación está bloqueada. Permítela para este sitio en los ajustes del navegador; las paradas se abren igualmente a la hora prevista.", geoUnavailable: "No se puede obtener tu ubicación ahora.", geoNearest: "Parada más cercana:", geoArrived: "Has llegado:", testGps: "Prueba: ubicación activada",
+    wallTitle: "Muro del viaje", wallAdd: "Añadir al muro del viaje", wallTextPh: "¿Qué pasó? (opcional)", wallPhotos: "Añadir fotos", wallCaptionPh: "Pie de foto (opcional)", wallStop: "Parada", wallNoStop: "Sin parada", wallPost: "Publicar", wallCancel: "Cancelar", wallWaiting: "Pendiente de subir", wallSending: "Subiendo…", wallPending: "Pendiente de aprobación", wallFailed: "Aún no se publicó; se reintentará automáticamente.", wallDelete: "Eliminar", wallDeleteConfirm: "¿Eliminar esta publicación?", wallEdit: "Editar", wallSave: "Guardar", wallNeedDownload: "Primero guarda el viaje en este teléfono; después podrás publicar en el muro.", wallClosed: "El muro está cerrado a nuevas publicaciones.", wallAll: "Todo", wallEmpty: "Aún no hay publicaciones: ¡comparte la primera foto!", wallParticipant: "Participante", wallTooMany: "Hasta 10 fotos por publicación.", wallTooLong: "Hasta 2000 caracteres.", wallEmptyPost: "Añade una foto o un texto.", wallSignedOut: "Vuelve a iniciar sesión para publicar.", wallOffline: "Estás sin conexión: la publicación se guardó y se subirá cuando vuelvas a tener conexión.",
   },
   de: {
     upcoming: "Demnächst", now: "Läuft gerade", past: "Vergangen", cancelled: "Abgesagt",
@@ -219,6 +277,7 @@ const TABLE: Record<string, Partial<TravelStrings>> = {
     audioGuide: "Audioguide", transcript: "Text lesen", audioAlso: "Auch verfügbar auf",
     offlineTitle: "Reise auf diesem Handy speichern", offlineIntro: "Einmal im WLAN herunterladen: Karte, Geschichten und alle Audioguides funktionieren dann ohne Internet.", offlineDownload: "Herunterladen", offlineSaving: "Reise wird gespeichert…", offlineKeepOpen: "Lassen Sie diese Seite geöffnet, bis es fertig ist.", offlinePaused: "Download pausiert", offlinePausedHint: "Die Verbindung ist abgebrochen. Bereits gespeicherte Dateien bleiben erhalten.", offlineResume: "Fortsetzen", offlineReady: "Offline verfügbar", offlineUntil: "bis", offlineNow: "Sie sind offline – die gespeicherte Kopie wird verwendet.", offlineNeedNet: "Verbinden Sie sich mit dem Internet, um diese Reise offline zu speichern.", offlineUpdate: "Gespeicherte Reise aktualisieren", offlineIosHint: "Auf dem iPhone: Teilen → Zum Home-Bildschirm, dann die Reise von dort öffnen.", offlineInstall: "Als App installieren", offlineRemove: "Offline-Kopie entfernen", offlineRemoveConfirm: "Offline-Kopie von diesem Handy entfernen?", offlineLowSpace: "Möglicherweise ist nicht genug Speicher frei. Trotzdem versuchen?", offlineUnsupported: "Dieser Browser kann die Reise nicht offline speichern.",
     geoOn: "Standort einschalten", geoHint: "Ihr Standort bleibt auf diesem Handy – er zeigt nur, wo Sie sind, und öffnet Stationen bei Ihrer Ankunft.", geoFinding: "Standort wird ermittelt…", geoDenied: "Der Standort ist blockiert. Erlauben Sie ihn für diese Seite in den Browsereinstellungen – Stationen öffnen sich trotzdem zur geplanten Zeit.", geoUnavailable: "Ihr Standort ist gerade nicht verfügbar.", geoNearest: "Nächste Station in der Nähe:", geoArrived: "Sie sind angekommen:", testGps: "Test: Standort an",
+    wallTitle: "Reisewand", wallAdd: "Zur Reisewand hinzufügen", wallTextPh: "Was ist passiert? (optional)", wallPhotos: "Fotos hinzufügen", wallCaptionPh: "Bildunterschrift (optional)", wallStop: "Station", wallNoStop: "Keine Station", wallPost: "Posten", wallCancel: "Abbrechen", wallWaiting: "Wartet auf Upload", wallSending: "Wird hochgeladen…", wallPending: "Wartet auf Freigabe", wallFailed: "Noch nicht gepostet – wird automatisch erneut versucht.", wallDelete: "Löschen", wallDeleteConfirm: "Diesen Beitrag löschen?", wallEdit: "Bearbeiten", wallSave: "Speichern", wallNeedDownload: "Speichern Sie die Reise zuerst auf diesem Handy – dann können Sie auf der Wand posten.", wallClosed: "Die Wand ist für neue Beiträge geschlossen.", wallAll: "Alle", wallEmpty: "Noch keine Beiträge – teilen Sie das erste Foto!", wallParticipant: "Teilnehmer", wallTooMany: "Bis zu 10 Fotos pro Beitrag.", wallTooLong: "Bis zu 2.000 Zeichen.", wallEmptyPost: "Fügen Sie ein Foto oder Text hinzu.", wallSignedOut: "Melden Sie sich erneut an, um zu posten.", wallOffline: "Sie sind offline – der Beitrag ist gespeichert und wird hochgeladen, sobald Sie wieder online sind.",
   },
   it: {
     upcoming: "In arrivo", now: "In corso", past: "Passato", cancelled: "Annullato",
@@ -231,6 +290,7 @@ const TABLE: Record<string, Partial<TravelStrings>> = {
     audioGuide: "Audioguida", transcript: "Leggi il testo", audioAlso: "Disponibile anche in",
     offlineTitle: "Salva il viaggio su questo telefono", offlineIntro: "Scaricalo una volta con il Wi-Fi: mappa, racconti e tutte le audioguide funzioneranno senza internet.", offlineDownload: "Scarica", offlineSaving: "Salvataggio del viaggio…", offlineKeepOpen: "Tieni aperta questa pagina finché non finisce.", offlinePaused: "Download in pausa", offlinePausedHint: "La connessione si è interrotta. I file già salvati restano.", offlineResume: "Continua", offlineReady: "Disponibile offline", offlineUntil: "fino al", offlineNow: "Sei offline: viene usata la copia salvata.", offlineNeedNet: "Connettiti a internet per salvare questo viaggio offline.", offlineUpdate: "Aggiorna il viaggio salvato", offlineIosHint: "Su iPhone: tocca Condividi → Aggiungi alla schermata Home e apri il viaggio da lì.", offlineInstall: "Installa come app", offlineRemove: "Rimuovi la copia offline", offlineRemoveConfirm: "Rimuovere la copia offline da questo telefono?", offlineLowSpace: "Il telefono potrebbe non avere abbastanza spazio. Provare comunque?", offlineUnsupported: "Questo browser non può salvare il viaggio offline.",
     geoOn: "Attiva la posizione", geoHint: "La tua posizione resta su questo telefono: serve solo a mostrarti dove sei e ad aprire le tappe quando arrivi.", geoFinding: "Ricerca della posizione…", geoDenied: "La posizione è bloccata. Consentila per questo sito nelle impostazioni del browser: le tappe si aprono comunque all'orario previsto.", geoUnavailable: "Impossibile ottenere la posizione adesso.", geoNearest: "Tappa più vicina:", geoArrived: "Sei arrivato:", testGps: "Test: posizione attiva",
+    wallTitle: "Bacheca del viaggio", wallAdd: "Aggiungi alla bacheca", wallTextPh: "Cos'è successo? (facoltativo)", wallPhotos: "Aggiungi foto", wallCaptionPh: "Didascalia (facoltativa)", wallStop: "Tappa", wallNoStop: "Nessuna tappa", wallPost: "Pubblica", wallCancel: "Annulla", wallWaiting: "In attesa di invio", wallSending: "Invio…", wallPending: "In attesa di approvazione", wallFailed: "Non ancora pubblicato: riproveremo in automatico.", wallDelete: "Elimina", wallDeleteConfirm: "Eliminare questo post?", wallEdit: "Modifica", wallSave: "Salva", wallNeedDownload: "Salva prima il viaggio su questo telefono, poi potrai pubblicare in bacheca.", wallClosed: "La bacheca è chiusa ai nuovi post.", wallAll: "Tutti", wallEmpty: "Ancora nessun post: condividi la prima foto!", wallParticipant: "Partecipante", wallTooMany: "Fino a 10 foto per post.", wallTooLong: "Fino a 2.000 caratteri.", wallEmptyPost: "Aggiungi una foto o del testo.", wallSignedOut: "Accedi di nuovo per pubblicare.", wallOffline: "Sei offline: il post è salvato e verrà inviato appena torni online.",
   },
   pt: {
     upcoming: "Em breve", now: "A decorrer", past: "Passada", cancelled: "Cancelada",
@@ -243,6 +303,7 @@ const TABLE: Record<string, Partial<TravelStrings>> = {
     audioGuide: "Audioguia", transcript: "Ler o texto", audioAlso: "Também disponível em",
     offlineTitle: "Guarde a viagem neste telemóvel", offlineIntro: "Descarregue uma vez com Wi-Fi: o mapa, as histórias e todos os audioguias funcionam sem internet.", offlineDownload: "Descarregar", offlineSaving: "A guardar a viagem…", offlineKeepOpen: "Mantenha esta página aberta até terminar.", offlinePaused: "Descarga em pausa", offlinePausedHint: "A ligação caiu. Os ficheiros já guardados mantêm-se.", offlineResume: "Continuar", offlineReady: "Disponível offline", offlineUntil: "até", offlineNow: "Está offline — a usar a cópia guardada.", offlineNeedNet: "Ligue-se à internet para guardar esta viagem offline.", offlineUpdate: "Atualizar a viagem guardada", offlineIosHint: "No iPhone: toque em Partilhar → Adicionar ao ecrã principal e abra a viagem a partir daí.", offlineInstall: "Instalar como app", offlineRemove: "Remover cópia offline", offlineRemoveConfirm: "Remover a cópia offline deste telemóvel?", offlineLowSpace: "O telemóvel pode não ter espaço suficiente. Tentar mesmo assim?", offlineUnsupported: "Este navegador não consegue guardar a viagem offline.",
     geoOn: "Ativar a localização", geoHint: "A sua localização fica neste telemóvel — serve apenas para mostrar onde está e abrir as paragens quando chega.", geoFinding: "A procurar a sua localização…", geoDenied: "A localização está bloqueada. Permita-a para este site nas definições do navegador — as paragens abrem na mesma à hora prevista.", geoUnavailable: "Não é possível obter a sua localização agora.", geoNearest: "Paragem mais próxima:", geoArrived: "Chegou:", testGps: "Teste: localização ativada",
+    wallTitle: "Mural da viagem", wallAdd: "Adicionar ao mural", wallTextPh: "O que aconteceu? (opcional)", wallPhotos: "Adicionar fotos", wallCaptionPh: "Legenda (opcional)", wallStop: "Paragem", wallNoStop: "Sem paragem", wallPost: "Publicar", wallCancel: "Cancelar", wallWaiting: "A aguardar envio", wallSending: "A enviar…", wallPending: "A aguardar aprovação", wallFailed: "Ainda não publicado — vamos tentar de novo automaticamente.", wallDelete: "Eliminar", wallDeleteConfirm: "Eliminar esta publicação?", wallEdit: "Editar", wallSave: "Guardar", wallNeedDownload: "Guarde primeiro a viagem neste telemóvel — depois pode publicar no mural.", wallClosed: "O mural está fechado a novas publicações.", wallAll: "Tudo", wallEmpty: "Ainda sem publicações — partilhe a primeira foto!", wallParticipant: "Participante", wallTooMany: "Até 10 fotos por publicação.", wallTooLong: "Até 2000 caracteres.", wallEmptyPost: "Adicione uma foto ou texto.", wallSignedOut: "Inicie sessão de novo para publicar.", wallOffline: "Está offline — a publicação ficou guardada e será enviada quando voltar a ter ligação.",
   },
   pl: {
     upcoming: "Wkrótce", now: "Trwa teraz", past: "Zakończona", cancelled: "Odwołana",
@@ -255,6 +316,7 @@ const TABLE: Record<string, Partial<TravelStrings>> = {
     audioGuide: "Audioprzewodnik", transcript: "Przeczytaj tekst", audioAlso: "Dostępne także w",
     offlineTitle: "Zapisz wycieczkę w telefonie", offlineIntro: "Pobierz raz przez Wi-Fi: mapa, opowieści i wszystkie audioprzewodniki zadziałają bez internetu.", offlineDownload: "Pobierz", offlineSaving: "Zapisywanie wycieczki…", offlineKeepOpen: "Nie zamykaj tej strony do końca pobierania.", offlinePaused: "Pobieranie wstrzymane", offlinePausedHint: "Połączenie zostało przerwane. Zapisane pliki zostają.", offlineResume: "Kontynuuj", offlineReady: "Dostępne offline", offlineUntil: "do", offlineNow: "Jesteś offline — używana jest zapisana kopia.", offlineNeedNet: "Połącz się z internetem, aby zapisać wycieczkę offline.", offlineUpdate: "Zaktualizuj zapisaną wycieczkę", offlineIosHint: "Na iPhonie: Udostępnij → Do ekranu początkowego i otwieraj wycieczkę stamtąd.", offlineInstall: "Zainstaluj jako aplikację", offlineRemove: "Usuń kopię offline", offlineRemoveConfirm: "Usunąć kopię offline z tego telefonu?", offlineLowSpace: "W telefonie może brakować miejsca. Spróbować mimo to?", offlineUnsupported: "Ta przeglądarka nie może zapisać wycieczki offline.",
     geoOn: "Włącz lokalizację", geoHint: "Twoja lokalizacja zostaje w telefonie — służy tylko do pokazania, gdzie jesteś, i odblokowania przystanków po przyjeździe.", geoFinding: "Ustalanie lokalizacji…", geoDenied: "Lokalizacja jest zablokowana. Zezwól na nią dla tej strony w ustawieniach przeglądarki — przystanki i tak otworzą się o zaplanowanej porze.", geoUnavailable: "Nie można teraz ustalić lokalizacji.", geoNearest: "Najbliższy przystanek:", geoArrived: "Jesteś na miejscu:", testGps: "Test: lokalizacja włączona",
+    wallTitle: "Tablica wycieczki", wallAdd: "Dodaj na tablicę", wallTextPh: "Co się wydarzyło? (opcjonalnie)", wallPhotos: "Dodaj zdjęcia", wallCaptionPh: "Podpis (opcjonalnie)", wallStop: "Przystanek", wallNoStop: "Bez przystanku", wallPost: "Opublikuj", wallCancel: "Anuluj", wallWaiting: "Czeka na wysłanie", wallSending: "Wysyłanie…", wallPending: "Czeka na zatwierdzenie", wallFailed: "Jeszcze nie opublikowano — ponowimy próbę automatycznie.", wallDelete: "Usuń", wallDeleteConfirm: "Usunąć ten wpis?", wallEdit: "Edytuj", wallSave: "Zapisz", wallNeedDownload: "Najpierw zapisz wycieczkę w telefonie — potem możesz publikować na tablicy.", wallClosed: "Tablica jest zamknięta dla nowych wpisów.", wallAll: "Wszystkie", wallEmpty: "Brak wpisów — udostępnij pierwsze zdjęcie!", wallParticipant: "Uczestnik", wallTooMany: "Do 10 zdjęć we wpisie.", wallTooLong: "Do 2000 znaków.", wallEmptyPost: "Dodaj zdjęcie lub tekst.", wallSignedOut: "Zaloguj się ponownie, aby publikować.", wallOffline: "Jesteś offline — wpis jest zapisany i zostanie wysłany po odzyskaniu połączenia.",
   },
 };
 

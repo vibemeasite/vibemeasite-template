@@ -428,3 +428,20 @@ export const placeAudio = pgTable("place_audio", {
   transcript: text("transcript"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// v62 (BSA US-VMAS-TRAVEL-16) — the participants' trip wall. Written only by
+// vibemeasite-mcp (api/public-trips.ts); read here. stop_position refers to
+// trip_stops.position (stop rows are replaced on every route edit).
+export const tripPosts = pgTable("trip_posts", {
+  id: text("id").primaryKey(),
+  tripId: text("trip_id").notNull().references(() => trips.id, { onDelete: "cascade" }),
+  stopPosition: integer("stop_position"),
+  authorEmail: text("author_email").notNull(),
+  authorName: text("author_name"),
+  body: text("body").notNull().default(""),
+  images: jsonb("images").notNull().default([]), // [{ url, caption? }]
+  status: text("status").notNull().default("published"), // published | pending | hidden
+  clientPostId: text("client_post_id").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});

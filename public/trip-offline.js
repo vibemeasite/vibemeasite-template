@@ -170,6 +170,7 @@
 			} )
 			.then( function () {
 				save( metaKey, { version: m.version, accessUntil: m.accessUntil, bytes: done, at: new Date().toISOString() } );
+				document.dispatchEvent( new CustomEvent( 'vms-trip-offline-ready' ) ); // unlocks the wall composer
 				if ( navigator.serviceWorker && navigator.serviceWorker.controller ) navigator.serviceWorker.controller.postMessage( 'gc' );
 				busy = false;
 				render();

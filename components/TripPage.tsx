@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { getTripForPage } from "../lib/travel-query";
+import { getTripForPage, getTripPosts, type TripPostView } from "../lib/travel-query";
 import { getSiteSettings } from "../lib/queries";
 import {
   tripStatus, resolveText, travelTextToHtml, safeImageUrl, safeLinkUrl, formatTripDates, formatDayTime,
@@ -27,6 +27,12 @@ import { tripAudioSrc } from "../lib/trip-offline";
 //                  mechanic, not security (P25).
 //   showcase     — anyone, after the trip, when post_trip_visibility is
 //                  "public" (Q9): every stop, no locks.
+//
+// Below the route: the trip wall (slice 5, US-VMAS-TRAVEL-16) — participants'
+// photos and notes, newest first by day. Every visitor sees it when the
+// trip's wall_visibility is "public", participants only otherwise. A pending
+// post (posts_premoderated) is shown only to its author. public/trip-wall.js
+// adds the composer and the offline outbox (participant version only).
 
 interface Props {
   pageSlug: string;
@@ -52,6 +58,10 @@ const CLIENT_KEYS = [
   "offlineUpdate", "offlineIosHint", "offlineInstall", "offlineRemove", "offlineRemoveConfirm",
   "offlineLowSpace", "offlineUnsupported",
   "geoOn", "geoHint", "geoFinding", "geoDenied", "geoUnavailable", "geoNearest", "geoArrived", "testGps",
+  "wallTitle", "wallAdd", "wallTextPh", "wallPhotos", "wallCaptionPh", "wallStop", "wallNoStop", "wallPost", "wallCancel",
+  "wallWaiting", "wallSending", "wallPending", "wallFailed", "wallDelete", "wallDeleteConfirm", "wallEdit", "wallSave",
+  "wallNeedDownload", "wallClosed", "wallAll", "wallEmpty", "wallParticipant", "wallTooMany", "wallTooLong", "wallEmptyPost",
+  "wallSignedOut", "wallOffline",
 ] as const;
 
 export async function TripPage({ pageSlug, locale, defaultLocale, children }: Props) {
@@ -102,6 +112,19 @@ export async function TripPage({ pageSlug, locale, defaultLocale, children }: Pr
   const startNotYet = !trip.cancelledAt && trip.accessFrom && now < Date.parse(trip.accessFrom);
   const showStart = mode === "preview" && !!publicId && (accessOpen || startNotYet) && stops.length > 0;
   const clientText = Object.fromEntries(CLIENT_KEYS.map((k) => [k, t[k]]));
+
+  // Trip wall.
+  const wallVisible = mode === "participant" || trip.wallVisibility === "public";
+  const viewerEmail = viewer.participant ? viewer.email : null;
+  const posts = wallVisible
+    ? (await getTripPosts(trip.slug)).filter((p) => p.status === "published" || (viewerEmail !== null && p.authorEmail === viewerEmail))
+    : [];
+  const showWall = wallVisible && (mode === "participant" || posts.length > 0);
+  const wallDays = groupPostsByDay(posts, trip.timezone, locale);
+  const stopTitle = new Map(stops.map((s) => [s.position, s.title]));
+  const taggedStops = [...new Set(posts.map((p) => p.stopPosition).filter((n): n is number => n !== null && stopTitle.has(n)))].sort((a, b) => a - b);
+  const wallHasImages = posts.some((p) => p.images.length > 0);
+  const timeFmt = new Intl.DateTimeFormat(locale, { timeZone: trip.timezone, hour: "2-digit", minute: "2-digit" });
 
   return (
     <>
@@ -277,12 +300,106 @@ export async function TripPage({ pageSlug, locale, defaultLocale, children }: Pr
           )}
         </section>
 
+        {showWall && (
+          <section
+            className="vms-wall"
+            aria-labelledby="vms-wall-h"
+            data-open={accessOpen ? "1" : "0"}
+            data-stops={JSON.stringify(stops.map((s) => ({ p: s.position, t: s.title })))}
+          >
+            <h2 id="vms-wall-h" className="vms-trip__h2">{t.wallTitle}</h2>
+            {mode === "participant" && (
+              // Filled by trip-wall.js (composer + offline outbox) — opaque to hydration.
+              <div className="vms-wall__compose" hidden dangerouslySetInnerHTML={{ __html: "" }} />
+            )}
+            {taggedStops.length > 0 && (
+              <div className="vms-wall__filter" role="group" aria-label={t.wallStop}>
+                <button type="button" className="vms-wall__chip is-current" data-filter="">{t.wallAll}</button>
+                {taggedStops.map((n) => (
+                  <button key={n} type="button" className="vms-wall__chip" data-filter={n}>
+                    {n}. {stopTitle.get(n)}
+                  </button>
+                ))}
+              </div>
+            )}
+            {posts.length === 0 && <p className="vms-wall__empty">{t.wallEmpty}</p>}
+            {wallDays.map((day) => (
+              <div key={day.key} className="vms-wall__day" data-day={day.key}>
+                <h3 className="vms-wall__day-h">{day.label}</h3>
+                {day.posts.map((p) => {
+                  const mine = viewerEmail !== null && p.authorEmail === viewerEmail;
+                  const tag = p.stopPosition !== null ? stopTitle.get(p.stopPosition) : undefined;
+                  const photos = p.images.flatMap((i) => {
+                    const url = safeImageUrl(i.url);
+                    return url ? [{ url, caption: i.caption }] : [];
+                  });
+                  return (
+                    <article
+                      key={p.id}
+                      id={`post-${p.id}`}
+                      className={`vms-post cellpy-block-post${p.status === "pending" ? " is-pending" : ""}`}
+                      data-post={p.id}
+                      data-stop={p.stopPosition ?? ""}
+                      data-mine={mine ? "1" : undefined}
+                    >
+                      <header className="vms-post__head">
+                        <strong className="vms-post__author">{p.authorName || t.wallParticipant}</strong>
+                        <time className="vms-post__time" dateTime={p.createdAt}>{timeFmt.format(new Date(p.createdAt))}</time>
+                        {tag && (showStops
+                          ? <a className="vms-post__stop" href={`#stop-${p.stopPosition}`}>📍 {tag}</a>
+                          : <span className="vms-post__stop">📍 {tag}</span>)}
+                        {p.status === "pending" && <span className="vms-post__badge">{t.wallPending}</span>}
+                      </header>
+                      {p.body && <div className="vms-post__body" dangerouslySetInnerHTML={{ __html: escapeHtml(p.body).replace(/\n/g, "<br>") }} />}
+                      {photos.length > 0 && (
+                        <div className={`vms-post__photos vms-post__photos--${Math.min(photos.length, 4)}`}>
+                          {photos.map((ph, i) => (
+                            <figure key={i} className="vms-post__photo">
+                              <img className="cellpy-lightbox" src={ph.url} alt={ph.caption ?? ""} loading="lazy" />
+                              {ph.caption && <figcaption>{ph.caption}</figcaption>}
+                            </figure>
+                          ))}
+                        </div>
+                      )}
+                      {mine && (
+                        <p className="vms-post__own">
+                          <button type="button" className="vms-post__act" data-act="edit">{t.wallEdit}</button>
+                          <button type="button" className="vms-post__act" data-act="delete">{t.wallDelete}</button>
+                        </p>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+            ))}
+          </section>
+        )}
+
         <div className="vms-trip__sections">{children}</div>
       </div>
       <script src="/trip.js" defer data-close-label={t.close} />
       {mode === "participant" && <script src="/trip-offline.js" defer />}
       {mode === "participant" && <script src="/trip-geo.js" defer />}
-      {hasImages && <script src="/lightbox.js" defer />}
+      {showWall && <script src="/trip-wall.js" defer />}
+      {(hasImages || wallHasImages || mode === "participant") && <script src="/lightbox.js" defer />}
     </>
   );
+}
+
+// Days in the trip's own timezone, newest first (posts arrive newest first).
+function groupPostsByDay(posts: TripPostView[], timeZone: string, locale: string): Array<{ key: string; label: string; posts: TripPostView[] }> {
+  const keyFmt = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" });
+  const labelFmt = new Intl.DateTimeFormat(locale, { timeZone, weekday: "long", day: "numeric", month: "long" });
+  const days: Array<{ key: string; label: string; posts: TripPostView[] }> = [];
+  for (const p of posts) {
+    const d = new Date(p.createdAt);
+    const key = keyFmt.format(d);
+    let day = days[days.length - 1];
+    if (!day || day.key !== key) {
+      day = { key, label: labelFmt.format(d), posts: [] };
+      days.push(day);
+    }
+    day.posts.push(p);
+  }
+  return days;
 }
