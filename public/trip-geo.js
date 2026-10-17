@@ -8,7 +8,7 @@
  *   - draws a "you are here" dot on the route map, snapped to the nearest
  *     trail leg (the map is a storybook schematic, not to scale, so a raw
  *     projection would be meaningless);
- *   - rings the nearest reachable stop (revealed ones + the next locked one);
+ *   - rings the nearest reachable stop (see below);
  *   - on arrival (within the stop's reveal radius, plus up to 100 m of GPS
  *     error) reveals the stop and opens its panel ONCE per device, with a
  *     vibration and a toast. Never autoplays audio, and never opens a panel
@@ -16,7 +16,7 @@
  * The position never leaves the phone: nothing is sent to the server.
  *
  * A stop sharing its place with an earlier stop (a round trip back to the
- * start) only counts once it is the next stop — otherwise standing at the
+ * start) only counts — for arrival and for "nearest" — once it is the next stop — otherwise standing at the
  * start would unlock the whole trip.
  */
 ( function () {
@@ -28,7 +28,7 @@
 	var THROTTLE = 5000; // ms between processed fixes
 	var BEFORE_START = 3600000; // ms — location is offered from 1 h before start
 
-	var root, api, T, box, stops = [], arrivedKey = '', watchId = null, lastFix = 0, lastPos = null;
+	var root, api, T, box, stops = [], arrivedKey = '', watchId = null, lastFix = 0, lastPos = null, pending = null, pendingTimer = null;
 
 	function load( key ) {
 		try { return window.localStorage.getItem( key ); } catch ( e ) { return null; }
@@ -151,7 +151,14 @@
 	// ── Location ────────────────────────────────────────────────────────────
 	function onFix( p, force ) {
 		var now = Date.now();
-		if ( ! force && now - lastFix < THROTTLE ) return;
+		// Throttled, but never dropped: a phone standing still sends no new fix,
+		// so the latest one is processed when the interval is up.
+		if ( ! force && now - lastFix < THROTTLE ) {
+			pending = p;
+			if ( ! pendingTimer ) pendingTimer = setTimeout( function () { pendingTimer = null; if ( pending ) onFix( pending, true ); }, THROTTLE - ( now - lastFix ) );
+			return;
+		}
+		pending = null;
 		var c = p.coords;
 		if ( ! c || c.accuracy > MAX_ACCURACY ) {
 			if ( ! lastPos ) status( esc( T.geoFinding || 'Finding your location…' ), 'finding' );
@@ -167,7 +174,7 @@
 			var d = haversine( me.lat, me.lng, s.lat, s.lng );
 			s.d = d;
 			var reachable = s.pos <= upTo + 1 || ! s.dupOfEarlier;
-			if ( s.pos <= upTo + 1 && d < nearestD ) { nearest = s; nearestD = d; }
+			if ( reachable && d < nearestD ) { nearest = s; nearestD = d; }
 			if ( reachable && ! done[ s.pos ] && d <= s.radius + Math.min( me.acc, ACC_SLACK ) ) {
 				if ( ! arrival || s.pos < arrival.pos ) arrival = s;
 			}
