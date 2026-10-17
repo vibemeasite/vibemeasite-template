@@ -9,6 +9,7 @@ import { travelStrings, type TravelStrings } from "../lib/travel-i18n";
 import { getTripViewer, timeRevealedUpTo } from "../lib/trip-session";
 import { TripRouteMap } from "./TripRouteMap";
 import { langLabel } from "../lib/lang-names";
+import { tripAudioSrc } from "../lib/trip-offline";
 
 // BSA Phase 27 — chrome for a "trips/{slug}" page (pages.seo_meta.trip, set by
 // vibemeasite-mcp's create_trip), then the page's own Cellpy sections
@@ -46,6 +47,10 @@ function localizeHref(href: string, locale: string, defaultLocale: string): stri
 const CLIENT_KEYS = [
   "start", "email", "sendCode", "codeSent", "code", "verify", "wrongCode", "expired", "tooMany", "genericError",
   "signOut", "nextStop", "testNext", "testAll", "testReset", "close", "changeEmail",
+  "offlineTitle", "offlineIntro", "offlineDownload", "offlineSaving", "offlineKeepOpen", "offlinePaused",
+  "offlinePausedHint", "offlineResume", "offlineReady", "offlineUntil", "offlineNow", "offlineNeedNet",
+  "offlineUpdate", "offlineIosHint", "offlineInstall", "offlineRemove", "offlineRemoveConfirm",
+  "offlineLowSpace", "offlineUnsupported",
 ] as const;
 
 export async function TripPage({ pageSlug, locale, defaultLocale, children }: Props) {
@@ -142,6 +147,8 @@ export async function TripPage({ pageSlug, locale, defaultLocale, children }: Pr
               <button type="button" className="vms-trip__signout">{t.signOut}</button>
             </p>
             {!ended && <p className="vms-trip__me-note">{t.unlockedNote}</p>}
+            {/* Offline trip mode (slice 3) — filled by public/trip-offline.js. */}
+            <div className="vms-offline" hidden />
           </section>
         )}
 
@@ -198,8 +205,7 @@ export async function TripPage({ pageSlug, locale, defaultLocale, children }: Pr
                           {mode === "participant" && s.place.audio.length > 0 && (() => {
                             // Page language → site default → first available (BSA P17).
                             const pick = s.place.audio.find((a) => a.lang === locale) ?? s.place.audio.find((a) => a.lang === defaultLocale) ?? s.place.audio[0];
-                            const src = (lang: string, version: string) =>
-                              `/api/trips/audio?trip=${encodeURIComponent(trip.slug)}&place=${encodeURIComponent(s.place.slug)}&lang=${encodeURIComponent(lang)}&v=${version}`;
+                            const src = (lang: string, version: string) => tripAudioSrc(trip.slug, s.place.slug, lang, version);
                             return (
                               <div className="vms-audio" data-audio-for={s.position}>
                                 <p className="vms-audio__label">
@@ -265,6 +271,7 @@ export async function TripPage({ pageSlug, locale, defaultLocale, children }: Pr
         <div className="vms-trip__sections">{children}</div>
       </div>
       <script src="/trip.js" defer data-close-label={t.close} />
+      {mode === "participant" && <script src="/trip-offline.js" defer />}
       {hasImages && <script src="/lightbox.js" defer />}
     </>
   );

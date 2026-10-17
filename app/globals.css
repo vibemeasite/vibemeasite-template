@@ -1628,3 +1628,17 @@ html.vms-stop-panel-open { overflow: hidden; }
 .vms-audio__lang.is-current { background: var(--vms-trip-accent); border-color: var(--vms-trip-accent); color: var(--vms-trip-paper); }
 :where(.vms-audio__transcript summary) { cursor: pointer; font-weight: 700; color: var(--vms-trip-accent); }
 :where(.vms-audio__transcript) { line-height: 1.6; font-size: 0.95rem; }
+
+/* ── Travel Kit: offline trip panel (public/trip-offline.js) ── */
+:where(.vms-offline) { margin-top: 14px; padding: 16px; border-radius: var(--vms-trip-radius); border: 1px solid var(--vms-trip-line); background: var(--vms-trip-paper); display: grid; gap: 8px; justify-items: start; max-width: 560px; }
+:where(.vms-offline[hidden]) { display: none; }
+:where(.vms-offline__title) { margin: 0; font-weight: 800; font-size: 1.05rem; }
+:where(.vms-offline__title--ok) { color: #2e7d32; }
+:where(.vms-offline__hint, .vms-offline__meta) { margin: 0; color: var(--vms-trip-muted); font-size: 0.92rem; line-height: 1.5; }
+:where(.vms-offline__chip) { margin: 0; padding: 6px 12px; border-radius: 999px; background: #fff3cd; color: #6b4e00; font-weight: 700; font-size: 0.88rem; }
+:where(.vms-offline__bar) { width: 100%; height: 12px; border-radius: 999px; background: var(--vms-trip-line); overflow: hidden; }
+:where(.vms-offline__bar span) { display: block; height: 100%; background: var(--vms-trip-accent); transition: width 200ms ease; }
+.vms-offline__btn { padding: 11px 22px; border: 0; border-radius: 999px; cursor: pointer; font: inherit; font-weight: 800; background: var(--vms-trip-accent); color: var(--vms-trip-paper); }
+.vms-offline__btn:disabled { opacity: 0.55; cursor: progress; }
+.vms-offline__btn--ghost { background: transparent; color: var(--vms-trip-accent); border: 1px solid var(--vms-trip-accent); }
+.vms-offline__link { padding: 0; border: 0; background: none; cursor: pointer; font: inherit; font-size: 0.88rem; color: var(--vms-trip-muted); text-decoration: underline; }

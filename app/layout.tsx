@@ -285,6 +285,16 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <script dangerouslySetInnerHTML={{ __html: "document.documentElement.classList.add('js')" }} />
         ) : null}
         {settings.faviconUrl ? <link rel="icon" type="image/x-icon" href={settings.faviconUrl} /> : null}
+        {/* BSA Phase 27 (slice 3) — installable for offline trips, Travel Kit sites only. */}
+        {(settings as { travelKitEnabled?: boolean }).travelKitEnabled ? (
+          <>
+            <link rel="manifest" href="/trip-app.webmanifest" />
+            <meta name="mobile-web-app-capable" content="yes" />
+            <meta name="apple-mobile-web-app-capable" content="yes" />
+            <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+            {settings.logoUrl ? <link rel="apple-touch-icon" href={settings.logoUrl} /> : null}
+          </>
+        ) : null}
         {searchConsoleVerification ? <meta name="google-site-verification" content={searchConsoleVerification} /> : null}
         {jsonLd ? (
           <script
