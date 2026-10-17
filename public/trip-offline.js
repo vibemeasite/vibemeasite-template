@@ -279,6 +279,12 @@
 		fetchManifest().then( function ( m ) { manifest = m; render(); } ).catch( function () { render(); } );
 	}
 
-	if ( document.readyState === 'loading' ) document.addEventListener( 'DOMContentLoaded', init );
-	else init();
+	// Start only after load: React hydrates this server-rendered page, and DOM
+	// changes made before it finishes trigger a hydration mismatch (#418) that
+	// makes React re-render the page and wipe them.
+	function whenSettled( fn ) {
+		if ( document.readyState === 'complete' ) setTimeout( fn, 60 );
+		else window.addEventListener( 'load', function () { setTimeout( fn, 60 ); } );
+	}
+	whenSettled( init );
 } )();

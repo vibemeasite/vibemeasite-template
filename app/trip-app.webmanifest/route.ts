@@ -19,7 +19,8 @@ export async function GET() {
   const theme = HEX.test(colors.primary ?? "") ? colors.primary : "#1d5fd1";
   const background = HEX.test(colors.background ?? "") ? colors.background : "#ffffff";
   const name = settings.siteName || "Trips";
-  const icons = [settings.logoUrl, settings.faviconUrl]
+  // Only the logo: a .ico favicon is rejected as an app icon.
+  const icons = [settings.logoUrl]
     .filter((u): u is string => typeof u === "string" && /^https:\/\//.test(u))
     .map((src) => ({ src, sizes: "any", purpose: "any" }));
 

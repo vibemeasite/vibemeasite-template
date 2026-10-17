@@ -3,7 +3,7 @@ import { getTripForPage } from "../lib/travel-query";
 import { getSiteSettings } from "../lib/queries";
 import {
   tripStatus, resolveText, travelTextToHtml, safeImageUrl, safeLinkUrl, formatTripDates, formatDayTime,
-  formatDuration, googleMapsUrl, type TripStatus,
+  formatDuration, googleMapsUrl, escapeHtml, type TripStatus,
 } from "../lib/travel-text";
 import { travelStrings, type TravelStrings } from "../lib/travel-i18n";
 import { getTripViewer, timeRevealedUpTo } from "../lib/trip-session";
@@ -135,7 +135,8 @@ export async function TripPage({ pageSlug, locale, defaultLocale, children }: Pr
                 {t.availableFrom} {new Intl.DateTimeFormat(locale, { timeZone: trip.timezone, day: "numeric", month: "long" }).format(new Date(trip.accessFrom!))}
               </p>
             )}
-            <div className="vms-start" hidden />
+            {/* Filled by trip.js — dangerouslySetInnerHTML makes React treat the contents as opaque, so script-written markup never trips hydration. */}
+            <div className="vms-start" hidden dangerouslySetInnerHTML={{ __html: "" }} />
           </section>
         )}
 
@@ -148,7 +149,7 @@ export async function TripPage({ pageSlug, locale, defaultLocale, children }: Pr
             </p>
             {!ended && <p className="vms-trip__me-note">{t.unlockedNote}</p>}
             {/* Offline trip mode (slice 3) — filled by public/trip-offline.js. */}
-            <div className="vms-offline" hidden />
+            <div className="vms-offline" hidden dangerouslySetInnerHTML={{ __html: "" }} />
           </section>
         )}
 
@@ -170,7 +171,11 @@ export async function TripPage({ pageSlug, locale, defaultLocale, children }: Pr
               {mode === "participant" && (
                 <div className="vms-trip__next" hidden={lockedFrom === undefined}>
                   <span className="vms-trip__next-label">{t.nextStop}</span>
-                  <span className="vms-trip__next-title">{lockedFrom !== undefined ? stops[lockedFrom - 1]?.title : ""}</span>
+                  {/* Text rewritten by trip.js as stops unlock — opaque to React hydration. */}
+                  <span
+                    className="vms-trip__next-title"
+                    dangerouslySetInnerHTML={{ __html: escapeHtml(lockedFrom !== undefined ? stops[lockedFrom - 1]?.title ?? "" : "") }}
+                  />
                   <span className="vms-trip__next-lock" aria-hidden="true">🔒</span>
                 </div>
               )}
