@@ -181,6 +181,19 @@
 		return currentLang() || ( document.documentElement.lang || '' ).slice( 0, 2 ).toLowerCase();
 	}
 	var T = UI_STRINGS[ uiLang() ] || UI_STRINGS.en;
+
+	// Month/weekday names, times and prices follow the page's language too,
+	// not the visitor's browser locale — otherwise a /ru page in an English
+	// browser shows "October 2026 / SUN MON…". undefined (browser locale)
+	// only if the tag is missing or one Intl doesn't accept.
+	var LOCALE = ( function () {
+		var lang = uiLang();
+		try {
+			return lang && Intl.DateTimeFormat.supportedLocalesOf( [ lang ] ).length ? lang : undefined;
+		} catch ( e ) {
+			return undefined;
+		}
+	} )();
 	var GENERIC_ERROR = T.genericError;
 
 	// Single-select item_selector_style values keep state.selectedServiceIds
@@ -224,11 +237,11 @@
 	}
 
 	function formatDayLabel( date ) {
-		return date.toLocaleDateString( undefined, { weekday: 'short', month: 'short', day: 'numeric' } );
+		return date.toLocaleDateString( LOCALE, { weekday: 'short', month: 'short', day: 'numeric' } );
 	}
 
 	function formatTimeLabel( iso, timezone ) {
-		return new Date( iso ).toLocaleString( undefined, { timeZone: timezone, hour: 'numeric', minute: '2-digit' } );
+		return new Date( iso ).toLocaleString( LOCALE, { timeZone: timezone, hour: 'numeric', minute: '2-digit' } );
 	}
 
 	function renderMessage( container, text ) {
@@ -535,7 +548,7 @@
 	// booking widget renders identically to before this phase.
 	function formatPrice( cents, currency ) {
 		try {
-			return new Intl.NumberFormat( undefined, { style: 'currency', currency: ( currency || 'usd' ).toUpperCase() } ).format( cents / 100 );
+			return new Intl.NumberFormat( LOCALE, { style: 'currency', currency: ( currency || 'usd' ).toUpperCase() } ).format( cents / 100 );
 		} catch ( e ) {
 			// Intl.NumberFormat throws on a currency code it doesn't recognize —
 			// fall back to a plain number rather than breaking the whole widget
@@ -989,11 +1002,11 @@
 
 	function weekdayHeaderLabels() {
 		// 2023-01-01 was a Sunday — used only as a stable reference to name
-		// the 7 weekdays in the visitor's own locale/short form, matching the
+		// the 7 weekdays in the page language's short form, matching the
 		// dayOfWeek convention (0 = Sunday) used everywhere else.
 		var labels = [];
 		for ( var i = 0; i < 7; i++ ) {
-			labels.push( new Date( Date.UTC( 2023, 0, 1 + i ) ).toLocaleDateString( undefined, { weekday: 'short', timeZone: 'UTC' } ) );
+			labels.push( new Date( Date.UTC( 2023, 0, 1 + i ) ).toLocaleDateString( LOCALE, { weekday: 'short', timeZone: 'UTC' } ) );
 		}
 		return labels;
 	}
@@ -1012,7 +1025,7 @@
 		var isCurrentMonth = state.calendarYear === today.getFullYear() && state.calendarMonth === today.getMonth() + 1;
 		prevBtn.disabled = isCurrentMonth;
 		var monthLabel = el( 'span', 'vms-booking-widget__calendar-month-label',
-			new Date( state.calendarYear, state.calendarMonth - 1, 1 ).toLocaleDateString( undefined, { month: 'long', year: 'numeric' } ) );
+			new Date( state.calendarYear, state.calendarMonth - 1, 1 ).toLocaleDateString( LOCALE, { month: 'long', year: 'numeric' } ) );
 		var nextBtn = el( 'button', 'vms-booking-widget__calendar-nav-btn', '›' );
 		nextBtn.type = 'button';
 
