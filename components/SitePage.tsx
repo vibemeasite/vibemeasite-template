@@ -103,6 +103,10 @@ export async function SitePage({ slug, searchParams }: { slug: string; searchPar
   // live text preview from the checkboxes/inputs/textareas inside it. Same
   // conditional-enqueue pattern as the other widgets above.
   const hasPromptBuilder = blocks.some((b) => b.content?.html.includes("data-cellpy-prompt-builder"));
+  // v63 — vibeclient gift card widgets (giftcard-shop / balance). The block
+  // carries only the mount (<div data-vc=… data-workspace=…>); vibeclient's
+  // own w.js renders it in Shadow DOM, same conditional-enqueue pattern.
+  const hasVibeclient = blocks.some((b) => b.content?.html.includes("data-vc="));
 
   return (
     <>
@@ -129,6 +133,7 @@ export async function SitePage({ slug, searchParams }: { slug: string; searchPar
       {hasModal && <script src="/modal.js" defer />}
       {hasToggle && <script src="/toggle.js" defer />}
       {hasPromptBuilder && <script src="/prompt-builder.js" defer />}
+      {hasVibeclient && <script src="https://vibeclient.com/w.js" async />}
     </>
   );
 }
@@ -178,6 +183,7 @@ export async function ScrollPage({ sections, searchParams }: { sections: ScrollS
   const hasPromptBuilder = rendered.some((s) =>
     s.blocks.some((b) => b.content?.html.includes("data-cellpy-prompt-builder"))
   );
+  const hasVibeclient = rendered.some((s) => s.blocks.some((b) => b.content?.html.includes("data-vc=")));
 
   return (
     <>
@@ -208,6 +214,7 @@ export async function ScrollPage({ sections, searchParams }: { sections: ScrollS
       {hasModal && <script src="/modal.js" defer />}
       {hasToggle && <script src="/toggle.js" defer />}
       {hasPromptBuilder && <script src="/prompt-builder.js" defer />}
+      {hasVibeclient && <script src="https://vibeclient.com/w.js" async />}
     </>
   );
 }

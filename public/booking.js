@@ -92,6 +92,9 @@
 			chooseStaff: 'Choose your specialist',
 			chooseStaffError: 'Please choose a specialist.',
 			staffNeedsField: 'Answer «{field}» above to see the available specialists.',
+			giftCardCode: 'Gift card code (optional)',
+			giftCardInvalid: 'We couldn\'t use that gift card code. Check it, or leave the field empty to book without it.',
+			giftCardAttached: 'Gift card ending {last4} will be applied at your visit.',
 		},
 		uk: {
 			yourName: 'Ваше ім\'я',
@@ -119,6 +122,9 @@
 			chooseStaff: 'Оберіть спеціаліста',
 			chooseStaffError: 'Будь ласка, оберіть спеціаліста.',
 			staffNeedsField: 'Заповніть поле «{field}» вище, щоб побачити доступних спеціалістів.',
+			giftCardCode: 'Код подарункового сертифіката (необов\'язково)',
+			giftCardInvalid: 'Не вдалося застосувати цей код сертифіката. Перевірте його або залиште поле порожнім, щоб записатися без нього.',
+			giftCardAttached: 'Сертифікат із закінченням {last4} буде застосовано під час візиту.',
 		},
 		fr: {
 			yourName: 'Votre nom',
@@ -146,6 +152,9 @@
 			chooseStaff: 'Choisissez votre spécialiste',
 			chooseStaffError: 'Veuillez choisir un spécialiste.',
 			staffNeedsField: 'Remplissez le champ « {field} » ci-dessus pour voir les spécialistes disponibles.',
+			giftCardCode: 'Code de carte-cadeau (facultatif)',
+			giftCardInvalid: 'Ce code de carte-cadeau n\'a pas pu être utilisé. Vérifiez-le ou laissez le champ vide pour réserver sans lui.',
+			giftCardAttached: 'La carte-cadeau se terminant par {last4} sera appliquée lors de votre visite.',
 		},
 		ru: {
 			yourName: 'Ваше имя',
@@ -173,6 +182,9 @@
 			chooseStaff: 'Выберите специалиста',
 			chooseStaffError: 'Пожалуйста, выберите специалиста.',
 			staffNeedsField: 'Заполните поле «{field}» выше, чтобы увидеть доступных специалистов.',
+			giftCardCode: 'Код подарочного сертификата (необязательно)',
+			giftCardInvalid: 'Не удалось применить этот код сертификата. Проверьте его или оставьте поле пустым, чтобы записаться без него.',
+			giftCardAttached: 'Сертификат с окончанием {last4} будет применён во время визита.',
 		},
 	};
 	// No cellpy_lang cookie means the site's default language — the page's
@@ -502,6 +514,9 @@
 				state.itemSelectorStyle = result.json.item_selector_style || 'dropdown';
 				state.maxServices = result.json.max_services || 1;
 				state.currency = result.json.currency || 'usd';
+				// v63 — vibeclient gift cards: only sites with vibeclient enabled
+				// get this flag (and only then is the code field shown).
+				state.giftCardField = result.json.gift_card_field === true;
 				state.nameFields = result.json.name_fields || 'full';
 				state.formNotice = result.json.form_notice || '';
 				state.staff = result.json.staff || [];
@@ -1376,6 +1391,21 @@
 			form.appendChild( el( 'p', 'vms-booking-widget__payment-notice', paymentNotice ) );
 		}
 
+		// v63 — optional vibeclient gift card code (attach mode: checked now,
+		// redeemed at the visit). Sent only when filled in.
+		var giftCardInput = null;
+		if ( state.giftCardField ) {
+			giftCardInput = document.createElement( 'input' );
+			giftCardInput.type = 'text';
+			giftCardInput.name = 'gift_card_code';
+			giftCardInput.className = 'vms-booking-widget__gift-card';
+			giftCardInput.placeholder = T.giftCardCode;
+			giftCardInput.setAttribute( 'aria-label', T.giftCardCode );
+			giftCardInput.autocomplete = 'off';
+			giftCardInput.spellcheck = false;
+			form.appendChild( giftCardInput );
+		}
+
 		var submitBtn = el( 'button', 'vms-booking-widget__submit', T.requestThisTime );
 		submitBtn.type = 'submit';
 		form.appendChild( submitBtn );
@@ -1410,16 +1440,20 @@
 					visitor_email: emailInput.value,
 					custom_field_values: customFieldValues,
 					staff_id: state.selectedStaffId,
+					gift_card_code: giftCardInput && giftCardInput.value.trim() ? giftCardInput.value.trim() : undefined,
 				} ),
 			} )
 				.then( function ( result ) {
 					submitBtn.disabled = false;
 					if ( 200 !== result.status || ! result.json.ok ) {
 						track( state, 'booking_error', { error_type: errorType( result ), step: 'request' } );
-						showFormError( form, ( result.json && result.json.message ) || GENERIC_ERROR );
+						var giftCardRefused = result.json && result.json.reason === 'GIFT_CARD_INVALID';
+						showFormError( form, giftCardRefused ? T.giftCardInvalid : ( ( result.json && result.json.message ) || GENERIC_ERROR ) );
+						if ( giftCardRefused && giftCardInput ) giftCardInput.focus();
 						return;
 					}
 					state.requestId = result.json.request_id;
+					state.giftCardLast4 = result.json.gift_card_last4 || '';
 					var sent = serviceParams( state );
 					sent.booking_id = state.requestId;
 					track( state, 'booking_request_sent', sent );
@@ -1495,7 +1529,10 @@
 						return;
 					}
 					trackConversion( state );
-					renderMessage( formContainer, T.appointmentConfirmed );
+					renderMessage(
+						formContainer,
+						state.giftCardLast4 ? T.appointmentConfirmed + ' ' + T.giftCardAttached.replace( '{last4}', state.giftCardLast4 ) : T.appointmentConfirmed
+					);
 				} )
 				.catch( function () {
 					submitBtn.disabled = false;
