@@ -21,8 +21,9 @@
  *     those paths, with or without a locale prefix (/en/a matches /a).
  *   data-fw-expires="ISO date" — hide the whole widget from then on.
  *   data-fw-auto-open="N" — popup mode only: open by itself N seconds after
- *     load, once per browser session (closing it is remembered in
- *     sessionStorage, so it doesn't follow the visitor from page to page).
+ *     load. Closing it (or following a link inside it) is remembered in
+ *     localStorage for AUTO_OPEN_SNOOZE_MS, so it doesn't follow the visitor
+ *     from page to page or tab to tab.
  */
 ( function () {
 	if ( window.__cellpyFloatingWidgetsInit ) return;
@@ -68,12 +69,19 @@
 		} );
 	}
 
-	function storageGet( key ) {
-		try { return window.sessionStorage.getItem( key ); } catch ( e ) { return null; }
+	var AUTO_OPEN_SNOOZE_MS = 12 * 60 * 60 * 1000;
+
+	function recentlySeen( key ) {
+		try {
+			var t = parseInt( window.localStorage.getItem( key ), 10 );
+			return ! isNaN( t ) && Date.now() - t < AUTO_OPEN_SNOOZE_MS;
+		} catch ( e ) {
+			return false;
+		}
 	}
 
-	function storageSet( key, value ) {
-		try { window.sessionStorage.setItem( key, value ); } catch ( e ) {}
+	function markSeen( key ) {
+		try { window.localStorage.setItem( key, String( Date.now() ) ); } catch ( e ) {}
 	}
 
 	// Link-mode widgets can carry hide_on_paths/expires_at too.
@@ -90,7 +98,7 @@
 		var seenKey = 'fw-auto-open-seen-' + slot.getAttribute( 'data-fw-widget-id' );
 		function close() {
 			closePopup( panel );
-			storageSet( seenKey, '1' );
+			markSeen( seenKey );
 		}
 
 		trigger.addEventListener( 'click', function () { openPopup( panel ); } );
@@ -102,11 +110,11 @@
 		} );
 		// Following a link inside the popup counts as having seen it too.
 		panel.addEventListener( 'click', function ( e ) {
-			if ( e.target.closest && e.target.closest( 'a[href]' ) ) storageSet( seenKey, '1' );
+			if ( e.target.closest && e.target.closest( 'a[href]' ) ) markSeen( seenKey );
 		} );
 
 		var delay = parseFloat( trigger.getAttribute( 'data-fw-auto-open' ) );
-		if ( ! isNaN( delay ) && delay >= 0 && ! storageGet( seenKey ) ) {
+		if ( ! isNaN( delay ) && delay >= 0 && ! recentlySeen( seenKey ) ) {
 			window.setTimeout( function () {
 				// Don't stack on top of another popup the visitor opened meanwhile.
 				if ( document.body.classList.contains( 'fw-popup-open' ) ) return;
