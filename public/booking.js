@@ -25,8 +25,9 @@
  * service. A person's optional `rules` tie eligibility to the visitor's
  * answers (e.g. gender = "Femme" → these services), so the picker
  * re-filters live as those fields change. The chosen
- * id is sent as staff_id with the request (null when nothing is picked —
- * the server then rejects it if someone was eligible). Availability is the
+ * id is sent as staff_id with the request; once any staff is configured a
+ * specialist is required — with nobody eligible the form says so and won't
+ * submit, and the server refuses it as well. Availability is the
  * same shared calendar either way; picking a person never changes slots.
  */
 ( function () {
@@ -91,6 +92,7 @@
 			summaryTotal: '{list} — {total} min total',
 			chooseStaff: 'Choose your specialist',
 			chooseStaffError: 'Please choose a specialist.',
+			noStaffAvailable: 'No specialist is currently available for this service. Please choose another service or contact us.',
 			staffNeedsField: 'Answer «{field}» above to see the available specialists.',
 			giftCardCode: 'Gift card code (optional)',
 			giftCardInvalid: 'We couldn\'t use that gift card code. Check it, or leave the field empty to book without it.',
@@ -121,6 +123,7 @@
 			summaryTotal: '{list} — {total} хв всього',
 			chooseStaff: 'Оберіть спеціаліста',
 			chooseStaffError: 'Будь ласка, оберіть спеціаліста.',
+			noStaffAvailable: 'Зараз немає доступного спеціаліста для цієї послуги. Оберіть іншу послугу або зв’яжіться з нами.',
 			staffNeedsField: 'Заповніть поле «{field}» вище, щоб побачити доступних спеціалістів.',
 			giftCardCode: 'Код подарункового сертифіката (необов\'язково)',
 			giftCardInvalid: 'Не вдалося застосувати цей код сертифіката. Перевірте його або залиште поле порожнім, щоб записатися без нього.',
@@ -151,6 +154,7 @@
 			summaryTotal: '{list} — {total} min au total',
 			chooseStaff: 'Choisissez votre spécialiste',
 			chooseStaffError: 'Veuillez choisir un spécialiste.',
+			noStaffAvailable: 'Aucun spécialiste n’est disponible pour ce service en ce moment. Veuillez choisir un autre service ou nous contacter.',
 			staffNeedsField: 'Remplissez le champ « {field} » ci-dessus pour voir les spécialistes disponibles.',
 			giftCardCode: 'Code de carte-cadeau (facultatif)',
 			giftCardInvalid: 'Ce code de carte-cadeau n\'a pas pu être utilisé. Vérifiez-le ou laissez le champ vide pour réserver sans lui.',
@@ -181,6 +185,7 @@
 			summaryTotal: '{list} — всего {total} мин',
 			chooseStaff: 'Выберите специалиста',
 			chooseStaffError: 'Пожалуйста, выберите специалиста.',
+			noStaffAvailable: 'Сейчас нет доступного специалиста для этой услуги. Выберите другую услугу или свяжитесь с нами.',
 			staffNeedsField: 'Заполните поле «{field}» выше, чтобы увидеть доступных специалистов.',
 			giftCardCode: 'Код подарочного сертификата (необязательно)',
 			giftCardInvalid: 'Не удалось применить этот код сертификата. Проверьте его или оставьте поле пустым, чтобы записаться без него.',
@@ -873,12 +878,15 @@
 			var unanswered = staffRuleFields( state ).filter( function ( name ) {
 				return ! values[ name ];
 			} )[ 0 ];
-			container.hidden = ! unanswered;
-			if ( unanswered ) {
+			// With staff configured but nobody eligible for these services and
+			// answers, the booking can't go through — say so up front (the
+			// submit handler and the server both refuse it too).
+			container.hidden = ! state.staff.length;
+			if ( state.staff.length ) {
 				injectStaffBaseStyles();
 				container.removeAttribute( 'role' );
 				container.appendChild( el( 'p', 'vms-booking-widget__staff-heading', T.chooseStaff ) );
-				container.appendChild( el( 'p', 'vms-booking-widget__staff-hint', T.staffNeedsField.replace( '{field}', fieldLabel( state, unanswered ) ) ) );
+				container.appendChild( el( 'p', 'vms-booking-widget__staff-hint', unanswered ? T.staffNeedsField.replace( '{field}', fieldLabel( state, unanswered ) ) : T.noStaffAvailable ) );
 			}
 			return;
 		}
@@ -1414,9 +1422,11 @@
 			e.preventDefault();
 			track( state, 'booking_submit', serviceParams( state ) );
 
-			if ( eligibleStaff( state ).length && ! state.selectedStaffId ) {
+			if ( state.staff.length && ! state.selectedStaffId ) {
 				track( state, 'booking_error', { error_type: 'validation', step: 'request' } );
-				showFormError( form, T.chooseStaffError );
+				showFormError( form, eligibleStaff( state ).length || staffRuleFields( state ).some( function ( name ) {
+					return ! state.readFieldValues()[ name ];
+				} ) ? T.chooseStaffError : T.noStaffAvailable );
 				if ( state.staffContainer && state.staffContainer.scrollIntoView ) {
 					state.staffContainer.scrollIntoView( { behavior: 'smooth', block: 'center' } );
 				}
